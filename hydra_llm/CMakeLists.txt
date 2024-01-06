@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(hydra REQUIRED)
-find_package(catkin REQUIRED COMPONENTS roscpp)
+find_package(catkin REQUIRED)
 
 catkin_package(
-  CATKIN_DEPENDS roscpp
+  CATKIN_DEPENDS
   DEPENDS hydra
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
@@ -34,5 +34,3 @@ install(
 install(DIRECTORY include/${PROJECT_NAME}/
         DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
-
-install(DIRECTORY launch/ DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)

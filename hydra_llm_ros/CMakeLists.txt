@@ -1,0 +1,38 @@
+cmake_minimum_required(VERSION 3.14)
+project(hydra_llm_ros)
+
+add_compile_options(-Wall -Wextra)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# TODO(nathan) we should inherit this, but catkin is broken for pure-cmake?
+find_package(hydra REQUIRED)
+find_package(catkin REQUIRED COMPONENTS hydra_llm hydra_ros llm roscpp)
+
+catkin_package(
+  CATKIN_DEPENDS hydra_llm hydra_ros llm roscpp
+  DEPENDS hydra
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+)
+
+add_library(${PROJECT_NAME} src/hydra_llm_pipeline.cpp)
+target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
+
+add_executable(hydra_llm_node app/hydra_llm_node.cpp)
+target_link_libraries(hydra_llm_node PUBLIC ${PROJECT_NAME})
+
+install(
+  TARGETS ${PROJECT_NAME} hydra_llm_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(DIRECTORY launch/ DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)

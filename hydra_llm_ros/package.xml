@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>hydra_llm_ros</name>
+  <version>0.0.1</version>
+  <description>Hydra-LLM paper ros code and integration</description>
+
+  <author email="na26933@mit.edu">Nathan Hughes</author>
+  <maintainer email="na26933@mit.edu">Nathan Hughes</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>hydra</depend>
+  <depend>hydra_llm</depend>
+  <depend>hydra_ros</depend>
+  <depend>llm</depend>
+  <depend>roscpp</depend>
+
+  <export>
+  </export>
+
+</package>
