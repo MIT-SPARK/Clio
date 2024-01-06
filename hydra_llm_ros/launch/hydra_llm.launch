@@ -1,3 +1,103 @@
 <launch>
-  <include file="$(find hydra_ros)/launch/hydra.launch)" pass_all_args="true"/>
+    <!-- frame arguments -->
+    <arg name="robot_id" default="0" doc="unique robot identifier"/>
+    <arg name="robot_frame" doc="robot base frame (i.e., robot pose)"/>
+    <arg name="odom_frame" default="odom" doc="robot map frame"/>
+    <arg name="map_frame" default="map" doc="backend scene graph frame"/>
+    <!-- topic arguments -->
+    <arg name="rgb_info_topic" default="rgb/camera_info"/>
+    <arg name="rgb_topic" default="rgb/image_raw"/>
+    <arg name="depth_topic" default="depth_registered/image_rect"/>
+    <arg name="label_topic" default="semantic/image_raw"/>
+    <arg name="rgb_image_transport" default="raw"/>
+
+    <!-- parameter files -->
+    <arg name="config_dir"/>
+    <arg name="dataset_name"/>
+    <arg name="semantic_map_path"/>
+    <arg name="input_config_path" default="$(find hydra_ros)/config/datasets/$(arg dataset_name).yaml"/>
+    <arg name="reconstruction_config_path" default="$(arg config_dir)/reconstruction_config.yaml"/>
+    <arg name="frontend_config_path" default="$(arg config_dir)/frontend_config.yaml"/>
+    <arg name="backend_config_path" default="$(arg config_dir)/backend_config.yaml"/>
+    <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
+    <!-- labelspace configuration -->
+    <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
+    <arg name="labelspace_name"/>
+    <arg name="labelspace_path" default="$(arg labelspace_dir)/$(arg labelspace_name)_label_space.yaml"/>
+
+    <!-- sensor configuration -->
+    <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
+    <arg name="sensor_max_range" default="5.0" doc="maximum sensor range in meters"/>
+    <arg name="sensor_frame" default="" doc="robot sensor frame (for looking up extrinsics)"/>
+    <arg name="kimera_sensor_filepath" default="" doc="optional path to kimera camera file (for extrinsics)"/>
+    <!-- pipeline configuration -->
+    <arg name="bounding_box_type" default="AABB"/>
+    <arg name="exit_after_clock" default="false"/>
+    <arg name="optimize_on_lc" default="true"/>
+    <arg name="enable_merge_undos" default="false"/>
+    <arg name="enable_frontend_output" default="true"/>
+    <arg name="validate_vertices" default="false"/>
+    <!-- LCD pipeline configuration -->
+    <arg name="enable_graph_lcd" default="false"/>
+    <arg name="enable_visual_lcd" default="false"/>
+    <arg name="enable_lcd" value="$(eval arg('enable_graph_lcd') or arg('enable_visual_lcd'))"/>
+    <arg name="use_gnn_descriptors" default="false"/>
+    <arg name="visual_lcd_config_path" if="$(arg enable_visual_lcd)"/>
+    <arg name="graph_lcd_config_path" if="$(arg enable_graph_lcd)"/>
+    <arg name="vocabulary_path" default="$(find hydra)/models/vocabulary/ORBvoc.yml"/>
+    <!-- zmq interface -->
+    <arg name="use_zmq_interface" default="true"/>
+    <arg name="zmq_ip" default="127.0.0.1"/>
+    <arg name="zmq_send_url" default="tcp://$(arg zmq_ip):8001"/>
+    <arg name="zmq_recv_url" default="tcp://$(arg zmq_ip):8002"/>
+    <!-- misc visualization -->
+    <arg name="start_visualizer" default="true"/>
+
+    <!-- logging output for hydra -->
+    <arg name="log_output_dir" default="$(find hydra)/output/"/>
+    <arg name="log_output_prefix" default="$(arg dataset_name)"/>
+    <arg name="log_path" default="$(arg log_output_dir)/$(arg log_output_prefix)"/>
+    <!-- log message controls -->
+    <arg name="min_glog_level" default="0"/>
+    <arg name="verbosity" default="0"/>
+    <!-- development args -->
+    <arg name="debug" default="false"/>
+    <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
+    <arg name="launch_prefix" value="" unless="$(arg debug)"/>
+
+    <node pkg="hydra_llm_ros"
+          type="hydra_llm_node"
+          name="hydra_llm_node"
+          launch-prefix="$(arg launch_prefix)"
+          args="--minloglevel=$(arg min_glog_level) -v=$(arg verbosity)"
+          required="true"
+          output="screen">
+        <env name="TERM" value="xterm-256color"/>
+        <!-- sensor topic remappings -->
+        <remap from="~rgb/image_raw" to="$(arg rgb_topic)"/>
+        <remap from="~rgb/image_raw/compressed" to="$(arg rgb_topic)/compressed"/>
+        <remap from="~rgb/camera_info" to="$(arg rgb_info_topic)"/>
+        <remap from="~depth_registered/image_rect" to="$(arg depth_topic)"/>
+        <remap from="~semantic/image_raw" to="$(arg label_topic)"/>
+        <!-- image transport -->
+        <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
+
+        <!-- parameter files -->
+        <rosparam file="$(arg labelspace_path)"/>
+        <rosparam file="$(arg input_config_path)" ns="input" subst_value="true"/>
+        <rosparam file="$(arg reconstruction_config_path)" ns="reconstruction"/>
+        <rosparam file="$(arg frontend_config_path)" ns="frontend"/>
+        <rosparam file="$(arg backend_config_path)" ns="backend"/>
+        <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)"/>
+        <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)"/>
+        <rosparam file="$(arg ros_params_file)" subst_value="true"/>
+    </node>
+
+    <include file="$(find hydra_ros)/launch/visualizer/hydra_streaming_visualizer.launch"
+             pass_all_args="true"
+             if="$(arg start_visualizer)">
+        <arg name="visualizer_frame" default="$(arg map_frame)"/>
+        <arg name="dsg_topic" default="hydra_llm_node/dsg"/>
+    </include>
+
 </launch>
