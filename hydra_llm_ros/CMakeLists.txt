@@ -17,7 +17,7 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
 )
 
-add_library(${PROJECT_NAME} src/hydra_llm_pipeline.cpp)
+add_library(${PROJECT_NAME} src/hydra_llm_pipeline.cpp src/llm_frontend.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
 
