@@ -31,17 +31,19 @@ class LLMFrontend : public FrontendModule {
   void handleClipFeatures(const ::llm::ClipVectorStamped& msg);
 
  protected:
+  ros::NodeHandle nh_;
   ros::Subscriber clip_sub_;
   std::mutex clip_mutex_;
   std::list<ClipView::Ptr> keyframe_clip_vectors_;
 
+ private:
   inline static const auto registration_ =
       config::RegistrationWithConfig<FrontendModule,
                                      LLMFrontend,
                                      LLMFrontendConfig,
                                      SharedDsgInfo::Ptr,
                                      SharedModuleState::Ptr,
-                                     LogSetup::Ptr>("FrontendModule");
+                                     LogSetup::Ptr>("LLMFrontend");
 };
 
 }  // namespace hydra::llm

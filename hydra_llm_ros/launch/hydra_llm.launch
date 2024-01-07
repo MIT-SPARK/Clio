@@ -17,7 +17,7 @@
     <arg name="semantic_map_path"/>
     <arg name="input_config_path" default="$(find hydra_ros)/config/datasets/$(arg dataset_name).yaml"/>
     <arg name="reconstruction_config_path" default="$(arg config_dir)/reconstruction_config.yaml"/>
-    <arg name="frontend_config_path" default="$(arg config_dir)/frontend_config.yaml"/>
+    <arg name="frontend_config_path" default="$(find hydra_llm_ros)/config/frontend_config.yaml"/>
     <arg name="backend_config_path" default="$(arg config_dir)/backend_config.yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
     <!-- labelspace configuration -->
@@ -92,6 +92,10 @@
         <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)"/>
         <rosparam file="$(arg ros_params_file)" subst_value="true"/>
     </node>
+
+    <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true">
+        <arg name="clip_topic" default="hydra_llm_node/input/clip_vector"/>
+    </include>
 
     <include file="$(find hydra_ros)/launch/visualizer/hydra_streaming_visualizer.launch"
              pass_all_args="true"

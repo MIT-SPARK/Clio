@@ -14,7 +14,12 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
                          const SharedDsgInfo::Ptr& dsg,
                          const SharedModuleState::Ptr& state,
                          const LogSetup::Ptr& logs)
-    : FrontendModule(config, dsg, state, logs), config(config::checkValid(config)) {}
+    : FrontendModule(config, dsg, state, logs),
+      config(config::checkValid(config)),
+      nh_("~") {
+  clip_sub_ =
+      nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
+}
 
 LLMFrontend::~LLMFrontend() {}
 
