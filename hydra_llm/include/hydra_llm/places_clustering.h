@@ -1,24 +1,12 @@
 #pragma once
 #include <config_utilities/factory.h>
 #include <hydra/common/dsg_types.h>
-#include <hydra/reconstruction/sensor.h>
 
 #include <unordered_set>
 
+#include "hydra_llm/clip_types.h"
+
 namespace hydra::llm {
-
-struct ClipViewEmbedding {
-  using Ptr = std::unique_ptr<ClipViewEmbedding>;
-  uint64_t timestamp_ns;
-  Eigen::VectorXd embedding;
-};
-
-struct ClipView {
-  using Ptr = std::shared_ptr<ClipView>;
-  Eigen::Isometry3d world_T_sensor;
-  ClipViewEmbedding::Ptr clip;
-  Sensor::Ptr sensor;
-};
 
 const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
                             const PlaceNodeAttributes& attrs);

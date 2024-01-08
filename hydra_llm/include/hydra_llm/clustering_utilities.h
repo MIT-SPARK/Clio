@@ -1,42 +1,38 @@
 #pragma once
-
-#include <config_utilities/factory.h>
+#include <config_utilities/virtual_config.h>
+#include <hydra/common/dsg_types.h>
 
 #include <Eigen/Dense>
 
+#include "hydra_llm/embedding_norms.h"
+#include "hydra_llm/task_embeddings.h"
+
 namespace hydra::llm {
 
-struct EmbeddingNorm {
-  inline double operator()(const Eigen::VectorXd& lhs,
-                           const Eigen::VectorXd& rhs) const {
-    return norm(lhs, rhs);
-  }
+class Clustering {
+  struct Config {
+    config::VirtualConfig<EmbeddingNorm> norm;
+    double stop_value = 0.0;
+  };
 
-  virtual double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const = 0;
-};
+  Clustering(const Config& config);
 
-struct CosineDistance : EmbeddingNorm {
-  double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+  const Config config;
 
  private:
-  inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, CosineDistance>("cosine");
-};
+  std::unique_ptr<EmbeddingNorm> norm_;
 
-struct L2Norm : public EmbeddingNorm {
-  double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+ public:
+  const EmbeddingNorm& norm;
+  TaskEmbeddings::Ptr tasks;
 
- private:
-  inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, L2Norm>("l2");
-};
+ protected:
+  Eigen::MatrixXd scoreMatrices(const std::vector<Eigen::VectorXd>& assignments);
 
-struct L1Norm : public EmbeddingNorm {
-  double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+  std::vector<double> computePhi(const SceneGraphLayer& layer,
+                                 const Eigen::MatrixXd& scores);
 
- private:
-  inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, L1Norm>("l1");
+  void cluster(const SceneGraphLayer& layer, const std::vector<Eigen::VectorXd>& nodes);
 };
 
 }  // namespace hydra::llm
