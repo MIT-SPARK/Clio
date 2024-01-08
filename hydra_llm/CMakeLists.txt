@@ -16,7 +16,7 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
 )
 
-add_library(${PROJECT_NAME} src/places_clustering.cpp)
+add_library(${PROJECT_NAME} src/clustering_utilities.cpp src/places_clustering.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
 
