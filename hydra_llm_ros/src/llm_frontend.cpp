@@ -37,13 +37,11 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
 LLMFrontend::~LLMFrontend() {}
 
 void LLMFrontend::handleClipFeatures(const ::llm::ClipVectorStamped& msg) {
-  auto view = std::make_unique<ClipViewEmbedding>();
-  view->timestamp_ns = msg.header.stamp.toNSec();
-  view->embedding = Eigen::Map<const Eigen::VectorXd>(msg.embedding.elements.data(),
-                                                      msg.embedding.elements.size());
+  const auto timestamp_ns = msg.header.stamp.toNSec();
+  auto clip = std::make_unique<ClipEmbedding>(msg.embedding.elements);
   // start critical section to push clip vector from ROS thread
   std::lock_guard<std::mutex> lock(clip_mutex_);
-  keyframe_clip_vectors_.push_back(std::move(view));
+  keyframe_clip_vectors_.emplace(timestamp_ns, std::move(clip));
 }
 
 void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
@@ -75,7 +73,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
 
   auto iter = keyframe_clip_vectors_.begin();
   while (iter != keyframe_clip_vectors_.end()) {
-    const auto clip_stamp_ns = (*iter)->timestamp_ns;
+    const auto clip_stamp_ns = iter->first;
     if (clip_stamp_ns > curr_timestamp_ns) {
       // skip any observations outside the time horizon of the active window
       continue;
@@ -91,7 +89,8 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
 
     const auto keyframe_idx = stamp_iter->second;
     auto view = std::make_shared<ClipView>();
-    view->clip = std::move(*iter);
+    view->timestamp_ns = iter->first;
+    view->clip = std::move(iter->second);
     iter = keyframe_clip_vectors_.erase(iter);
 
     view->sensor = keyframe_sensor_map_.at(keyframe_idx);

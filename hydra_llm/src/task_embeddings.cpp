@@ -14,4 +14,17 @@ Eigen::VectorXd TaskEmbeddings::getDistances(const EmbeddingNorm& norm,
   return distances;
 }
 
+double TaskEmbeddings::getBestDistance(const EmbeddingNorm& norm,
+                                       const Eigen::VectorXd& embedding) const {
+  double min_dist = std::numeric_limits<double>::max();
+  for (int i = 0; i < embeddings.cols(); ++i) {
+    const auto dist = norm(embeddings.col(i), embedding);
+    if (dist < min_dist) {
+      min_dist = dist;
+    }
+  }
+
+  return min_dist;
+}
+
 }  // namespace hydra::llm

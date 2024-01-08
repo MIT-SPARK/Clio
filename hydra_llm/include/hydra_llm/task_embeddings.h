@@ -17,6 +17,9 @@ struct TaskEmbeddings {
   Eigen::VectorXd getDistances(const EmbeddingNorm& norm,
                                const Eigen::VectorXd& embedding) const;
 
+  double getBestDistance(const EmbeddingNorm& norm,
+                         const Eigen::VectorXd& embedding) const;
+
   //! embeddings are row vectors -> embeddings.col(i) is embedding for task i
   Eigen::MatrixXd embeddings;
   //! task names
