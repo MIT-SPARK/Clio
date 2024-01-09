@@ -10,13 +10,7 @@
 
 namespace hydra::llm {
 
-struct EdgeEmbeddingInfo {
-  double weight;
-  ClipEmbedding::Ptr clip;
-};
-
 using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
-using EdgeEmbeddingMap = std::map<EdgeKey, EdgeEmbeddingInfo>;
 
 struct Cluster {
   using Ptr = std::shared_ptr<Cluster>;
@@ -49,15 +43,6 @@ class Clustering {
 
  public:
   const EmbeddingNorm& norm;
-
- protected:
-  void fillSubgraph(const SceneGraphLayer& layer,
-                    const NodeEmbeddingMap& node_embeddings,
-                    IsolatedSceneGraphLayer& cluster_layer) const;
-
-  void computePhi(const SceneGraphLayer& layer,
-                  const std::set<EdgeKey>& edges,
-                  EdgeEmbeddingMap& edge_embeddings) const;
 
  private:
   inline static const auto registration_ =

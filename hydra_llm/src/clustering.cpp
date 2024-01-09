@@ -10,6 +10,8 @@
 
 namespace hydra::llm {
 
+using Clusters = std::vector<Cluster::Ptr>;
+
 void declare_config(Clustering::Config& config) {
   using namespace config;
   name("Clustering::Config");
@@ -20,68 +22,12 @@ void declare_config(Clustering::Config& config) {
   field(config.min_score, "min_score");
 }
 
-struct ClipNodeAttributes : public NodeAttributes {
-  double score;
-  const ClipEmbedding* clip;
-
-  virtual NodeAttributes::Ptr clone() const {
-    return std::make_unique<ClipNodeAttributes>(*this);
-  }
-};
-
-Clustering::Clustering(const Config& config)
-    : config(config::checkValid(config)),
-      norm_(config.norm.create()),
-      embedding_merge_(config.merge.create()),
-      tasks_(config.tasks.create()),
-      norm(*CHECK_NOTNULL(norm_)) {}
-
-void Clustering::computePhi(const SceneGraphLayer& layer,
-                            const std::set<EdgeKey>& edges,
-                            EdgeEmbeddingMap& phi) const {
-  for (const auto edge : edges) {
-    CHECK(layer.hasNode(edge.k1)) << "Missing: '" << printNodeId(edge.k1) << "'";
-    CHECK(layer.hasNode(edge.k2)) << "Missing: '" << printNodeId(edge.k2) << "'";
-    const auto& attrs1 = layer.getNode(edge.k1)->get().attributes<ClipNodeAttributes>();
-    const auto& attrs2 = layer.getNode(edge.k2)->get().attributes<ClipNodeAttributes>();
-    const auto phi_1 = attrs1.score;
-    const auto phi_2 = attrs2.score;
-    auto new_clip = embedding_merge_->merge(*attrs1.clip, phi_1, *attrs1.clip, phi_2);
-
-    const auto phi_e = tasks_->getBestScore(norm, new_clip->embedding);
-    const auto weight = std::max(phi_e - phi_1, phi_e - phi_2);
-    phi.emplace(edge, EdgeEmbeddingInfo{weight, std::move(new_clip)});
-  }
-}
-
-void Clustering::fillSubgraph(const SceneGraphLayer& layer,
-                              const NodeEmbeddingMap& node_embeddings,
-                              IsolatedSceneGraphLayer& cluster_layer) const {
-  for (auto&& [node_id, clip] : node_embeddings) {
-    if (!clip) {
-      LOG(WARNING) << "Node '" << printNodeId(node_id) << "' missing clip feature";
-      continue;
-    }
-
-    const auto& node = layer.getNode(node_id)->get();
-    auto attrs = std::make_unique<ClipNodeAttributes>();
-    attrs->position = node.attributes().position;
-    attrs->score = tasks_->getBestScore(norm, clip->embedding);
-    attrs->clip = clip;
-    cluster_layer.emplaceNode(node_id, std::move(attrs));
-
-    // this will get us all edges between nodes in the subgraph
-    for (const auto& sibling : node.siblings()) {
-      cluster_layer.insertEdge(node_id, sibling);
-    }
-  }
-}
-
 bool keysIntersect(EdgeKey key1, EdgeKey key2) {
   return key1.k1 == key2.k1 || key1.k1 == key2.k2 || key1.k2 == key2.k1 ||
          key1.k2 == key2.k2;
 }
 
+/*
 std::vector<EdgeKey> pruneEdges(EdgeKey merge, EdgeEmbeddingMap& phi) {
   std::vector<EdgeKey> to_replace;
   auto iter = phi.begin();
@@ -97,6 +43,7 @@ std::vector<EdgeKey> pruneEdges(EdgeKey merge, EdgeEmbeddingMap& phi) {
 
   return to_replace;
 }
+*/
 
 std::set<EdgeKey> remapEdges(const DisjointSet& clusters,
                              const std::vector<EdgeKey>& edges) {
@@ -113,7 +60,152 @@ std::set<EdgeKey> remapEdges(const DisjointSet& clusters,
   return to_return;
 }
 
-using Clusters = std::vector<Cluster::Ptr>;
+struct ScoredEmbedding {
+  double weight;
+  ClipEmbedding::Ptr clip;
+};
+
+struct ClusteringWorkspace {
+  DisjointSet clusters;
+  std::map<NodeId, ScoredEmbedding> embeddings;
+  std::map<EdgeKey, ScoredEmbedding> edge_embeddings;
+  std::map<EdgeKey, double> phi;
+
+  ClusteringWorkspace(const TaskEmbeddings& tasks,
+                      const EmbeddingMerger& merger,
+                      const EmbeddingNorm& norm,
+                      const SceneGraphLayer& layer,
+                      const NodeEmbeddingMap& node_embeddings) {
+    for (auto&& [node_id, clip] : node_embeddings) {
+      if (!clip) {
+        LOG(WARNING) << "Node '" << printNodeId(node_id) << "' missing clip feature";
+        continue;
+      }
+
+      clusters.addSet(node_id);
+      const auto score = tasks.getBestScore(norm, clip->embedding);
+      embeddings.emplace(
+          node_id,
+          ScoredEmbedding{score, std::make_unique<ClipEmbedding>(clip->embedding)});
+    }
+
+    for (const auto node_id : clusters.roots) {
+      const auto& node = layer.getNode(node_id)->get();
+      for (const auto& sibling : node.siblings()) {
+        if (embeddings.count(sibling)) {
+          continue;
+        }
+
+        const EdgeKey new_edge{node_id, sibling};
+        if (edge_embeddings.count(new_edge)) {
+          continue;  // handle undirected case
+        }
+
+        addEdge(tasks, merger, norm, new_edge);
+      }
+    }
+  }
+
+  size_t size() const { return clusters.roots.size(); }
+
+  size_t numMergeCandidates() const { return edge_embeddings.size(); }
+
+  void addEdge(const TaskEmbeddings& tasks,
+               const EmbeddingMerger& merger,
+               const EmbeddingNorm& norm,
+               EdgeKey edge) {
+    auto n1_iter = embeddings.find(edge.k1);
+    auto n2_iter = embeddings.find(edge.k2);
+    CHECK(n1_iter != embeddings.end()) << "Missing: '" << printNodeId(edge.k1) << "'";
+    CHECK(n2_iter != embeddings.end()) << "Missing: '" << printNodeId(edge.k2) << "'";
+    const auto& n1 = n1_iter->second;
+    const auto& n2 = n2_iter->second;
+    const auto phi_1 = n1.weight;
+    const auto phi_2 = n2.weight;
+    auto new_clip = merger.merge(*n1.clip, phi_1, *n2.clip, phi_2);
+
+    const auto phi_e = tasks.getBestScore(norm, new_clip->embedding);
+    edge_embeddings.emplace(edge, ScoredEmbedding{phi_e, std::move(new_clip)});
+    phi.emplace(edge, std::max(phi_e - phi_1, phi_e - phi_2));
+  }
+
+  std::pair<EdgeKey, double> getMergeCandidate() const {
+    // iter will always be valid: always at least one edge
+    auto iter = std::max_element(edge_embeddings.begin(),
+                                 edge_embeddings.end(),
+                                 [&](const auto& lhs, const auto& rhs) {
+                                   return phi.at(lhs.first) < phi.at(rhs.first);
+                                 });
+    CHECK(iter != edge_embeddings.end());
+    return {iter->first, phi.at(iter->first)};
+  }
+
+  void updatePhi(const TaskEmbeddings& tasks,
+                 const EmbeddingMerger& merger,
+                 const EmbeddingNorm& norm,
+                 const std::set<EdgeKey>& edges) {
+    for (const auto& edge : edges) {
+      addEdge(tasks, merger, norm, edge);
+    }
+  }
+
+  void addMerge(EdgeKey key) {
+    const auto erased = clusters.doUnion(key.k2, key.k1);
+    CHECK(erased); // we always merge two different clusters
+    const auto kept = erased == key.k1 ? key.k2 : key.k1;
+    { // limit scope for invalid references
+      // copy merge candidate over to cluster
+      auto& edge_info = edge_embeddings.at(key);
+      auto& cluster_info = embeddings.at(kept);
+      cluster_info.weight = edge_info.weight;
+      cluster_info.clip = std::move(edge_info.clip);
+      // erase old edges and embeddings
+      phi.erase(key);
+      edge_embeddings.erase(key);
+      embeddings.erase(*erased);
+    }
+
+    // TODO(nathan) fix
+    //const auto to_replace = pruneEdges(key, phi);
+    //const auto remapped_edges = remapEdges(clusters, to_replace);
+    //computePhi(layer, remapped_edges, phi);
+  }
+
+  Clusters getClusters(double min_score) {
+    Clusters to_return;
+    std::map<NodeId, size_t> cluster_lookup;
+    for (auto&& [root, info] : embeddings) {
+      if (info.weight < min_score) {
+        continue;
+      }
+
+      auto new_cluster = std::make_shared<Cluster>();
+      new_cluster->clip = std::make_unique<ClipEmbedding>(info.clip->embedding);
+      new_cluster->score = info.weight;
+      cluster_lookup[root] = to_return.size();
+      to_return.push_back(new_cluster);
+    }
+
+    for (auto&& [node, parent] : clusters.parents) {
+      const auto root = clusters.findSet(parent);
+      auto iter = cluster_lookup.find(root);
+      if (iter == cluster_lookup.end()) {
+        continue;
+      }
+
+      to_return[iter->second]->nodes.insert(node);
+    }
+
+    return to_return;
+  }
+};
+
+Clustering::Clustering(const Config& config)
+    : config(config::checkValid(config)),
+      norm_(config.norm.create()),
+      embedding_merge_(config.merge.create()),
+      tasks_(config.tasks.create()),
+      norm(*CHECK_NOTNULL(norm_)) {}
 
 Clusters Clustering::cluster(const SceneGraphLayer& original_layer,
                              const NodeEmbeddingMap& node_embeddings) const {
@@ -122,81 +214,25 @@ Clusters Clustering::cluster(const SceneGraphLayer& original_layer,
     return {};
   }
 
-  IsolatedSceneGraphLayer layer(original_layer.id);
-  fillSubgraph(original_layer, node_embeddings, layer);
+  ClusteringWorkspace workspace(
+      *tasks_, *embedding_merge_, norm, original_layer, node_embeddings);
 
-  std::set<EdgeKey> all_edges;
-  for (const auto& key_edge_pair : layer.edges()) {
-    all_edges.insert(key_edge_pair.first);
-  }
-
-  // populate possible merges
-  EdgeEmbeddingMap phi;
-  computePhi(layer, all_edges, phi);
-
-  DisjointSet clusters(layer);
-  std::map<NodeId, ClipEmbedding::Ptr> merged_embeddings;
-  const auto potential_merges = layer.numNodes();
+  const auto potential_merges = workspace.size();
   for (size_t i = 0; i < potential_merges; ++i) {
-    if (layer.numEdges() == 0) {
+    if (workspace.numMergeCandidates() == 0) {
       // shouldn't happen unless |connected components| > 1
       break;
     }
 
-    // iter will always be valid: always at least one edge
-    auto iter =
-        std::max_element(phi.begin(), phi.end(), [&](const auto& lhs, const auto& rhs) {
-          return lhs.second.weight < rhs.second.weight;
-        });
-
-    if (phi.at(iter->first).weight <= config.stop_value) {
+    auto&& [key, candidate_score] = workspace.getMergeCandidate();
+    if (candidate_score <= config.stop_value) {
       break;
     }
 
-    const auto key = iter->first;
-    merged_embeddings.erase(key.k1);
-    auto new_iter =
-        merged_embeddings.emplace(key.k1, std::move(iter->second.clip)).first;
-
-    layer.mergeNodes(key.k2, key.k1);  // prefer the lower node id
-    layer.getNode(key.k1)->get().attributes<ClipNodeAttributes>().clip =
-        new_iter->second.get();
-
-    clusters.doUnion(key.k2, key.k1);
-
-    const auto to_replace = pruneEdges(key, phi);
-    const auto remapped_edges = remapEdges(clusters, to_replace);
-    computePhi(layer, remapped_edges, phi);
+    workspace.addMerge(key);
   }
 
-  // TODO(nathan) refactor out into another function
-  Clusters to_return;
-  std::map<NodeId, size_t> cluster_lookup;
-  for (const auto& root : clusters.roots) {
-    const auto& attrs = layer.getNode(root)->get().attributes<ClipNodeAttributes>();
-    const auto score = tasks_->getBestScore(norm, attrs.clip->embedding);
-    if (score < config.min_score) {
-      continue;
-    }
-
-    auto new_cluster = std::make_shared<Cluster>();
-    new_cluster->clip = std::make_unique<ClipEmbedding>(attrs.clip->embedding);
-    new_cluster->score = score;
-    cluster_lookup[root] = to_return.size();
-    to_return.push_back(new_cluster);
-  }
-
-  for (auto&& [node, parent] : clusters.parents) {
-    const auto root = clusters.findSet(parent);
-    auto iter = cluster_lookup.find(root);
-    if (iter == cluster_lookup.end()) {
-      continue;
-    }
-
-    to_return[iter->second]->nodes.insert(node);
-  }
-
-  return to_return;
+  return workspace.getClusters(config.min_score);
 }
 
 }  // namespace hydra::llm
