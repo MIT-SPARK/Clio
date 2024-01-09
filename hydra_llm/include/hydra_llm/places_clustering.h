@@ -16,6 +16,7 @@ struct PlaceClustering {
   using Ptr = std::unique_ptr<PlaceClustering>;
   struct Config {
     config::VirtualConfig<Clustering> clustering;
+    double min_assocation_iou = 0.3;
   };
 
   explicit PlaceClustering(const Config& config);
@@ -30,6 +31,7 @@ struct PlaceClustering {
 
  private:
   std::unique_ptr<Clustering> clustering_;
+  NodeSymbol region_id_;
 
   inline static const auto registration_ =
       config::RegistrationWithConfig<PlaceClustering,

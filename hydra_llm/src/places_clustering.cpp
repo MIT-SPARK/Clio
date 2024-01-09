@@ -3,8 +3,14 @@
 #include <config_utilities/config.h>
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
+#include <hydra/rooms/room_utilities.h>
 
 namespace hydra::llm {
+
+// TODO(nathan) clean this up
+struct RegionNodeAttributes : public SemanticNodeAttributes {
+  Eigen::VectorXd embedding;
+};
 
 void declare_config(PlaceClustering::Config& config) {
   using namespace config;
@@ -38,9 +44,27 @@ const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
 }
 
 PlaceClustering::PlaceClustering(const Config& config)
-    : config(config::checkValid(config)), clustering_(config.clustering.create()) {}
+    : config(config::checkValid(config)),
+      clustering_(config.clustering.create()),
+      region_id_('l', 0) {}
 
 PlaceClustering::~PlaceClustering() {}
+
+double computeIoU(const std::set<NodeId>& lhs, const std::set<NodeId>& rhs) {
+  if (lhs.empty() && rhs.empty()) {
+    return 0.0;
+  }
+
+  size_t num_same = 0;
+  for (const auto& v : lhs) {
+    if (rhs.count(v)) {
+      ++num_same;
+    }
+  }
+
+  const auto divisor = lhs.size() + rhs.size() - num_same;
+  return static_cast<double>(num_same) / divisor;
+}
 
 void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
                                     const std::map<size_t, ClipView::Ptr>& views,
@@ -52,13 +76,72 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
 
   std::map<NodeId, const ClipEmbedding*> assigned_views;
   const auto& places = graph.getLayer(DsgLayers::PLACES);
+  std::map<NodeId, std::set<NodeId>> region_sets;
   for (const auto node_id : nodes) {
-    const auto& attrs =
-        places.getNode(node_id)->get().attributes<PlaceNodeAttributes>();
+    const SceneGraphNode& node = places.getNode(node_id)->get();
+    const auto& attrs = node.attributes<PlaceNodeAttributes>();
     assigned_views[node_id] = CHECK_NOTNULL(getBestView(views, attrs))->clip.get();
+    const auto parent = node.getParent();
+    if (parent) {
+      auto iter = region_sets.find(*parent);
+      if (iter == region_sets.end()) {
+        iter = region_sets.emplace(*parent, std::set<NodeId>()).first;
+      }
+
+      iter->second.insert(node_id);
+    }
   }
 
-  clustering_->cluster(places, assigned_views);
+  const auto clusters = clustering_->cluster(places, assigned_views);
+  std::map<size_t, NodeId> associations;
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    const auto& cluster = clusters[i];
+    for (auto&& [region, children] : region_sets) {
+      const auto iou = computeIoU(cluster->nodes, children);
+      if (iou >= config.min_assocation_iou) {
+        associations[i] = region;
+        break;
+      }
+    }
+  }
+
+  // TODO(nathan) make region layer make semantic sense
+  std::set<NodeId> updated_regions;
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    NodeId new_node_id;
+    auto iter = associations.find(i);
+    if (iter == associations.end()) {
+      auto attrs = std::make_unique<RegionNodeAttributes>();
+      attrs->semantic_label = 0;
+      attrs->name = region_id_.getLabel();
+      attrs->embedding = clusters[i]->clip->embedding;
+      graph.emplaceNode(DsgLayers::ROOMS, region_id_, std::move(attrs));
+      new_node_id = region_id_;
+      ++region_id_;
+    } else {
+      auto& attrs = graph.getNode(iter->second)->get().attributes<RegionNodeAttributes>();
+      attrs.embedding = clusters[i]->clip->embedding;
+      new_node_id = iter->second;
+    }
+
+    for (const auto& node_id : clusters[i]->nodes) {
+      const auto& node = graph.getNode(node_id)->get();
+      const auto parent = node.getParent();
+      if (parent) {
+        updated_regions.insert(*parent);
+      }
+      // force override of parent for all newly clustered nodes
+      graph.insertEdge(new_node_id, node_id, nullptr, true);
+      updated_regions.insert(new_node_id);
+    }
+  }
+
+  // TODO(nathan) this is ugly
+  for (const auto node_id : updated_regions) {
+      const auto& node = graph.getNode(node_id)->get();
+      std::unordered_set to_use(node.children().begin(), node.children().end());
+      node.attributes().position = getRoomPosition(places, to_use);
+  }
 }
 
 }  // namespace hydra::llm

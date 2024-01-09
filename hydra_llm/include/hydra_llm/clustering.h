@@ -18,6 +18,13 @@ struct EdgeEmbeddingInfo {
 using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 using EdgeEmbeddingMap = std::map<EdgeKey, EdgeEmbeddingInfo>;
 
+struct Cluster {
+  using Ptr = std::shared_ptr<Cluster>;
+  std::set<NodeId> nodes;
+  double score;
+  ClipEmbedding::Ptr clip;
+};
+
 class Clustering {
  public:
   struct Config {
@@ -25,15 +32,15 @@ class Clustering {
     config::VirtualConfig<EmbeddingNorm> norm;
     config::VirtualConfig<EmbeddingMerger> merge;
     double stop_value = 0.0;
-    double min_distance = 0.022;
+    double min_score = 0.022;
   };
 
   Clustering(const Config& config);
 
   const Config config;
 
-  void cluster(const SceneGraphLayer& layer,
-               const NodeEmbeddingMap& node_embeddings) const;
+  std::vector<Cluster::Ptr> cluster(const SceneGraphLayer& layer,
+                                    const NodeEmbeddingMap& node_embeddings) const;
 
  private:
   std::unique_ptr<EmbeddingNorm> norm_;

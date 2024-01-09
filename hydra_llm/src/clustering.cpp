@@ -17,7 +17,7 @@ void declare_config(Clustering::Config& config) {
   field(config.norm, "norm");
   field(config.merge, "merge");
   field(config.stop_value, "stop_value");
-  field(config.min_distance, "min_distance");
+  field(config.min_score, "min_score");
 }
 
 struct ClipNodeAttributes : public NodeAttributes {
@@ -111,8 +111,10 @@ std::set<EdgeKey> remapEdges(const DisjointSet& clusters,
   return to_return;
 }
 
-void Clustering::cluster(const SceneGraphLayer& layer,
-                         const NodeEmbeddingMap& node_embeddings) const {
+using Clusters = std::vector<Cluster::Ptr>;
+
+Clusters Clustering::cluster(const SceneGraphLayer& layer,
+                             const NodeEmbeddingMap& node_embeddings) const {
   IsolatedSceneGraphLayer cluster_layer(layer.id);
   fillSubgraph(layer, node_embeddings, cluster_layer);
 
@@ -160,8 +162,34 @@ void Clustering::cluster(const SceneGraphLayer& layer,
     computePhi(layer, remapped_edges, phi);
   }
 
-  // filter clusters below a certain threshold
-  // return final clusters
+  // TODO(nathan) refactor out into another function
+  Clusters to_return;
+  std::map<NodeId, size_t> cluster_lookup;
+  for (const auto& root : clusters.roots) {
+    const auto& attrs = cluster_layer.getNode(root)->get().attributes<ClipNodeAttributes>();
+    const auto score = tasks_->getBestScore(norm, attrs.clip->embedding);
+    if (score < config.min_score) {
+      continue;
+    }
+
+    auto new_cluster = std::make_shared<Cluster>();
+    new_cluster->clip = std::make_unique<ClipEmbedding>(attrs.clip->embedding);
+    new_cluster->score = score;
+    cluster_lookup[root] = to_return.size();
+    to_return.push_back(new_cluster);
+  }
+
+  for (auto&& [node, parent] : clusters.parents) {
+    const auto root = clusters.findSet(parent);
+    auto iter = cluster_lookup.find(root);
+    if (iter == cluster_lookup.end()) {
+      continue;
+    }
+
+    to_return[iter->second]->nodes.insert(node);
+  }
+
+  return to_return;
 }
 
 }  // namespace hydra::llm

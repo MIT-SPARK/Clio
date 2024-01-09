@@ -18,7 +18,7 @@
     <arg name="input_config_path" default="$(find hydra_ros)/config/datasets/$(arg dataset_name).yaml"/>
     <arg name="reconstruction_config_path" default="$(arg config_dir)/reconstruction_config.yaml"/>
     <arg name="frontend_config_path" default="$(find hydra_llm_ros)/config/frontend_config.yaml"/>
-    <arg name="backend_config_path" default="$(arg config_dir)/backend_config.yaml"/>
+    <arg name="backend_config_path" default="$(find hydra_llm_ros)/config/backend_config.yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
     <!-- labelspace configuration -->
     <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
