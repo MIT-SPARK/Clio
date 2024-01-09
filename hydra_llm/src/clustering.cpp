@@ -59,13 +59,13 @@ struct ClusteringWorkspace {
     for (const auto node_id : clusters.roots) {
       const auto& node = layer.getNode(node_id)->get();
       for (const auto& sibling : node.siblings()) {
-        if (embeddings.count(sibling)) {
+        if (!embeddings.count(sibling)) {
           continue;
         }
 
         const EdgeKey new_edge{node_id, sibling};
         if (edge_embeddings.count(new_edge)) {
-          continue;  // handle undirected case
+          continue;  // undirected edges: we need to skip duplicates
         }
 
         addEdge(tasks, merger, norm, new_edge);

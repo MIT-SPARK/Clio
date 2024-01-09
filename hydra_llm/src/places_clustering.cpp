@@ -3,7 +3,9 @@
 #include <config_utilities/config.h>
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
+#include <hydra/common/common.h>
 #include <hydra/rooms/room_utilities.h>
+#include <hydra/utils/display_utilities.h>
 
 namespace hydra::llm {
 
@@ -16,6 +18,7 @@ void declare_config(PlaceClustering::Config& config) {
   using namespace config;
   name("PlaceClustering::Config");
   field(config.clustering, "clustering");
+  field(config.min_assocation_iou, "min_assocation_iou");
 }
 
 const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
@@ -104,17 +107,27 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   std::map<size_t, NodeId> associations;
   for (size_t i = 0; i < clusters.size(); ++i) {
     const auto& cluster = clusters[i];
+    double best_iou = std::numeric_limits<double>::lowest();
     for (auto&& [region, children] : region_sets) {
       const auto iou = computeIoU(cluster->nodes, children);
-      if (iou >= config.min_assocation_iou) {
+      if (iou < config.min_assocation_iou) {
+        continue;
+      }
+
+      if (iou > best_iou) {
         associations[i] = region;
-        break;
+        best_iou = iou;
       }
     }
   }
 
+  LOG(WARNING) << "Got " << clusters.size() << " cluster(s) with "
+               << associations.size() << " associations to " << region_sets.size()
+               << " previous clusters";
+
   // TODO(nathan) make region layer make semantic sense
   std::set<NodeId> updated_regions;
+  std::vector<NodeId> new_regions;
   for (size_t i = 0; i < clusters.size(); ++i) {
     NodeId new_node_id;
     auto iter = associations.find(i);
@@ -125,6 +138,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
       attrs->embedding = clusters[i]->clip->embedding;
       graph.emplaceNode(DsgLayers::ROOMS, region_id_, std::move(attrs));
       new_node_id = region_id_;
+      new_regions.push_back(region_id_);
       ++region_id_;
     } else {
       auto& attrs =
@@ -138,9 +152,10 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
       const auto parent = node.getParent();
       if (parent) {
         updated_regions.insert(*parent);
+        graph.removeEdge(*parent, node_id);
       }
-      // force override of parent for all newly clustered nodes
-      graph.insertEdge(new_node_id, node_id, nullptr, true);
+
+      graph.insertEdge(new_node_id, node_id);
       updated_regions.insert(new_node_id);
     }
   }
@@ -158,8 +173,20 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     node.attributes().position = getRoomPosition(places, to_use);
   }
 
+  VLOG(VLEVEL_DEBUG) << "New: " << displayNodeSymbolContainer(new_regions);
+  VLOG(VLEVEL_DEBUG) << "Updated: " << displayNodeSymbolContainer(updated_regions);
+  VLOG(VLEVEL_DEBUG) << "Invalid: " << displayNodeSymbolContainer(to_delete);
+
   for (const auto node_id : to_delete) {
     graph.removeNode(node_id);
+    updated_regions.erase(node_id);
+  }
+
+  addEdgesToRoomLayer(graph, updated_regions);
+
+  const auto& regions = graph.getLayer(DsgLayers::ROOMS);
+  for (auto&& [node_id, node] : regions.nodes()) {
+    CHECK(!node->children().empty()) << "Invalid region: " << printNodeId(node_id);
   }
 }
 
