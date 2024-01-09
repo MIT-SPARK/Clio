@@ -146,10 +146,20 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   }
 
   // TODO(nathan) this is ugly
+  std::set<NodeId> to_delete;
   for (const auto node_id : updated_regions) {
     const auto& node = graph.getNode(node_id)->get();
     std::unordered_set to_use(node.children().begin(), node.children().end());
+    if (to_use.empty()) {
+      to_delete.insert(node_id);
+      continue;
+    }
+
     node.attributes().position = getRoomPosition(places, to_use);
+  }
+
+  for (const auto node_id : to_delete) {
+    graph.removeNode(node_id);
   }
 }
 

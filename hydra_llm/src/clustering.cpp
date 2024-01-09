@@ -27,39 +27,6 @@ bool keysIntersect(EdgeKey key1, EdgeKey key2) {
          key1.k2 == key2.k2;
 }
 
-/*
-std::vector<EdgeKey> pruneEdges(EdgeKey merge, EdgeEmbeddingMap& phi) {
-  std::vector<EdgeKey> to_replace;
-  auto iter = phi.begin();
-  while (iter != phi.end()) {
-    if (!keysIntersect(merge, iter->first)) {
-      ++iter;
-      continue;
-    }
-
-    to_replace.push_back(iter->first);
-    iter = phi.erase(iter);
-  }
-
-  return to_replace;
-}
-*/
-
-std::set<EdgeKey> remapEdges(const DisjointSet& clusters,
-                             const std::vector<EdgeKey>& edges) {
-  std::set<EdgeKey> to_return;
-  for (const auto orig : edges) {
-    const EdgeKey new_edge{clusters.findSet(orig.k1), clusters.findSet(orig.k2)};
-    if (new_edge.k1 == new_edge.k2) {
-      continue;
-    }
-
-    to_return.insert(new_edge);
-  }
-
-  return to_return;
-}
-
 struct ScoredEmbedding {
   double weight;
   ClipEmbedding::Ptr clip;
@@ -140,20 +107,12 @@ struct ClusteringWorkspace {
     return {iter->first, phi.at(iter->first)};
   }
 
-  void updatePhi(const TaskEmbeddings& tasks,
-                 const EmbeddingMerger& merger,
-                 const EmbeddingNorm& norm,
-                 const std::set<EdgeKey>& edges) {
-    for (const auto& edge : edges) {
-      addEdge(tasks, merger, norm, edge);
-    }
-  }
-
-  void addMerge(EdgeKey key) {
-    const auto erased = clusters.doUnion(key.k2, key.k1);
-    CHECK(erased); // we always merge two different clusters
+  std::set<EdgeKey> addMerge(EdgeKey key) {
+    const auto erased_opt = clusters.doUnion(key.k2, key.k1);
+    CHECK(erased_opt);  // we always merge two different clusters
+    const auto erased = *erased_opt;
     const auto kept = erased == key.k1 ? key.k2 : key.k1;
-    { // limit scope for invalid references
+    {  // limit scope for invalid references
       // copy merge candidate over to cluster
       auto& edge_info = edge_embeddings.at(key);
       auto& cluster_info = embeddings.at(kept);
@@ -162,13 +121,44 @@ struct ClusteringWorkspace {
       // erase old edges and embeddings
       phi.erase(key);
       edge_embeddings.erase(key);
-      embeddings.erase(*erased);
+      embeddings.erase(erased);
     }
 
-    // TODO(nathan) fix
-    //const auto to_replace = pruneEdges(key, phi);
-    //const auto remapped_edges = remapEdges(clusters, to_replace);
-    //computePhi(layer, remapped_edges, phi);
+    std::set<EdgeKey> to_replace;
+    auto iter = edge_embeddings.begin();
+    while (iter != edge_embeddings.end()) {
+      if (!keysIntersect(key, iter->first)) {
+        ++iter;
+        continue;
+      }
+
+      const auto prev_key = iter->first;
+      iter = edge_embeddings.erase(iter);
+      phi.erase(prev_key);
+      if (prev_key.k1 != erased && prev_key.k2 != erased) {
+        to_replace.insert(prev_key);
+        continue;
+      }
+
+      const EdgeKey new_edge{clusters.findSet(prev_key.k1),
+                             clusters.findSet(prev_key.k2)};
+      if (new_edge.k1 == new_edge.k2) {
+        continue;
+      }
+
+      to_replace.insert(new_edge);
+    }
+
+    return to_replace;
+  }
+
+  void updatePhi(const TaskEmbeddings& tasks,
+                 const EmbeddingMerger& merger,
+                 const EmbeddingNorm& norm,
+                 const std::set<EdgeKey>& edges) {
+    for (const auto& edge : edges) {
+      addEdge(tasks, merger, norm, edge);
+    }
   }
 
   Clusters getClusters(double min_score) {
@@ -229,7 +219,8 @@ Clusters Clustering::cluster(const SceneGraphLayer& original_layer,
       break;
     }
 
-    workspace.addMerge(key);
+    const auto changed_edges = workspace.addMerge(key);
+    workspace.updatePhi(*tasks_, *embedding_merge_, norm, changed_edges);
   }
 
   return workspace.getClusters(config.min_score);
