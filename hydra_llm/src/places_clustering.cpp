@@ -26,7 +26,7 @@ const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
     const auto& view = id_view_pair.second;
     const auto& sensor = *(view->sensor);
 
-    const Eigen::Vector3f p_s = (view->world_T_sensor * attrs.position).cast<float>();
+    const Eigen::Vector3f p_s = (view->sensor_T_world * attrs.position).cast<float>();
     if (!sensor.pointIsInViewFrustum(p_s)) {
       continue;
     }
@@ -80,7 +80,12 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   for (const auto node_id : nodes) {
     const SceneGraphNode& node = places.getNode(node_id)->get();
     const auto& attrs = node.attributes<PlaceNodeAttributes>();
-    assigned_views[node_id] = CHECK_NOTNULL(getBestView(views, attrs))->clip.get();
+    const auto best_view = getBestView(views, attrs);
+    if (!best_view) {
+      continue;
+    }
+
+    assigned_views[node_id] = best_view->clip.get();
     const auto parent = node.getParent();
     if (parent) {
       auto iter = region_sets.find(*parent);
@@ -92,7 +97,10 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     }
   }
 
+  VLOG(1) << "Using " << assigned_views.size() << " places of " << nodes.size()
+          << " original places";
   const auto clusters = clustering_->cluster(places, assigned_views);
+
   std::map<size_t, NodeId> associations;
   for (size_t i = 0; i < clusters.size(); ++i) {
     const auto& cluster = clusters[i];
@@ -119,7 +127,8 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
       new_node_id = region_id_;
       ++region_id_;
     } else {
-      auto& attrs = graph.getNode(iter->second)->get().attributes<RegionNodeAttributes>();
+      auto& attrs =
+          graph.getNode(iter->second)->get().attributes<RegionNodeAttributes>();
       attrs.embedding = clusters[i]->clip->embedding;
       new_node_id = iter->second;
     }
@@ -138,9 +147,9 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
 
   // TODO(nathan) this is ugly
   for (const auto node_id : updated_regions) {
-      const auto& node = graph.getNode(node_id)->get();
-      std::unordered_set to_use(node.children().begin(), node.children().end());
-      node.attributes().position = getRoomPosition(places, to_use);
+    const auto& node = graph.getNode(node_id)->get();
+    std::unordered_set to_use(node.children().begin(), node.children().end());
+    node.attributes().position = getRoomPosition(places, to_use);
   }
 }
 

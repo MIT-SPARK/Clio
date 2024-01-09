@@ -40,6 +40,8 @@ void Clustering::computePhi(const SceneGraphLayer& layer,
                             const std::set<EdgeKey>& edges,
                             EdgeEmbeddingMap& phi) const {
   for (const auto edge : edges) {
+    CHECK(layer.hasNode(edge.k1)) << "Missing: '" << printNodeId(edge.k1) << "'";
+    CHECK(layer.hasNode(edge.k2)) << "Missing: '" << printNodeId(edge.k2) << "'";
     const auto& attrs1 = layer.getNode(edge.k1)->get().attributes<ClipNodeAttributes>();
     const auto& attrs2 = layer.getNode(edge.k2)->get().attributes<ClipNodeAttributes>();
     const auto phi_1 = attrs1.score;
@@ -113,13 +115,18 @@ std::set<EdgeKey> remapEdges(const DisjointSet& clusters,
 
 using Clusters = std::vector<Cluster::Ptr>;
 
-Clusters Clustering::cluster(const SceneGraphLayer& layer,
+Clusters Clustering::cluster(const SceneGraphLayer& original_layer,
                              const NodeEmbeddingMap& node_embeddings) const {
-  IsolatedSceneGraphLayer cluster_layer(layer.id);
-  fillSubgraph(layer, node_embeddings, cluster_layer);
+  if (tasks_->empty()) {
+    LOG(ERROR) << "No tasks present: cannot cluster";
+    return {};
+  }
+
+  IsolatedSceneGraphLayer layer(original_layer.id);
+  fillSubgraph(original_layer, node_embeddings, layer);
 
   std::set<EdgeKey> all_edges;
-  for (const auto& key_edge_pair : cluster_layer.edges()) {
+  for (const auto& key_edge_pair : layer.edges()) {
     all_edges.insert(key_edge_pair.first);
   }
 
@@ -127,11 +134,11 @@ Clusters Clustering::cluster(const SceneGraphLayer& layer,
   EdgeEmbeddingMap phi;
   computePhi(layer, all_edges, phi);
 
-  DisjointSet clusters(cluster_layer);
+  DisjointSet clusters(layer);
   std::map<NodeId, ClipEmbedding::Ptr> merged_embeddings;
-  const auto potential_merges = cluster_layer.numNodes();
+  const auto potential_merges = layer.numNodes();
   for (size_t i = 0; i < potential_merges; ++i) {
-    if (cluster_layer.numEdges() == 0) {
+    if (layer.numEdges() == 0) {
       // shouldn't happen unless |connected components| > 1
       break;
     }
@@ -151,8 +158,8 @@ Clusters Clustering::cluster(const SceneGraphLayer& layer,
     auto new_iter =
         merged_embeddings.emplace(key.k1, std::move(iter->second.clip)).first;
 
-    cluster_layer.mergeNodes(key.k2, key.k1);  // prefer the lower node id
-    cluster_layer.getNode(key.k1)->get().attributes<ClipNodeAttributes>().clip =
+    layer.mergeNodes(key.k2, key.k1);  // prefer the lower node id
+    layer.getNode(key.k1)->get().attributes<ClipNodeAttributes>().clip =
         new_iter->second.get();
 
     clusters.doUnion(key.k2, key.k1);
@@ -166,7 +173,7 @@ Clusters Clustering::cluster(const SceneGraphLayer& layer,
   Clusters to_return;
   std::map<NodeId, size_t> cluster_lookup;
   for (const auto& root : clusters.roots) {
-    const auto& attrs = cluster_layer.getNode(root)->get().attributes<ClipNodeAttributes>();
+    const auto& attrs = layer.getNode(root)->get().attributes<ClipNodeAttributes>();
     const auto score = tasks_->getBestScore(norm, attrs.clip->embedding);
     if (score < config.min_score) {
       continue;

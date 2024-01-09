@@ -21,7 +21,7 @@ struct ClipView {
   using Ptr = std::shared_ptr<ClipView>;
   uint64_t timestamp_ns;
   Sensor::Ptr sensor;
-  Eigen::Isometry3d world_T_sensor;
+  Eigen::Isometry3d sensor_T_world;
   ClipEmbedding::Ptr clip;
 };
 

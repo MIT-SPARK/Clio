@@ -68,7 +68,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     // TODO(nathan) think about subsampling the timestamps to include more than
     // just keyframes
     const DynamicSceneGraphNode& node = agents.getNodeByIndex(index).value();
-    timestamp_map[index] = node.timestamp.count();
+    timestamp_map[node.timestamp.count()] = index;
   }
 
   auto iter = keyframe_clip_vectors_.begin();
@@ -76,6 +76,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     const auto clip_stamp_ns = iter->first;
     if (clip_stamp_ns > curr_timestamp_ns) {
       // skip any observations outside the time horizon of the active window
+      ++iter;
       continue;
     }
 
@@ -98,7 +99,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
         agents.getNodeByIndex(keyframe_idx)->get().attributes<AgentNodeAttributes>();
     Eigen::Isometry3d world_T_body =
         Eigen::Translation3d(attrs.position) * attrs.world_R_body;
-    view->world_T_sensor = world_T_body * view->sensor->body_T_sensor();
+    view->sensor_T_world = (world_T_body * view->sensor->body_T_sensor()).inverse();
 
     active_window_views_[keyframe_idx] = view;
   }
