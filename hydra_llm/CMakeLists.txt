@@ -17,8 +17,8 @@ catkin_package(
 )
 
 add_library(
-  ${PROJECT_NAME} src/clustering.cpp src/embedding_norms.cpp src/places_clustering.cpp
-                  src/task_embeddings.cpp
+  ${PROJECT_NAME} src/clustering.cpp src/embedding_norms.cpp src/merge_utilities.cpp
+                  src/places_clustering.cpp src/task_embeddings.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)

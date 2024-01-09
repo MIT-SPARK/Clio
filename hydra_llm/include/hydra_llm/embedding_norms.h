@@ -11,14 +11,19 @@ struct EmbeddingNorm {
 
   inline double operator()(const Eigen::VectorXd& lhs,
                            const Eigen::VectorXd& rhs) const {
-    return norm(lhs, rhs);
+    return score(lhs, rhs);
   }
 
   virtual double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const = 0;
+
+  virtual double score(const Eigen::VectorXd& lhs,
+                       const Eigen::VectorXd& rhs) const = 0;
 };
 
 struct CosineDistance : EmbeddingNorm {
   double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+  double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
  private:
   inline static const auto registration_ =
@@ -28,6 +33,8 @@ struct CosineDistance : EmbeddingNorm {
 struct L2Norm : public EmbeddingNorm {
   double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
+  double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
  private:
   inline static const auto registration_ =
       config::Registration<EmbeddingNorm, L2Norm>("l2");
@@ -35,6 +42,8 @@ struct L2Norm : public EmbeddingNorm {
 
 struct L1Norm : public EmbeddingNorm {
   double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+  double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
  private:
   inline static const auto registration_ =

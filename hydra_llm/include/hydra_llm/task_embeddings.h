@@ -14,11 +14,11 @@ struct TaskEmbeddings {
   bool empty() const;
   operator bool() const { return !empty(); }
 
-  Eigen::VectorXd getDistances(const EmbeddingNorm& norm,
-                               const Eigen::VectorXd& embedding) const;
+  Eigen::VectorXd getScores(const EmbeddingNorm& norm,
+                            const Eigen::VectorXd& embedding) const;
 
-  double getBestDistance(const EmbeddingNorm& norm,
-                         const Eigen::VectorXd& embedding) const;
+  double getBestScore(const EmbeddingNorm& norm,
+                      const Eigen::VectorXd& embedding) const;
 
   //! embeddings are row vectors -> embeddings.col(i) is embedding for task i
   Eigen::MatrixXd embeddings;

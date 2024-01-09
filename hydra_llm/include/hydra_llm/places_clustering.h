@@ -1,10 +1,11 @@
 #pragma once
-#include <config_utilities/factory.h>
+#include <config_utilities/virtual_config.h>
 #include <hydra/common/dsg_types.h>
 
 #include <unordered_set>
 
 #include "hydra_llm/clip_types.h"
+#include "hydra_llm/clustering.h"
 
 namespace hydra::llm {
 
@@ -14,8 +15,7 @@ const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
 struct PlaceClustering {
   using Ptr = std::unique_ptr<PlaceClustering>;
   struct Config {
-    double similarity_threshold = 0.022;
-    bool run_preprune = false;
+    config::VirtualConfig<Clustering> clustering;
   };
 
   explicit PlaceClustering(const Config& config);
@@ -29,6 +29,8 @@ struct PlaceClustering {
   const Config config;
 
  private:
+  std::unique_ptr<Clustering> clustering_;
+
   inline static const auto registration_ =
       config::RegistrationWithConfig<PlaceClustering,
                                      PlaceClustering,

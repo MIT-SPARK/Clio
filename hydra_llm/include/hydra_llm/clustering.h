@@ -4,34 +4,28 @@
 
 #include <Eigen/Dense>
 
-#include "hydra_llm/clip_types.h"
 #include "hydra_llm/embedding_norms.h"
+#include "hydra_llm/merge_utilities.h"
 #include "hydra_llm/task_embeddings.h"
 
 namespace hydra::llm {
-
-using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 
 struct EdgeEmbeddingInfo {
   double weight;
   ClipEmbedding::Ptr clip;
 };
 
+using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 using EdgeEmbeddingMap = std::map<EdgeKey, EdgeEmbeddingInfo>;
-
-struct EmbeddingMerger {
-  using Ptr = std::unique_ptr<EmbeddingMerger>;
-
-  virtual ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
-                                   const ClipEmbedding& rhs) const = 0;
-};
 
 class Clustering {
  public:
   struct Config {
+    config::VirtualConfig<TaskEmbeddings> tasks;
     config::VirtualConfig<EmbeddingNorm> norm;
     config::VirtualConfig<EmbeddingMerger> merge;
     double stop_value = 0.0;
+    double min_distance = 0.022;
   };
 
   Clustering(const Config& config);
@@ -44,10 +38,10 @@ class Clustering {
  private:
   std::unique_ptr<EmbeddingNorm> norm_;
   EmbeddingMerger::Ptr embedding_merge_;
+  TaskEmbeddings::Ptr tasks_;
 
  public:
   const EmbeddingNorm& norm;
-  TaskEmbeddings::Ptr tasks;
 
  protected:
   void fillSubgraph(const SceneGraphLayer& layer,

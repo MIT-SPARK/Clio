@@ -13,12 +13,15 @@ namespace hydra::llm {
 void declare_config(Clustering::Config& config) {
   using namespace config;
   name("Clustering::Config");
+  field(config.tasks, "tasks");
   field(config.norm, "norm");
   field(config.merge, "merge");
   field(config.stop_value, "stop_value");
+  field(config.min_distance, "min_distance");
 }
+
 struct ClipNodeAttributes : public NodeAttributes {
-  double dist;
+  double score;
   const ClipEmbedding* clip;
 
   virtual NodeAttributes::Ptr clone() const {
@@ -30,6 +33,7 @@ Clustering::Clustering(const Config& config)
     : config(config::checkValid(config)),
       norm_(config.norm.create()),
       embedding_merge_(config.merge.create()),
+      tasks_(config.tasks.create()),
       norm(*CHECK_NOTNULL(norm_)) {}
 
 void Clustering::computePhi(const SceneGraphLayer& layer,
@@ -38,11 +42,11 @@ void Clustering::computePhi(const SceneGraphLayer& layer,
   for (const auto edge : edges) {
     const auto& attrs1 = layer.getNode(edge.k1)->get().attributes<ClipNodeAttributes>();
     const auto& attrs2 = layer.getNode(edge.k2)->get().attributes<ClipNodeAttributes>();
-    auto new_clip = embedding_merge_->merge(*attrs1.clip, *attrs1.clip);
+    const auto phi_1 = attrs1.score;
+    const auto phi_2 = attrs2.score;
+    auto new_clip = embedding_merge_->merge(*attrs1.clip, phi_1, *attrs1.clip, phi_2);
 
-    const auto phi_1 = attrs1.dist;
-    const auto phi_2 = attrs2.dist;
-    const auto phi_e = tasks->getBestDistance(norm, new_clip->embedding);
+    const auto phi_e = tasks_->getBestScore(norm, new_clip->embedding);
     const auto weight = std::max(phi_e - phi_1, phi_e - phi_2);
     phi.emplace(edge, EdgeEmbeddingInfo{weight, std::move(new_clip)});
   }
@@ -60,7 +64,7 @@ void Clustering::fillSubgraph(const SceneGraphLayer& layer,
     const auto& node = layer.getNode(node_id)->get();
     auto attrs = std::make_unique<ClipNodeAttributes>();
     attrs->position = node.attributes().position;
-    attrs->dist = tasks->getBestDistance(norm, clip->embedding);
+    attrs->score = tasks_->getBestScore(norm, clip->embedding);
     attrs->clip = clip;
     cluster_layer.emplaceNode(node_id, std::move(attrs));
 

@@ -9,8 +9,7 @@ namespace hydra::llm {
 void declare_config(PlaceClustering::Config& config) {
   using namespace config;
   name("PlaceClustering::Config");
-  field(config.similarity_threshold, "similarity_threshold");
-  field(config.run_preprune, "run_preprune");
+  field(config.clustering, "clustering");
 }
 
 const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
@@ -39,7 +38,7 @@ const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
 }
 
 PlaceClustering::PlaceClustering(const Config& config)
-    : config(config::checkValid(config)) {}
+    : config(config::checkValid(config)), clustering_(config.clustering.create()) {}
 
 PlaceClustering::~PlaceClustering() {}
 
@@ -51,13 +50,15 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     return;
   }
 
-  std::map<NodeId, const ClipView*> assigned_views;
+  std::map<NodeId, const ClipEmbedding*> assigned_views;
   const auto& places = graph.getLayer(DsgLayers::PLACES);
   for (const auto node_id : nodes) {
     const auto& attrs =
         places.getNode(node_id)->get().attributes<PlaceNodeAttributes>();
-    assigned_views[node_id] = getBestView(views, attrs);
+    assigned_views[node_id] = CHECK_NOTNULL(getBestView(views, attrs))->clip.get();
   }
+
+  clustering_->cluster(places, assigned_views);
 }
 
 }  // namespace hydra::llm

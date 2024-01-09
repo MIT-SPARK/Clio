@@ -4,8 +4,8 @@ namespace hydra::llm {
 
 bool TaskEmbeddings::empty() const { return embeddings.cols() == 0; }
 
-Eigen::VectorXd TaskEmbeddings::getDistances(const EmbeddingNorm& norm,
-                                             const Eigen::VectorXd& embedding) const {
+Eigen::VectorXd TaskEmbeddings::getScores(const EmbeddingNorm& norm,
+                                          const Eigen::VectorXd& embedding) const {
   Eigen::VectorXd distances(embeddings.cols());
   for (int i = 0; i < embeddings.cols(); ++i) {
     distances(i) = norm(embeddings.col(i), embedding);
@@ -14,17 +14,17 @@ Eigen::VectorXd TaskEmbeddings::getDistances(const EmbeddingNorm& norm,
   return distances;
 }
 
-double TaskEmbeddings::getBestDistance(const EmbeddingNorm& norm,
-                                       const Eigen::VectorXd& embedding) const {
-  double min_dist = std::numeric_limits<double>::max();
+double TaskEmbeddings::getBestScore(const EmbeddingNorm& norm,
+                                    const Eigen::VectorXd& embedding) const {
+  double max_score = std::numeric_limits<double>::lowest();
   for (int i = 0; i < embeddings.cols(); ++i) {
-    const auto dist = norm(embeddings.col(i), embedding);
-    if (dist < min_dist) {
-      min_dist = dist;
+    const auto score = norm.score(embeddings.col(i), embedding);
+    if (score > max_score) {
+      max_score = score;
     }
   }
 
-  return min_dist;
+  return max_score;
 }
 
 }  // namespace hydra::llm
