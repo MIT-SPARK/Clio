@@ -1,4 +1,5 @@
 #pragma once
+#include <config_utilities/config.h>
 #include <config_utilities/factory.h>
 
 #include "hydra_llm/clip_types.h"
@@ -15,6 +16,10 @@ struct EmbeddingMerger {
 };
 
 struct MeanMerger : EmbeddingMerger {
+  struct Config {};
+
+  explicit MeanMerger(const Config& = {}) {}
+
   ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
                            double lhs_score,
                            const ClipEmbedding& rhs,
@@ -22,10 +27,16 @@ struct MeanMerger : EmbeddingMerger {
 
  private:
   inline static const auto registration_ =
-      config::Registration<EmbeddingMerger, MeanMerger>("mean");
+      config::RegistrationWithConfig<EmbeddingMerger, MeanMerger, Config>("mean");
 };
+
+inline void declare_config(MeanMerger::Config&) { config::name("MeanMerger::Config"); }
 
 struct WeightedMeanMerger : EmbeddingMerger {
+  struct Config {};
+
+  explicit WeightedMeanMerger(const Config& = {}) {}
+
   ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
                            double lhs_score,
                            const ClipEmbedding& rhs,
@@ -33,10 +44,19 @@ struct WeightedMeanMerger : EmbeddingMerger {
 
  private:
   inline static const auto registration_ =
-      config::Registration<EmbeddingMerger, WeightedMeanMerger>("weighted_mean");
+      config::RegistrationWithConfig<EmbeddingMerger, WeightedMeanMerger, Config>(
+          "weighted_mean");
 };
+
+inline void declare_config(WeightedMeanMerger::Config&) {
+  config::name("WeightedMeanMerger::Config");
+}
 
 struct MaxMerger : EmbeddingMerger {
+  struct Config {};
+
+  explicit MaxMerger(const Config& = {}) {}
+
   ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
                            double lhs_score,
                            const ClipEmbedding& rhs,
@@ -44,7 +64,9 @@ struct MaxMerger : EmbeddingMerger {
 
  private:
   inline static const auto registration_ =
-      config::Registration<EmbeddingMerger, MaxMerger>("max");
+      config::RegistrationWithConfig<EmbeddingMerger, MaxMerger, Config>("max");
 };
+
+inline void declare_config(MaxMerger::Config&) { config::name("MaxMerger::Config"); }
 
 }  // namespace hydra::llm

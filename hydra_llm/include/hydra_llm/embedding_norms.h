@@ -1,5 +1,5 @@
 #pragma once
-
+#include <config_utilities/config.h>
 #include <config_utilities/factory.h>
 
 #include <Eigen/Dense>
@@ -21,33 +21,53 @@ struct EmbeddingNorm {
 };
 
 struct CosineDistance : EmbeddingNorm {
+  struct Config {};
+
+  explicit CosineDistance(const Config& = {}) {}
+
   double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
   double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
  private:
   inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, CosineDistance>("cosine");
+      config::RegistrationWithConfig<EmbeddingNorm, CosineDistance, Config>("cosine");
 };
 
-struct L2Norm : public EmbeddingNorm {
-  double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
-
-  double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
-
- private:
-  inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, L2Norm>("l2");
-};
+inline void declare_config(CosineDistance::Config&) {
+  config::name("CosineDistance::Config");
+}
 
 struct L1Norm : public EmbeddingNorm {
+  struct Config {};
+
+  explicit L1Norm(const Config& = {}) {}
+
   double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
   double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
  private:
   inline static const auto registration_ =
-      config::Registration<EmbeddingNorm, L1Norm>("l1");
+      config::RegistrationWithConfig<EmbeddingNorm, L1Norm, Config>("l1");
 };
+
+inline void declare_config(L1Norm::Config&) { config::name("L1Norm::Config"); }
+
+struct L2Norm : public EmbeddingNorm {
+  struct Config {};
+
+  explicit L2Norm(const Config& = {}) {}
+
+  double norm(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+  double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+ private:
+  inline static const auto registration_ =
+      config::RegistrationWithConfig<EmbeddingNorm, L2Norm, Config>("l2");
+};
+
+inline void declare_config(L2Norm::Config&) { config::name("L2Norm::Config"); }
 
 }  // namespace hydra::llm

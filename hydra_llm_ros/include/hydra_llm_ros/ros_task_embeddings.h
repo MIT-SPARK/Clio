@@ -11,7 +11,7 @@ struct RosTaskEmbeddings : public TaskEmbeddings {
 
  private:
   inline static const auto registration_ =
-      config::RegistrationWithConfig<TaskEmbeddings, RosTaskEmbeddings, Config>("ros");
+      config::RegistrationWithConfig<TaskEmbeddings, RosTaskEmbeddings, Config>("RosTaskEmbeddings");
 };
 
 void declare_config(RosTaskEmbeddings::Config&);

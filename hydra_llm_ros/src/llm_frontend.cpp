@@ -16,8 +16,8 @@ void declare_config(LLMFrontendConfig& config) {
   using namespace config;
   name("LLMFrontendConfig");
   base<FrontendConfig>(config);
-  config.clustering.setOptional();
-  field(config.clustering, "clustering");
+  config.places_clustering.setOptional();
+  field(config.places_clustering, "places_clustering");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -27,7 +27,7 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
       nh_("~") {
-  places_clustering_ = config.clustering.create();
+  places_clustering_ = config.places_clustering.create();
   if (places_clustering_) {
     clip_sub_ =
         nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);

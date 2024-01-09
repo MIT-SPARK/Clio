@@ -51,6 +51,11 @@ class Clustering {
   void computePhi(const SceneGraphLayer& layer,
                   const std::set<EdgeKey>& edges,
                   EdgeEmbeddingMap& edge_embeddings) const;
+
+ private:
+  inline static const auto registration_ =
+      config::RegistrationWithConfig<Clustering, Clustering, Clustering::Config>(
+          "GreedyClustering");
 };
 
 void declare_config(Clustering::Config& config);

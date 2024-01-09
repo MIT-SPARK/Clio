@@ -7,7 +7,7 @@
 namespace hydra::llm {
 
 struct LLMFrontendConfig : public FrontendConfig {
-  config::VirtualConfig<PlaceClustering> clustering;
+  config::VirtualConfig<PlaceClustering> places_clustering;
 };
 
 void declare_config(LLMFrontendConfig& config);
