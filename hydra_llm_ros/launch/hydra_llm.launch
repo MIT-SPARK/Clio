@@ -101,7 +101,7 @@
              pass_all_args="true"
              if="$(arg start_visualizer)">
         <arg name="visualizer_frame" default="$(arg map_frame)"/>
-        <arg name="dsg_topic" default="hydra_llm_node/dsg"/>
+        <arg name="dsg_topic" default="hydra_llm_node/frontend/dsg"/>
         <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
     </include>
 

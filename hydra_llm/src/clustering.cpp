@@ -30,6 +30,7 @@ bool keysIntersect(EdgeKey key1, EdgeKey key2) {
 struct ScoredEmbedding {
   double weight;
   ClipEmbedding::Ptr clip;
+  size_t task_index;
 };
 
 struct ClusteringWorkspace {
@@ -50,10 +51,12 @@ struct ClusteringWorkspace {
       }
 
       clusters.addSet(node_id);
-      const auto score = tasks.getBestScore(norm, clip->embedding);
+      const auto result = tasks.getBestScore(norm, clip->embedding);
       embeddings.emplace(
           node_id,
-          ScoredEmbedding{score, std::make_unique<ClipEmbedding>(clip->embedding)});
+          ScoredEmbedding{result.score,
+                          std::make_unique<ClipEmbedding>(clip->embedding),
+                          result.index});
     }
 
     for (const auto node_id : clusters.roots) {
@@ -91,8 +94,10 @@ struct ClusteringWorkspace {
     const auto phi_2 = n2.weight;
     auto new_clip = merger.merge(*n1.clip, phi_1, *n2.clip, phi_2);
 
-    const auto phi_e = tasks.getBestScore(norm, new_clip->embedding);
-    edge_embeddings.emplace(edge, ScoredEmbedding{phi_e, std::move(new_clip)});
+    const auto result = tasks.getBestScore(norm, new_clip->embedding);
+    const auto phi_e = result.score;
+    edge_embeddings.emplace(edge,
+                            ScoredEmbedding{phi_e, std::move(new_clip), result.index});
     phi.emplace(edge, std::max(phi_e - phi_1, phi_e - phi_2));
   }
 
@@ -161,7 +166,7 @@ struct ClusteringWorkspace {
     }
   }
 
-  Clusters getClusters(double min_score) {
+  Clusters getClusters(const TaskEmbeddings& tasks, double min_score) {
     Clusters to_return;
     std::map<NodeId, size_t> cluster_lookup;
     for (auto&& [root, info] : embeddings) {
@@ -172,6 +177,8 @@ struct ClusteringWorkspace {
       auto new_cluster = std::make_shared<Cluster>();
       new_cluster->clip = std::make_unique<ClipEmbedding>(info.clip->embedding);
       new_cluster->score = info.weight;
+      new_cluster->best_task_index = info.task_index;
+      new_cluster->best_task_name = tasks.tasks.at(info.task_index);
       cluster_lookup[root] = to_return.size();
       to_return.push_back(new_cluster);
     }
@@ -223,7 +230,7 @@ Clusters Clustering::cluster(const SceneGraphLayer& original_layer,
     workspace.updatePhi(*tasks_, *embedding_merge_, norm, changed_edges);
   }
 
-  return workspace.getClusters(config.min_score);
+  return workspace.getClusters(*tasks_, config.min_score);
 }
 
 }  // namespace hydra::llm

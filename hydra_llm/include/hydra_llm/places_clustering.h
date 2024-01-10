@@ -17,6 +17,7 @@ struct PlaceClustering {
   struct Config {
     config::VirtualConfig<Clustering> clustering;
     double min_assocation_iou = 1.0;
+    bool color_by_task = true;
   };
 
   explicit PlaceClustering(const Config& config);

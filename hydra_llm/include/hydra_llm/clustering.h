@@ -17,6 +17,8 @@ struct Cluster {
   std::set<NodeId> nodes;
   double score;
   ClipEmbedding::Ptr clip;
+  size_t best_task_index;
+  std::string best_task_name;
 };
 
 class Clustering {

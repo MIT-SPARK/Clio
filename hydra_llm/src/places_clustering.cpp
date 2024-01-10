@@ -4,21 +4,18 @@
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
 #include <hydra/common/common.h>
+#include <hydra/common/hydra_config.h>
 #include <hydra/rooms/room_utilities.h>
 #include <hydra/utils/display_utilities.h>
 
 namespace hydra::llm {
-
-// TODO(nathan) clean this up
-struct RegionNodeAttributes : public SemanticNodeAttributes {
-  Eigen::VectorXd embedding;
-};
 
 void declare_config(PlaceClustering::Config& config) {
   using namespace config;
   name("PlaceClustering::Config");
   field(config.clustering, "clustering");
   field(config.min_assocation_iou, "min_assocation_iou");
+  field(config.color_by_task, "color_by_task");
 }
 
 const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
@@ -134,8 +131,13 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     if (iter == associations.end()) {
       auto attrs = std::make_unique<RegionNodeAttributes>();
       attrs->semantic_label = 0;
-      attrs->name = region_id_.getLabel();
+      attrs->name = clusters[i]->best_task_name;
       attrs->embedding = clusters[i]->clip->embedding;
+      const auto color_idx =
+          config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
+      const auto color = HydraConfig::instance().getRoomColor(color_idx);
+      attrs->color =
+          Eigen::Map<const SemanticNodeAttributes::ColorVector>(color.data());
       graph.emplaceNode(DsgLayers::ROOMS, region_id_, std::move(attrs));
       new_node_id = region_id_;
       new_regions.push_back(region_id_);
@@ -164,13 +166,17 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   std::set<NodeId> to_delete;
   for (const auto node_id : updated_regions) {
     const auto& node = graph.getNode(node_id)->get();
-    std::unordered_set to_use(node.children().begin(), node.children().end());
+    std::unordered_set<NodeId> to_use(node.children().begin(), node.children().end());
     if (to_use.empty()) {
       to_delete.insert(node_id);
       continue;
     }
 
     node.attributes().position = getRoomPosition(places, to_use);
+    const auto siblings = node.siblings();
+    for (const auto& sibling : siblings) {
+      graph.removeEdge(node_id, sibling);
+    }
   }
 
   VLOG(VLEVEL_DEBUG) << "New: " << displayNodeSymbolContainer(new_regions);
@@ -186,7 +192,9 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
 
   const auto& regions = graph.getLayer(DsgLayers::ROOMS);
   for (auto&& [node_id, node] : regions.nodes()) {
-    CHECK(!node->children().empty()) << "Invalid region: " << printNodeId(node_id);
+    if (node->children().empty()) {
+      LOG(ERROR) << "Invalid region: " << printNodeId(node_id);
+    }
   }
 }
 

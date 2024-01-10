@@ -8,6 +8,10 @@ namespace hydra::llm {
 // task_embeddings = [helpers.get_text_clip_feature(x) for x in tasks]
 struct TaskEmbeddings {
   using Ptr = std::shared_ptr<TaskEmbeddings>;
+  struct ScoreResult {
+    double score = std::numeric_limits<double>::lowest();
+    size_t index = 0;
+  };
 
   virtual ~TaskEmbeddings() = default;
 
@@ -17,8 +21,8 @@ struct TaskEmbeddings {
   Eigen::VectorXd getScores(const EmbeddingNorm& norm,
                             const Eigen::VectorXd& embedding) const;
 
-  double getBestScore(const EmbeddingNorm& norm,
-                      const Eigen::VectorXd& embedding) const;
+  ScoreResult getBestScore(const EmbeddingNorm& norm,
+                           const Eigen::VectorXd& embedding) const;
 
   std::vector<Eigen::VectorXd> embeddings;
   std::vector<std::string> tasks;

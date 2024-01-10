@@ -25,11 +25,11 @@ places_clustering:
   type: PlaceClustering
   clustering:
     type: GreedyClustering
-    stop_value: 0.01
+    stop_value: 0.0
     tasks:
       type: RosTaskEmbeddings
     norm:
       type: cosine
     merge:
       type: weighted_mean
-  min_assocation_iou: 0.5
+  min_assocation_iou: 0.8
