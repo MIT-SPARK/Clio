@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
   ros::NodeHandle nh("~");
   const int robot_id = nh.param<int>("robot_id", 0);
   hydra::llm::HydraLLMPipeline hydra(nh, robot_id);
+  hydra.init();
 
   hydra.start();
   hydra::spinAndWait(nh);

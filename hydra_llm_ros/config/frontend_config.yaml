@@ -21,15 +21,3 @@ graph_extractor:
   min_edge_distance_m: 0.25
   node_merge_distance_m: 0.5
   add_heuristic_edges: false
-places_clustering:
-  type: PlaceClustering
-  clustering:
-    type: $(arg places_clustering_type)
-    stop_value: 0.0
-    tasks:
-      type: RosTaskEmbeddings
-    norm:
-      type: cosine
-    merge:
-      type: weighted_mean
-  min_assocation_iou: 0.8

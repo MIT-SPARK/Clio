@@ -209,7 +209,16 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     return;
   }
 
-  const auto clusters = clustering_->cluster(graph.getLayer(DsgLayers::PLACES), views);
+  // TODO(nathan) maintain this at the updater func level?
+  NodeEmbeddingMap valid_views;
+  for (auto&& [node_id, view] : views) {
+    if (graph.hasNode(node_id)) {
+      valid_views[node_id] = view;
+    }
+  }
+
+  const auto clusters =
+      clustering_->cluster(graph.getLayer(DsgLayers::PLACES), valid_views);
   if (config.is_batch) {
     updateGraphBatch(graph, clusters);
   } else {

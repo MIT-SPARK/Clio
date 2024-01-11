@@ -33,3 +33,16 @@ pgmo:
     place_merge: 10.0
     object_merge: 10.0
 enable_rooms: false
+regions:
+  extractor:
+    type: PlaceClustering
+    min_assocation_iou: 0.8
+    clustering:
+      type: $(arg places_clustering_type)
+      stop_value: 0.0
+      tasks:
+        type: RosTaskEmbeddings
+      norm:
+        type: cosine
+      merge:
+        type: weighted_mean

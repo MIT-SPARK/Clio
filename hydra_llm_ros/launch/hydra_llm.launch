@@ -87,11 +87,11 @@
         <!-- parameter files -->
         <rosparam file="$(arg labelspace_path)"/>
         <rosparam file="$(arg input_config_path)" ns="input" subst_value="true"/>
-        <rosparam file="$(arg reconstruction_config_path)" ns="reconstruction"/>
+        <rosparam file="$(arg reconstruction_config_path)" ns="reconstruction" subst_value="true"/>
         <rosparam file="$(arg frontend_config_path)" ns="frontend" subst_value="true"/>
-        <rosparam file="$(arg backend_config_path)" ns="backend"/>
-        <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)"/>
-        <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)"/>
+        <rosparam file="$(arg backend_config_path)" ns="backend" subst_value="true"/>
+        <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
+        <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)" subst_value="true"/>
         <rosparam file="$(arg ros_params_file)" subst_value="true"/>
     </node>
 
@@ -103,7 +103,7 @@
              pass_all_args="true"
              if="$(arg start_visualizer)">
         <arg name="visualizer_frame" default="$(arg map_frame)"/>
-        <arg name="dsg_topic" default="hydra_llm_node/frontend/dsg"/>
+        <arg name="dsg_topic" default="hydra_llm_node/dsg"/>
         <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
     </include>
 

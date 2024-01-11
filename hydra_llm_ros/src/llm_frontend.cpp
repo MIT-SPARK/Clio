@@ -25,6 +25,7 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
       nh_("~") {
+  views_database_ = std::make_shared<ViewDatabase>();
   clip_sub_ =
       nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
 }
@@ -78,6 +79,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     views_database_->addView(node_id,
                              std::move(iter->second),
                              keyframe_sensor_map_.at(NodeSymbol(node_id).categoryId()));
+    iter = keyframe_clip_vectors_.erase(iter);
   }
 }
 
