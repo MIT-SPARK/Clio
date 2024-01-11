@@ -132,7 +132,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
       auto attrs = std::make_unique<RegionNodeAttributes>();
       attrs->semantic_label = 0;
       attrs->name = clusters[i]->best_task_name;
-      attrs->embedding = clusters[i]->clip->embedding;
+      attrs->semantic_feature = clusters[i]->clip->embedding;
       const auto color_idx =
           config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
       const auto color = HydraConfig::instance().getRoomColor(color_idx);
@@ -145,7 +145,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     } else {
       auto& attrs =
           graph.getNode(iter->second)->get().attributes<RegionNodeAttributes>();
-      attrs.embedding = clusters[i]->clip->embedding;
+      attrs.semantic_feature = clusters[i]->clip->embedding;
       new_node_id = iter->second;
     }
 
@@ -179,9 +179,9 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     }
   }
 
-  VLOG(VLEVEL_DEBUG) << "New: " << displayNodeSymbolContainer(new_regions);
-  VLOG(VLEVEL_DEBUG) << "Updated: " << displayNodeSymbolContainer(updated_regions);
-  VLOG(VLEVEL_DEBUG) << "Invalid: " << displayNodeSymbolContainer(to_delete);
+  VLOG(5) << "New: " << displayNodeSymbolContainer(new_regions);
+  VLOG(5) << "Updated: " << displayNodeSymbolContainer(updated_regions);
+  VLOG(5) << "Invalid: " << displayNodeSymbolContainer(to_delete);
 
   for (const auto node_id : to_delete) {
     graph.removeNode(node_id);
@@ -193,7 +193,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   const auto& regions = graph.getLayer(DsgLayers::ROOMS);
   for (auto&& [node_id, node] : regions.nodes()) {
     if (node->children().empty()) {
-      LOG(ERROR) << "Invalid region: " << printNodeId(node_id);
+      LOG(ERROR) << "Invalid region: " << NodeSymbol(node_id).getLabel();
     }
   }
 }

@@ -46,7 +46,7 @@ struct ClusteringWorkspace {
                       const NodeEmbeddingMap& node_embeddings) {
     for (auto&& [node_id, clip] : node_embeddings) {
       if (!clip) {
-        LOG(WARNING) << "Node '" << printNodeId(node_id) << "' missing clip feature";
+        LOG(WARNING) << "Node '" << NodeSymbol(node_id).getLabel() << "' missing clip feature";
         continue;
       }
 
@@ -86,8 +86,8 @@ struct ClusteringWorkspace {
                EdgeKey edge) {
     auto n1_iter = embeddings.find(edge.k1);
     auto n2_iter = embeddings.find(edge.k2);
-    CHECK(n1_iter != embeddings.end()) << "Missing: '" << printNodeId(edge.k1) << "'";
-    CHECK(n2_iter != embeddings.end()) << "Missing: '" << printNodeId(edge.k2) << "'";
+    CHECK(n1_iter != embeddings.end()) << "Missing: '" << NodeSymbol(edge.k1).getLabel() << "'";
+    CHECK(n2_iter != embeddings.end()) << "Missing: '" << NodeSymbol(edge.k2).getLabel() << "'";
     const auto& n1 = n1_iter->second;
     const auto& n2 = n2_iter->second;
     const auto phi_1 = n1.weight;
