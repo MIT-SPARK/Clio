@@ -16,8 +16,6 @@ void declare_config(LLMFrontendConfig& config) {
   using namespace config;
   name("LLMFrontendConfig");
   base<FrontendConfig>(config);
-  config.places_clustering.setOptional();
-  field(config.places_clustering, "places_clustering");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -27,11 +25,8 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
       nh_("~") {
-  places_clustering_ = config.places_clustering.create();
-  if (places_clustering_) {
-    clip_sub_ =
-        nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
-  }
+  clip_sub_ =
+      nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
 }
 
 LLMFrontend::~LLMFrontend() {}
@@ -54,12 +49,12 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
 
   // assumes active nodes remains sorted
   const auto& agents = dsg_->graph->getLayer(DsgLayers::AGENTS, prefix.key);
-  std::map<uint64_t, size_t> timestamp_map;
+  std::map<uint64_t, NodeId> timestamp_map;
   for (const auto index : active_nodes) {
     // TODO(nathan) think about subsampling the timestamps to include more than
     // just keyframes
     const DynamicSceneGraphNode& node = agents.getNodeByIndex(index).value();
-    timestamp_map[node.timestamp.count()] = index;
+    timestamp_map[node.timestamp.count()] = node.id;
   }
 
   auto iter = keyframe_clip_vectors_.begin();
@@ -79,29 +74,39 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
       continue;
     }
 
-    const auto keyframe_idx = stamp_iter->second;
-    const auto& attrs =
-        agents.getNodeByIndex(keyframe_idx)->get().attributes<AgentNodeAttributes>();
-    view_database_->addView(std::move(iter->second));
-
-    view->sensor = keyframe_sensor_map_.at(keyframe_idx);
-    Eigen::Isometry3d world_T_body =
-        Eigen::Translation3d(attrs.position) * attrs.world_R_body;
-    view->sensor_T_world = (world_T_body * view->sensor->body_T_sensor()).inverse();
-
-    active_window_views_[keyframe_idx] = view;
+    const auto node_id = stamp_iter->second;
+    views_database_->addView(node_id,
+                             std::move(iter->second),
+                             keyframe_sensor_map_.at(NodeSymbol(node_id).categoryId()));
   }
+}
+
+void LLMFrontend::addViewCallback(const ViewCallback& func) {
+  view_callbacks_.push_back(func);
 }
 
 void LLMFrontend::updateImpl(const ReconstructionOutput& msg) {
   FrontendModule::updateImpl(msg);
-  if (places_clustering_) {
-    // okay without locking: we're not modifying the graph
-    updateActiveWindowViews(msg.timestamp_ns);
+  // okay without locking: we're not modifying the graph
+  updateActiveWindowViews(msg.timestamp_ns);
+
+  const auto& prefix = HydraConfig::instance().getRobotPrefix();
+  const auto& active_nodes = active_agent_nodes_.at(prefix.key);
+  if (active_nodes.empty()) {
+    return;
   }
 
-    places_clustering_->clusterPlaces(
-        *dsg_->graph, active_window_views_, previous_active_places_);
+  std::vector<NodeId> active_ids;
+  for (const auto index : active_nodes) {
+    active_ids.push_back(NodeSymbol(prefix.key, index));
+  }
+
+  std::map<NodeId, NodeId> best_views;
+  views_database_->updateAssignments(
+      *dsg_->graph, active_ids, previous_active_places_, best_views);
+  for (const auto& cb : view_callbacks_) {
+    cb(*views_database_, best_views);
+  }
 }
 
 }  // namespace hydra::llm

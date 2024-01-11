@@ -5,12 +5,10 @@
 
 namespace hydra::llm {
 
-const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
-                            const PlaceNodeAttributes& attrs);
-
 struct ViewEntry {
   NodeId node_id;
   ClipEmbedding::Ptr clip;
+  std::shared_ptr<Sensor> sensor;
 };
 
 class ViewDatabase {
@@ -21,12 +19,18 @@ class ViewDatabase {
 
   ~ViewDatabase();
 
-  void addView(NodeId node, ClipEmbedding::Ptr&& embedding);
+  void addView(NodeId node,
+               ClipEmbedding::Ptr&& embedding,
+               const std::shared_ptr<Sensor>& sensor);
 
   const ViewEntry* getView(NodeId node) const;
 
+  void updateAssignments(const DynamicSceneGraph& graph,
+                         const std::vector<NodeId>& active_agents,
+                         const std::unordered_set<NodeId>& active_places,
+                         std::map<NodeId, NodeId>& best_views) const;
+
  protected:
-  std::mutex mutex_;
   std::map<NodeId, ViewEntry> entries_;
 };
 

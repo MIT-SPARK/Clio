@@ -1,4 +1,5 @@
 #pragma once
+#include <hydra/common/dsg_types.h>
 #include <hydra/reconstruction/sensor.h>
 
 #include <Eigen/Geometry>
@@ -17,18 +18,12 @@ struct ClipEmbedding {
   const Eigen::VectorXd embedding;
 };
 
-struct ClipView {
-  using Ptr = std::shared_ptr<ClipView>;
-  uint64_t timestamp_ns;
-  std::shared_ptr<Sensor> sensor;
-  Eigen::Isometry3d sensor_T_world;
-  ClipEmbedding::Ptr clip;
-};
-
 struct ScoredEmbedding {
   double score;
   ClipEmbedding::Ptr clip;
   size_t task_index;
 };
+
+using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 
 }  // namespace hydra::llm

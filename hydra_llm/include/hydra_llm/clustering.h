@@ -1,6 +1,5 @@
 #pragma once
 #include <config_utilities/virtual_config.h>
-#include <hydra/common/dsg_types.h>
 
 #include <Eigen/Dense>
 
@@ -8,8 +7,6 @@
 #include "hydra_llm/task_embeddings.h"
 
 namespace hydra::llm {
-
-using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 
 struct Cluster {
   using Ptr = std::shared_ptr<Cluster>;
