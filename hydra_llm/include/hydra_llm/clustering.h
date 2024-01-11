@@ -4,8 +4,7 @@
 
 #include <Eigen/Dense>
 
-#include "hydra_llm/embedding_norms.h"
-#include "hydra_llm/merge_utilities.h"
+#include "hydra_llm/clip_types.h"
 #include "hydra_llm/task_embeddings.h"
 
 namespace hydra::llm {
@@ -25,31 +24,19 @@ class Clustering {
  public:
   struct Config {
     config::VirtualConfig<TaskEmbeddings> tasks;
-    config::VirtualConfig<EmbeddingNorm> norm;
-    config::VirtualConfig<EmbeddingMerger> merge;
-    double stop_value = 0.0;
-    double min_score = 0.022;
   };
 
   Clustering(const Config& config);
 
+  virtual ~Clustering() = default;
+
+  virtual std::vector<Cluster::Ptr> cluster(
+      const SceneGraphLayer& layer, const NodeEmbeddingMap& embeddings) const = 0;
+
   const Config config;
 
-  std::vector<Cluster::Ptr> cluster(const SceneGraphLayer& layer,
-                                    const NodeEmbeddingMap& node_embeddings) const;
-
- private:
-  std::unique_ptr<EmbeddingNorm> norm_;
-  EmbeddingMerger::Ptr embedding_merge_;
+ protected:
   TaskEmbeddings::Ptr tasks_;
-
- public:
-  const EmbeddingNorm& norm;
-
- private:
-  inline static const auto registration_ =
-      config::RegistrationWithConfig<Clustering, Clustering, Clustering::Config>(
-          "GreedyClustering");
 };
 
 void declare_config(Clustering::Config& config);

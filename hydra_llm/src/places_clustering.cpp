@@ -10,37 +10,14 @@
 
 namespace hydra::llm {
 
+using Clusters = std::vector<Cluster::Ptr>;
+
 void declare_config(PlaceClustering::Config& config) {
   using namespace config;
   name("PlaceClustering::Config");
   field(config.clustering, "clustering");
   field(config.min_assocation_iou, "min_assocation_iou");
   field(config.color_by_task, "color_by_task");
-}
-
-const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
-                            const PlaceNodeAttributes& attrs) {
-  double min_dist = std::numeric_limits<double>::max();
-  const ClipView* best_view = nullptr;
-  for (const auto& id_view_pair : views) {
-    const auto& view = id_view_pair.second;
-    const auto& sensor = *(view->sensor);
-
-    const Eigen::Vector3f p_s = (view->sensor_T_world * attrs.position).cast<float>();
-    if (!sensor.pointIsInViewFrustum(p_s)) {
-      continue;
-    }
-
-    // heuristic to pick the view that's closest to the boundary of the free-space
-    // sphere
-    const auto dist = std::abs(attrs.distance - p_s.norm());
-    if (dist < min_dist) {
-      best_view = view.get();
-      min_dist = dist;
-    }
-  }
-
-  return best_view;
 }
 
 PlaceClustering::PlaceClustering(const Config& config)
@@ -66,26 +43,14 @@ double computeIoU(const std::set<NodeId>& lhs, const std::set<NodeId>& rhs) {
   return static_cast<double>(num_same) / divisor;
 }
 
-void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
-                                    const std::map<size_t, ClipView::Ptr>& views,
-                                    const std::unordered_set<NodeId>& nodes) {
-  if (views.empty()) {
-    LOG(ERROR) << "Need to have at least one view";
-    return;
-  }
-
-  std::map<NodeId, const ClipEmbedding*> assigned_views;
+void PlaceClustering::updateGraphIncremental(DynamicSceneGraph& graph,
+                                             const NodeEmbeddingMap& views,
+                                             const Clusters& clusters) const {
   const auto& places = graph.getLayer(DsgLayers::PLACES);
   std::map<NodeId, std::set<NodeId>> region_sets;
-  for (const auto node_id : nodes) {
+  for (const auto id_view_pair : views) {
+    const auto node_id = id_view_pair.first;
     const SceneGraphNode& node = places.getNode(node_id)->get();
-    const auto& attrs = node.attributes<PlaceNodeAttributes>();
-    const auto best_view = getBestView(views, attrs);
-    if (!best_view) {
-      continue;
-    }
-
-    assigned_views[node_id] = best_view->clip.get();
     const auto parent = node.getParent();
     if (parent) {
       auto iter = region_sets.find(*parent);
@@ -96,10 +61,6 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
       iter->second.insert(node_id);
     }
   }
-
-  VLOG(1) << "Using " << assigned_views.size() << " places of " << nodes.size()
-          << " original places";
-  const auto clusters = clustering_->cluster(places, assigned_views);
 
   std::map<size_t, NodeId> associations;
   for (size_t i = 0; i < clusters.size(); ++i) {
@@ -195,6 +156,64 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
     if (node->children().empty()) {
       LOG(ERROR) << "Invalid region: " << NodeSymbol(node_id).getLabel();
     }
+  }
+}
+
+void PlaceClustering::updateGraphBatch(DynamicSceneGraph& graph,
+                                       const Clusters& clusters) const {
+  LOG(WARNING) << "Got " << clusters.size() << " cluster(s)";
+
+  std::vector<NodeId> prev_regions;
+  for (const auto& id_node_pair : graph.getLayer(DsgLayers::ROOMS).nodes()) {
+    prev_regions.push_back(id_node_pair.first);
+  }
+
+  for (const auto node : prev_regions) {
+    graph.removeNode(node);
+  }
+
+  std::set<NodeId> new_nodes;
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    NodeSymbol new_node_id(region_id_.category(), i);
+    auto attrs = std::make_unique<RegionNodeAttributes>();
+    attrs->semantic_label = 0;
+    attrs->name = clusters[i]->best_task_name;
+    attrs->semantic_feature = clusters[i]->clip->embedding;
+    const auto color_idx =
+        config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
+    const auto color = HydraConfig::instance().getRoomColor(color_idx);
+    attrs->color = Eigen::Map<const SemanticNodeAttributes::ColorVector>(color.data());
+    graph.emplaceNode(DsgLayers::ROOMS, new_node_id, std::move(attrs));
+
+    for (const auto node_id : clusters[i]->nodes) {
+      graph.insertEdge(new_node_id, node_id);
+    }
+
+    new_nodes.insert(new_node_id);
+  }
+
+  const auto& places = graph.getLayer(DsgLayers::PLACES);
+  for (auto&& [node_id, node] : graph.getLayer(DsgLayers::ROOMS).nodes()) {
+    const std::unordered_set<NodeId> to_use(node->children().begin(),
+                                            node->children().end());
+    node->attributes().position = getRoomPosition(places, to_use);
+  }
+
+  addEdgesToRoomLayer(graph, new_nodes);
+}
+
+void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
+                                    const NodeEmbeddingMap& views) {
+  if (views.empty()) {
+    LOG(ERROR) << "Need to have at least one view";
+    return;
+  }
+
+  const auto clusters = clustering_->cluster(graph.getLayer(DsgLayers::PLACES), views);
+  if (config.is_batch) {
+    updateGraphBatch(graph, clusters);
+  } else {
+    updateGraphIncremental(graph, views, clusters);
   }
 }
 

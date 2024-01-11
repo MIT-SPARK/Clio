@@ -24,7 +24,7 @@ graph_extractor:
 places_clustering:
   type: PlaceClustering
   clustering:
-    type: GreedyClustering
+    type: $(arg places_clustering_type)
     stop_value: 0.0
     tasks:
       type: RosTaskEmbeddings

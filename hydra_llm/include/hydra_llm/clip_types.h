@@ -25,4 +25,10 @@ struct ClipView {
   ClipEmbedding::Ptr clip;
 };
 
+struct ScoredEmbedding {
+  double score;
+  ClipEmbedding::Ptr clip;
+  size_t task_index;
+};
+
 }  // namespace hydra::llm

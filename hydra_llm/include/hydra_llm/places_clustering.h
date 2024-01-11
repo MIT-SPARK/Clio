@@ -9,13 +9,11 @@
 
 namespace hydra::llm {
 
-const ClipView* getBestView(const std::map<size_t, ClipView::Ptr>& views,
-                            const PlaceNodeAttributes& attrs);
-
 struct PlaceClustering {
   using Ptr = std::unique_ptr<PlaceClustering>;
   struct Config {
     config::VirtualConfig<Clustering> clustering;
+    bool is_batch = true;
     double min_assocation_iou = 1.0;
     bool color_by_task = true;
   };
@@ -24,15 +22,21 @@ struct PlaceClustering {
 
   ~PlaceClustering();
 
-  void clusterPlaces(DynamicSceneGraph& graph,
-                     const std::map<size_t, ClipView::Ptr>& views,
-                     const std::unordered_set<NodeId>& nodes);
+  void clusterPlaces(DynamicSceneGraph& graph, const NodeEmbeddingMap& views);
 
   const Config config;
 
+ protected:
+  void updateGraphBatch(DynamicSceneGraph& graph,
+                        const std::vector<Cluster::Ptr>& clusters) const;
+
+  void updateGraphIncremental(DynamicSceneGraph& graph,
+                              const NodeEmbeddingMap& views,
+                              const std::vector<Cluster::Ptr>& clusters) const;
+
  private:
   std::unique_ptr<Clustering> clustering_;
-  NodeSymbol region_id_;
+  mutable NodeSymbol region_id_;
 
   inline static const auto registration_ =
       config::RegistrationWithConfig<PlaceClustering,

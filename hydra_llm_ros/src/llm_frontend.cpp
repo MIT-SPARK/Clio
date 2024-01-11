@@ -52,15 +52,6 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     return;
   }
 
-  auto window_iter = active_window_views_.begin();
-  while (window_iter != active_window_views_.end()) {
-    if (!active_nodes.count(window_iter->first)) {
-      window_iter = active_window_views_.erase(window_iter);
-    } else {
-      ++window_iter;
-    }
-  }
-
   // assumes active nodes remains sorted
   const auto& agents = dsg_->graph->getLayer(DsgLayers::AGENTS, prefix.key);
   std::map<uint64_t, size_t> timestamp_map;
@@ -89,14 +80,11 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     }
 
     const auto keyframe_idx = stamp_iter->second;
-    auto view = std::make_shared<ClipView>();
-    view->timestamp_ns = iter->first;
-    view->clip = std::move(iter->second);
-    iter = keyframe_clip_vectors_.erase(iter);
-
-    view->sensor = keyframe_sensor_map_.at(keyframe_idx);
     const auto& attrs =
         agents.getNodeByIndex(keyframe_idx)->get().attributes<AgentNodeAttributes>();
+    view_database_->addView(std::move(iter->second));
+
+    view->sensor = keyframe_sensor_map_.at(keyframe_idx);
     Eigen::Isometry3d world_T_body =
         Eigen::Translation3d(attrs.position) * attrs.world_R_body;
     view->sensor_T_world = (world_T_body * view->sensor->body_T_sensor()).inverse();
@@ -106,39 +94,14 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
 }
 
 void LLMFrontend::updateImpl(const ReconstructionOutput& msg) {
-  std::set<NodeId> regions_to_check;
-  for (const auto place_id : previous_active_places_) {
-    const SceneGraphNode& node = dsg_->graph->getNode(place_id).value();
-    const auto parent = node.getParent();
-    if (!parent) {
-      continue;
-    }
-
-    regions_to_check.insert(*parent);
-  }
-
   FrontendModule::updateImpl(msg);
   if (places_clustering_) {
     // okay without locking: we're not modifying the graph
     updateActiveWindowViews(msg.timestamp_ns);
-
-    // start critical section for modifying graph
-    std::lock_guard<std::mutex> lock(dsg_->mutex);
-    std::set<NodeId> to_clear;
-    for (const auto node_id : regions_to_check) {
-      const SceneGraphNode& node = dsg_->graph->getNode(node_id).value();
-      if (node.children().empty()) {
-        to_clear.insert(node_id);
-      }
-    }
-
-    for (const auto node_id : to_clear) {
-      dsg_->graph->removeNode(node_id);
-    }
+  }
 
     places_clustering_->clusterPlaces(
         *dsg_->graph, active_window_views_, previous_active_places_);
-  }
 }
 
 }  // namespace hydra::llm

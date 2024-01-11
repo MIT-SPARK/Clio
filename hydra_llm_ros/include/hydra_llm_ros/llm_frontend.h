@@ -36,7 +36,6 @@ class LLMFrontend : public FrontendModule {
 
   std::mutex clip_mutex_;
   std::map<uint64_t, ClipEmbedding::Ptr> keyframe_clip_vectors_;
-  std::map<size_t, ClipView::Ptr> active_window_views_;
   PlaceClustering::Ptr places_clustering_;
 
  private:
