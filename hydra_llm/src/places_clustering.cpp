@@ -212,9 +212,17 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
   // TODO(nathan) maintain this at the updater func level?
   NodeEmbeddingMap valid_views;
   for (auto&& [node_id, view] : views) {
-    if (graph.hasNode(node_id)) {
-      valid_views[node_id] = view;
+    const auto node = graph.getNode(node_id);
+    if (!node) {
+      continue;
     }
+
+    auto& attrs = node->get().attributes<PlaceNodeAttributes>();
+    if (view) {
+      attrs.semantic_feature = view->embedding;
+    }
+
+    valid_views[node_id] = view;
   }
 
   const auto clusters =
