@@ -1,5 +1,7 @@
 #include "hydra_llm/view_database.h"
 
+#include <glog/logging.h>
+
 namespace hydra::llm {
 
 struct ClipView {
@@ -37,15 +39,14 @@ ViewDatabase::ViewDatabase() {}
 
 ViewDatabase::~ViewDatabase() {}
 
-void ViewDatabase::addView(NodeId node,
-                           ClipEmbedding::Ptr&& embedding,
-                           const std::shared_ptr<Sensor>& sensor) {
+void ViewDatabase::addView(NodeId node, ClipEmbedding::Ptr&& embedding) {
   auto iter = entries_.find(node);
   if (iter != entries_.end()) {
-    return; // required for threadsafey
+    return;  // required for threadsafey
   }
 
-  entries_.emplace(node, ViewEntry{node, std::move(embedding), sensor});
+  LOG(FATAL) << "sensor tracking not implemented";
+  entries_.emplace(node, ViewEntry{node, std::move(embedding), nullptr});
 }
 
 const ViewEntry* ViewDatabase::getView(NodeId node) const {

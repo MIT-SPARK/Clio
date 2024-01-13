@@ -15,13 +15,11 @@ class ViewDatabase {
  public:
   using Ptr = std::shared_ptr<ViewDatabase>;
 
-  ViewDatabase();
+  explicit ViewDatabase();
 
   ~ViewDatabase();
 
-  void addView(NodeId node,
-               ClipEmbedding::Ptr&& embedding,
-               const std::shared_ptr<Sensor>& sensor);
+  void addView(NodeId node, ClipEmbedding::Ptr&& embedding);
 
   const ViewEntry* getView(NodeId node) const;
 

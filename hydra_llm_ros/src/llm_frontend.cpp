@@ -76,9 +76,7 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     }
 
     const auto node_id = stamp_iter->second;
-    views_database_->addView(node_id,
-                             std::move(iter->second),
-                             keyframe_sensor_map_.at(NodeSymbol(node_id).categoryId()));
+    views_database_->addView(node_id, std::move(iter->second));
     iter = keyframe_clip_vectors_.erase(iter);
   }
 }
