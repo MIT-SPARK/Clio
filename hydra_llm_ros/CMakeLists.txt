@@ -19,7 +19,7 @@ catkin_package(
 
 add_library(
   ${PROJECT_NAME} src/hydra_llm_pipeline.cpp src/llm_frontend.cpp
-                  src/ros_task_embeddings.cpp
+                  src/ros_task_embeddings.cpp src/places_visualizer.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
@@ -27,8 +27,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
 add_executable(hydra_llm_node app/hydra_llm_node.cpp)
 target_link_libraries(hydra_llm_node PUBLIC ${PROJECT_NAME})
 
+# TODO(nathan) literally a copy of the hydra node to have new plugin registrations in
+# the same shared object
+add_executable(hydra_llm_visualizer_node app/hydra_llm_visualizer_node.cpp)
+target_link_libraries(hydra_llm_visualizer_node PUBLIC ${PROJECT_NAME})
+
 install(
-  TARGETS ${PROJECT_NAME} hydra_llm_node
+  TARGETS ${PROJECT_NAME} hydra_llm_node hydra_llm_visualizer_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
