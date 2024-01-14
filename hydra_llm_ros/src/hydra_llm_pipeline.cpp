@@ -10,6 +10,8 @@
 
 namespace hydra::llm {
 
+using RegionConfig = RegionUpdateFunctor::Config;
+
 HydraLLMPipeline::HydraLLMPipeline(const ros::NodeHandle& nh, int robot_id)
     : HydraRosPipeline(nh, robot_id) {}
 
@@ -17,8 +19,9 @@ HydraLLMPipeline::~HydraLLMPipeline() {}
 
 void HydraLLMPipeline::init() {
   HydraRosPipeline::init();
-  const auto conf = config::checkValid(config::fromRos<RegionUpdateFunctor::Config>(
-      ros::NodeHandle(nh_, "backend/regions")));
+
+  const ros::NodeHandle nh(nh_, "backend/regions");
+  const auto conf = config::checkValid(config::fromRos<RegionConfig>(nh));
   region_clustering_ = std::make_unique<RegionUpdateFunctor>(conf);
 
   auto backend = getModule<BackendModule>("backend");
@@ -27,10 +30,9 @@ void HydraLLMPipeline::init() {
 
   auto frontend = getModule<LLMFrontend>("frontend");
   CHECK(frontend);
-  frontend->addViewCallback(
-      [this](const ViewDatabase& db, const std::map<NodeId, NodeId>& best_views) {
-        region_clustering_->updateFromViewDb(db, best_views);
-      });
+  frontend->addViewCallback([this](const auto& db, const auto& views) {
+    region_clustering_->updateFromViewDb(db, views);
+  });
 }
 
 }  // namespace hydra::llm

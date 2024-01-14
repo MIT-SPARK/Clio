@@ -18,8 +18,9 @@ catkin_package(
 )
 
 add_library(
-  ${PROJECT_NAME} src/hydra_llm_pipeline.cpp src/llm_frontend.cpp
-                  src/ros_embedding_group.cpp src/places_visualizer.cpp
+  ${PROJECT_NAME}
+  src/active_window_module.cpp src/hydra_llm_pipeline.cpp src/llm_frontend.cpp
+  src/ros_embedding_group.cpp src/places_visualizer.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
