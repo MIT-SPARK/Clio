@@ -25,6 +25,7 @@ add_library(
   src/merge_utilities.cpp
   src/passthrough_clustering.cpp
   src/places_clustering.cpp
+  src/region_update_functor.cpp
   src/view_database.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})

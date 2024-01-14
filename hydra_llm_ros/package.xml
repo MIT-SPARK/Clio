@@ -13,6 +13,7 @@
   <depend>hydra</depend>
   <depend>hydra_llm</depend>
   <depend>hydra_ros</depend>
+  <depend>khronos_ros</depend>
   <depend>llm</depend>
   <depend>roscpp</depend>
 

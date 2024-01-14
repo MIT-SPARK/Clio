@@ -8,10 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # TODO(nathan) we should inherit this, but catkin is broken for pure-cmake?
 find_package(hydra REQUIRED)
-find_package(catkin REQUIRED COMPONENTS hydra_llm hydra_ros llm roscpp)
+find_package(catkin REQUIRED COMPONENTS hydra_llm hydra_ros khronos_ros llm roscpp)
 
 catkin_package(
-  CATKIN_DEPENDS hydra_llm hydra_ros llm roscpp
+  CATKIN_DEPENDS hydra_llm hydra_ros khronos_ros llm roscpp
   DEPENDS hydra
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
