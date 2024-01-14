@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 
 #include "hydra_llm/clip_types.h"
-#include "hydra_llm/task_embeddings.h"
+#include "hydra_llm/embedding_group.h"
 
 namespace hydra::llm {
 
@@ -20,7 +20,7 @@ struct Cluster {
 class Clustering {
  public:
   struct Config {
-    config::VirtualConfig<TaskEmbeddings> tasks;
+    config::VirtualConfig<EmbeddingGroup> tasks;
   };
 
   Clustering(const Config& config);
@@ -33,7 +33,7 @@ class Clustering {
   const Config config;
 
  protected:
-  TaskEmbeddings::Ptr tasks_;
+  EmbeddingGroup::Ptr tasks_;
 };
 
 void declare_config(Clustering::Config& config);

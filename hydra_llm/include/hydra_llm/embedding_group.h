@@ -1,27 +1,32 @@
 #pragma once
 #include <Eigen/Dense>
-
-#include "hydra_llm/embedding_norms.h"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace hydra::llm {
 
-// task_embeddings = [helpers.get_text_clip_feature(x) for x in tasks]
-struct TaskEmbeddings {
-  using Ptr = std::shared_ptr<TaskEmbeddings>;
+struct EmbeddingDistance;
+
+struct EmbeddingGroup {
+  using Ptr = std::shared_ptr<EmbeddingGroup>;
   struct ScoreResult {
     double score = std::numeric_limits<double>::lowest();
     size_t index = 0;
   };
 
-  virtual ~TaskEmbeddings() = default;
+  virtual ~EmbeddingGroup();
 
   bool empty() const;
   operator bool() const { return !empty(); }
 
-  Eigen::VectorXd getScores(const EmbeddingNorm& norm,
+  Eigen::VectorXd getDistances(const EmbeddingDistance& dist,
+                               const Eigen::VectorXd& embedding) const;
+
+  Eigen::VectorXd getScores(const EmbeddingDistance& dist,
                             const Eigen::VectorXd& embedding) const;
 
-  ScoreResult getBestScore(const EmbeddingNorm& norm,
+  ScoreResult getBestScore(const EmbeddingDistance& dist,
                            const Eigen::VectorXd& embedding) const;
 
   std::vector<Eigen::VectorXd> embeddings;

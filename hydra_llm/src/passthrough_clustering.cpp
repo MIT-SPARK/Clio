@@ -12,14 +12,13 @@ void declare_config(PassthroughClustering::Config& config) {
   using namespace config;
   name("PassthroughClustering::Config");
   base<Clustering::Config>(config);
-  field(config.tasks, "tasks");
-  field(config.norm, "norm");
+  field(config.metric, "metric");
 }
 
 PassthroughClustering::PassthroughClustering(const Config& config)
     : Clustering(config),
       config(config::checkValid(config)),
-      norm_(config.norm.create()) {}
+      metric_(config.metric.create()) {}
 
 Clusters PassthroughClustering::cluster(const SceneGraphLayer&,
                                         const NodeEmbeddingMap& embeddings) const {
@@ -36,7 +35,7 @@ Clusters PassthroughClustering::cluster(const SceneGraphLayer&,
       continue;
     }
 
-    const auto result = tasks_->getBestScore(*norm_, clip->embedding);
+    const auto result = tasks_->getBestScore(*metric_, clip->embedding);
 
     auto new_cluster = std::make_shared<Cluster>();
     new_cluster->clip = std::make_unique<ClipEmbedding>(clip->embedding);

@@ -16,7 +16,7 @@ void declare_config(GreedyClustering::Config& config) {
   using namespace config;
   name("Clustering::Config");
   base<Clustering::Config>(config);
-  field(config.norm, "norm");
+  field(config.metric, "metric");
   field(config.merge, "merge");
   field(config.stop_value, "stop_value");
   field(config.min_score, "min_score");
@@ -33,9 +33,9 @@ struct ClusteringWorkspace {
   std::map<EdgeKey, ScoredEmbedding> edge_embeddings;
   std::map<EdgeKey, double> phi;
 
-  ClusteringWorkspace(const TaskEmbeddings& tasks,
+  ClusteringWorkspace(const EmbeddingGroup& tasks,
                       const EmbeddingMerger& merger,
-                      const EmbeddingNorm& norm,
+                      const EmbeddingDistance& metric,
                       const SceneGraphLayer& layer,
                       const NodeEmbeddingMap& node_embeddings) {
     for (auto&& [node_id, clip] : node_embeddings) {
@@ -46,7 +46,7 @@ struct ClusteringWorkspace {
       }
 
       clusters.addSet(node_id);
-      const auto result = tasks.getBestScore(norm, clip->embedding);
+      const auto result = tasks.getBestScore(metric, clip->embedding);
       embeddings.emplace(
           node_id,
           ScoredEmbedding{result.score,
@@ -66,7 +66,7 @@ struct ClusteringWorkspace {
           continue;  // undirected edges: we need to skip duplicates
         }
 
-        addEdge(tasks, merger, norm, new_edge);
+        addEdge(tasks, merger, metric, new_edge);
       }
     }
   }
@@ -75,9 +75,9 @@ struct ClusteringWorkspace {
 
   size_t numMergeCandidates() const { return edge_embeddings.size(); }
 
-  void addEdge(const TaskEmbeddings& tasks,
+  void addEdge(const EmbeddingGroup& tasks,
                const EmbeddingMerger& merger,
-               const EmbeddingNorm& norm,
+               const EmbeddingDistance& metric,
                EdgeKey edge) {
     auto n1_iter = embeddings.find(edge.k1);
     auto n2_iter = embeddings.find(edge.k2);
@@ -91,7 +91,7 @@ struct ClusteringWorkspace {
     const auto phi_2 = n2.score;
     auto new_clip = merger.merge(*n1.clip, phi_1, *n2.clip, phi_2);
 
-    const auto result = tasks.getBestScore(norm, new_clip->embedding);
+    const auto result = tasks.getBestScore(metric, new_clip->embedding);
     const auto phi_e = result.score;
     edge_embeddings.emplace(edge,
                             ScoredEmbedding{phi_e, std::move(new_clip), result.index});
@@ -154,16 +154,16 @@ struct ClusteringWorkspace {
     return to_replace;
   }
 
-  void updatePhi(const TaskEmbeddings& tasks,
+  void updatePhi(const EmbeddingGroup& tasks,
                  const EmbeddingMerger& merger,
-                 const EmbeddingNorm& norm,
+                 const EmbeddingDistance& metric,
                  const std::set<EdgeKey>& edges) {
     for (const auto& edge : edges) {
-      addEdge(tasks, merger, norm, edge);
+      addEdge(tasks, merger, metric, edge);
     }
   }
 
-  Clusters getClusters(const TaskEmbeddings& tasks, double min_score) {
+  Clusters getClusters(const EmbeddingGroup& tasks, double min_score) {
     Clusters to_return;
     std::map<NodeId, size_t> cluster_lookup;
     for (auto&& [root, info] : embeddings) {
@@ -197,18 +197,17 @@ struct ClusteringWorkspace {
 GreedyClustering::GreedyClustering(const Config& config)
     : Clustering(config),
       config(config::checkValid(config)),
-      norm_(config.norm.create()),
-      embedding_merge_(config.merge.create()),
-      norm(*CHECK_NOTNULL(norm_)) {}
+      metric_(config.metric.create()),
+      embedding_merge_(config.merge.create()) {}
 
 Clusters GreedyClustering::cluster(const SceneGraphLayer& layer,
-                                   const NodeEmbeddingMap& embeddings) const {
+                                   const NodeEmbeddingMap& features) const {
   if (tasks_->empty()) {
     LOG(ERROR) << "No tasks present: cannot cluster";
     return {};
   }
 
-  ClusteringWorkspace workspace(*tasks_, *embedding_merge_, norm, layer, embeddings);
+  ClusteringWorkspace workspace(*tasks_, *embedding_merge_, *metric_, layer, features);
 
   const auto potential_merges = workspace.size();
   for (size_t i = 0; i < potential_merges; ++i) {
@@ -223,7 +222,7 @@ Clusters GreedyClustering::cluster(const SceneGraphLayer& layer,
     }
 
     const auto changed_edges = workspace.addMerge(key);
-    workspace.updatePhi(*tasks_, *embedding_merge_, norm, changed_edges);
+    workspace.updatePhi(*tasks_, *embedding_merge_, *metric_, changed_edges);
   }
 
   return workspace.getClusters(*tasks_, config.min_score);

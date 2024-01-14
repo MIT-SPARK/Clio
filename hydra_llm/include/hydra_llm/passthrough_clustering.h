@@ -1,6 +1,6 @@
 #pragma once
 #include "hydra_llm/clustering.h"
-#include "hydra_llm/embedding_norms.h"
+#include "hydra_llm/embedding_distances.h"
 
 namespace hydra::llm {
 
@@ -9,7 +9,7 @@ using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
 class PassthroughClustering : public Clustering {
  public:
   struct Config : Clustering::Config {
-    config::VirtualConfig<EmbeddingNorm> norm;
+    config::VirtualConfig<EmbeddingDistance> metric;
   };
 
   PassthroughClustering(const Config& config);
@@ -20,7 +20,7 @@ class PassthroughClustering : public Clustering {
   const Config config;
 
  private:
-  std::unique_ptr<EmbeddingNorm> norm_;
+  std::unique_ptr<EmbeddingDistance> metric_;
 
   inline static const auto registration_ =
       config::RegistrationWithConfig<Clustering,

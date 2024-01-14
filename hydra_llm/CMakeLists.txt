@@ -19,12 +19,12 @@ catkin_package(
 add_library(
   ${PROJECT_NAME}
   src/clustering.cpp
-  src/embedding_norms.cpp
+  src/embedding_distances.cpp
+  src/embedding_group.cpp
   src/greedy_clustering.cpp
   src/merge_utilities.cpp
   src/passthrough_clustering.cpp
   src/places_clustering.cpp
-  src/task_embeddings.cpp
   src/view_database.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
