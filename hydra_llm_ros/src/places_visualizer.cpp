@@ -1,7 +1,8 @@
 #include <config_utilities/virtual_config.h>
 #include <glog/logging.h>
 #include <hydra/common/hydra_config.h>
-#include <hydra_llm/task_embeddings.h>
+#include <hydra_llm/embedding_distances.h>
+#include <hydra_llm/embedding_group.h>
 #include <hydra_ros/visualizer/colormap_utilities.h>
 #include <hydra_ros/visualizer/dsg_visualizer_plugin.h>
 #include <hydra_ros/visualizer/visualizer_utilities.h>
@@ -9,7 +10,7 @@
 #include <std_srvs/SetBool.h>
 #include <visualization_msgs/MarkerArray.h>
 
-#include "hydra_llm_ros/ros_task_embeddings.h"
+#include "hydra_llm_ros/ros_embedding_group.h"
 
 namespace hydra::llm {
 
@@ -52,8 +53,8 @@ class PlaceVisualizerPlugin : public DsgVisualizerPlugin {
 
   bool need_redraw_;
   bool color_by_task_;
-  TaskEmbeddings::Ptr tasks_;
-  std::unique_ptr<EmbeddingNorm> norm_;
+  EmbeddingGroup::Ptr tasks_;
+  std::unique_ptr<EmbeddingDistance> metric_;
   Eigen::VectorXd current_task_feature_;
   std::set<std::string> published_markers_;
 };
@@ -66,25 +67,25 @@ PlaceVisualizerPlugin::PlaceVisualizerPlugin(const ros::NodeHandle& nh,
   srv_ = nh_.advertiseService(
       "color_by_task", &PlaceVisualizerPlugin::handleService, this);
   // TODO(nathan) this would actually be better as a virtual config
-  norm_ = std::make_unique<CosineDistance>(CosineDistance::Config());
+  metric_ = std::make_unique<CosineDistance>(CosineDistance::Config());
 }
 
 PlaceVisualizerPlugin::~PlaceVisualizerPlugin() {}
 
 void PlaceVisualizerPlugin::resetTasks() {
-  tasks_ = std::make_shared<RosTaskEmbeddings>(RosTaskEmbeddings::Config());
+  tasks_ = std::make_shared<RosEmbeddingGroup>(RosEmbeddingGroup::Config());
 }
 
 NodeColor PlaceVisualizerPlugin::getNodeColor(const ConfigManager& configs,
                                               const SceneGraphNode& node) const {
   const auto& attrs = node.attributes<SemanticNodeAttributes>();
   if (color_by_task_) {
-    const auto result = tasks_->getBestScore(*norm_, attrs.semantic_feature);
+    const auto result = tasks_->getBestScore(*metric_, attrs.semantic_feature);
     const auto color = HydraConfig::instance().getRoomColor(result.index);
     return Eigen::Map<const SemanticNodeAttributes::ColorVector>(color.data());
   }
 
-  const auto score = norm_->score(current_task_feature_, attrs.semantic_feature);
+  const auto score = metric_->score(current_task_feature_, attrs.semantic_feature);
   return dsg_utils::interpolateColorMap(configs.getColormapConfig("place_tasks"),
                                         score);
 }

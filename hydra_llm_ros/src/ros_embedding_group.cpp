@@ -1,4 +1,4 @@
-#include "hydra_llm_ros/ros_task_embeddings.h"
+#include "hydra_llm_ros/ros_embedding_group.h"
 
 #include <config_utilities/config.h>
 #include <glog/logging.h>
@@ -7,16 +7,17 @@
 
 namespace hydra::llm {
 
-void declare_config(RosTaskEmbeddings::Config&) {
+void declare_config(RosEmbeddingGroup::Config& config) {
   using namespace config;
-  name("RosTaskEmbeddings::Config");
+  name("RosEmbeddingGroup::Config");
+  field(config.service_name, "service_name");
 }
 
-RosTaskEmbeddings::RosTaskEmbeddings(const Config&) {
+RosEmbeddingGroup::RosEmbeddingGroup(const Config& config) {
   LOG(INFO) << "Waiting for task service on '/get_tasks'";
-  ros::service::waitForService("/get_tasks");
+  ros::service::waitForService(config.service_name);
   ::llm::RequestTaskEmbeddings msg;
-  CHECK(ros::service::call("/get_tasks", msg));
+  CHECK(ros::service::call(config.service_name, msg));
 
   for (const auto& embedding : msg.response.embeddings) {
     const auto& vec = embedding.elements;
