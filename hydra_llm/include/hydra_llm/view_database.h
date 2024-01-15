@@ -8,7 +8,7 @@ namespace hydra::llm {
 struct ViewEntry {
   NodeId node_id;
   ClipEmbedding::Ptr clip;
-  std::shared_ptr<Sensor> sensor;
+  const Sensor* sensor;
 };
 
 class ViewDatabase {

@@ -77,7 +77,7 @@ void ViewDatabase::updateAssignments(const DynamicSceneGraph& graph,
     auto iter = views.emplace(node_id, ClipView{}).first;
     auto& view = iter->second;
     view.clip = entry->clip.get();
-    view.sensor = entry->sensor.get();
+    view.sensor = entry->sensor;
 
     const Eigen::Isometry3d world_T_body = getAgentPose(attrs);
     view.sensor_T_world = (world_T_body * view.sensor->body_T_sensor()).inverse();
