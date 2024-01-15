@@ -3,33 +3,62 @@
 #include <config_utilities/config.h>
 #include <config_utilities/printing.h>
 #include <config_utilities/validation.h>
+#include <hydra/common/common.h>
 
 namespace hydra::llm {
 
 void declare_config(ActiveWindowModule::Config& config) {
   using namespace config;
   name("ActiveWindowModule::Config");
-  base<ReconstructionConfig>(config);
+  field(config.active_window, "active_window");
+  field(config.max_queue_size, "max_queue_size");
 }
 
 ActiveWindowModule::ActiveWindowModule(const Config& config,
                                        const OutputQueue::Ptr& output_queue)
-    : ReconstructionModule(config, output_queue), config(config::checkValid(config)) {}
+    : config(config::checkValid(config)),
+      active_window_(std::make_unique<khronos::ActiveWindow>(config.active_window)),
+      queue_(std::make_shared<DataInputQueue>(config.max_queue_size)),
+      output_queue_(output_queue) {}
 
 ActiveWindowModule::~ActiveWindowModule() {}
 
-void ActiveWindowModule::start() { ReconstructionModule::start(); }
-
-void ActiveWindowModule::stop() { ReconstructionModule::stop(); }
-
-void ActiveWindowModule::save(const LogSetup& log_setup) {
-  ReconstructionModule::save(log_setup);
+void ActiveWindowModule::start() {
+  spin_thread_ = std::make_unique<std::thread>(&ActiveWindowModule::spin, this);
+  LOG(INFO) << "[Hydra-LLM ActiveWindow] started!";
 }
+
+void ActiveWindowModule::stop() {
+  should_shutdown_ = true;
+  if (spin_thread_) {
+    VLOG(VLEVEL_TRACE) << "[Hydra-LLM ActiveWindow] stopping active window!";
+    spin_thread_->join();
+    spin_thread_.reset();
+    VLOG(VLEVEL_TRACE) << "[Hydra-LLM ActiveWindow] stopped!";
+  }
+}
+
+void ActiveWindowModule::save(const LogSetup&) {}
 
 std::string ActiveWindowModule::printInfo() const {
   std::stringstream ss;
   ss << std::endl << config::toString(config);
   return ss.str();
+}
+
+void ActiveWindowModule::spin() {
+  while (!should_shutdown_) {
+    bool has_data = queue_->poll();
+    if (!has_data) {
+      continue;
+    }
+
+    active_window_->processInput(*queue_->front());
+    queue_->pop();
+
+    auto output = active_window_->getOutput();
+    output_queue_->push(output);
+  }
 }
 
 }  // namespace hydra::llm
