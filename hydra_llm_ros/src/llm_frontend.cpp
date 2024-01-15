@@ -34,6 +34,10 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
 
 LLMFrontend::~LLMFrontend() {}
 
+void LLMFrontend::setSensor(const std::shared_ptr<Sensor>& sensor) {
+  view_database_->setSensor(sensor);
+}
+
 void LLMFrontend::initCallbacks() {
   initialized_ = true;
   input_callbacks_.clear();

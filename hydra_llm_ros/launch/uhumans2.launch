@@ -13,7 +13,7 @@
     <arg name="rgb_topic" default="/tesse/left_cam/rgb/image_raw"/>
     <arg name="rgb_info_topic" default="/tesse/left_cam/camera_info"/>
     <arg name="depth_topic" default="/tesse/depth_cam/mono/image_raw"/>
-    <arg name="label_topic" default="/tesse/seg_cam/rgb/image_raw"/>
+    <arg name="label_topic" default="/tesse/labels/image_raw"/>
 
     <!-- semantics -->
     <arg name="labelspace_name" default="uhumans2_office" doc="semantic label space"/>
@@ -24,6 +24,13 @@
 
     <arg name="visual_lcd_config_path" default="$(find hydra)/config/default/visual_lcd_config.yaml"/>
     <arg name="graph_lcd_config_path" default="$(find hydra)/config/uhumans2/lcd_config.yaml"/>
+
+    <node name="semantic_converter" pkg="khronos_utils" type="semantic_converter_node">
+        <param name="semantics_file" value="$(arg semantic_map_path)"/>
+        <param name="publish_unknown_labels" value="false"/>
+        <remap from="~semantic_image_in" to="/tesse/seg_cam/rgb/image_raw"/>
+        <remap from="~semantic_image_out" to="/tesse/labels/image_raw"/>
+    </node>
 
     <include file="$(find hydra_ros)/launch/static_tfs/uhumans2_static_tfs.xml" if="$(arg use_static_tfs)"/>
 

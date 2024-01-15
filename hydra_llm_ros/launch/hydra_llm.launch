@@ -24,6 +24,7 @@
     <!-- sensor configuration -->
     <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
     <arg name="sensor_max_range" default="5.0" doc="maximum sensor range in meters"/>
+    <arg name="temporal_window_size_s" default="3.0" doc="size of active window in seconds"/>
     <arg name="sensor_frame" default="" doc="robot sensor frame (for looking up extrinsics)"/>
     <arg name="kimera_sensor_filepath" default="" doc="optional path to kimera camera file (for extrinsics)"/>
     <!-- pipeline configuration -->
@@ -72,11 +73,11 @@
           output="screen">
         <env name="TERM" value="xterm-256color"/>
         <!-- sensor topic remappings -->
-        <remap from="~rgb/image_raw" to="$(arg rgb_topic)"/>
-        <remap from="~rgb/image_raw/compressed" to="$(arg rgb_topic)/compressed"/>
-        <remap from="~rgb/camera_info" to="$(arg rgb_info_topic)"/>
-        <remap from="~depth_registered/image_rect" to="$(arg depth_topic)"/>
-        <remap from="~semantic/image_raw" to="$(arg label_topic)"/>
+        <remap from="~input/color/image_raw" to="$(arg rgb_topic)"/>
+        <remap from="~input/color/image_raw/compressed" to="$(arg rgb_topic)/compressed"/>
+        <remap from="~input/color/camera_info" to="$(arg rgb_info_topic)"/>
+        <remap from="~input/depth/image_rect" to="$(arg depth_topic)"/>
+        <remap from="~input/semantic/image_raw" to="$(arg label_topic)"/>
         <!-- image transport -->
         <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
 

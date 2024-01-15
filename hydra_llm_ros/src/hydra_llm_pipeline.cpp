@@ -7,6 +7,7 @@
 #include <hydra/backend/backend_module.h>
 #include <hydra/common/hydra_config.h>
 #include <hydra_llm/view_database.h>
+#include <khronos/common/utils/globals.h>
 
 #include "hydra_llm_ros/active_window_module.h"
 #include "hydra_llm_ros/llm_frontend.h"
@@ -22,7 +23,7 @@ class KhronosInputModule : public Module, public khronos::InputSynchronizer {
 
   virtual ~KhronosInputModule() = default;
 
-  void start() override { khronos::InputSynchronizer::stop(); }
+  void start() override { khronos::InputSynchronizer::start(); }
 
   void stop() override { khronos::InputSynchronizer::stop(); }
 
@@ -36,6 +37,16 @@ class KhronosInputModule : public Module, public khronos::InputSynchronizer {
 };
 
 using RegionConfig = RegionUpdateFunctor::Config;
+
+struct PipelineSensorConfig {
+  config::VirtualConfig<Sensor> sensor;
+};
+
+void declare_config(PipelineSensorConfig& config) {
+  using namespace config;
+  name("PipelineSensorConfig");
+  field(config.sensor, "sensor");
+}
 
 HydraLLMPipeline::HydraLLMPipeline(const ros::NodeHandle& nh, int robot_id)
     : HydraRosPipeline(nh, robot_id) {}
@@ -53,6 +64,10 @@ void HydraLLMPipeline::init() {
 
   configureRegions();
   initInput();
+
+  const auto conf = config::fromRos<PipelineSensorConfig>(nh_);
+  std::shared_ptr<Sensor> sensor(conf.sensor.create());
+  khronos::Globals::setSensor(sensor);
 }
 
 void HydraLLMPipeline::initReconstruction() {

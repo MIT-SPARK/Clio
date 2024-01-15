@@ -27,6 +27,8 @@ class LLMFrontend : public FrontendModule {
 
   void addViewCallback(const ViewCallback& func);
 
+  void setSensor(const std::shared_ptr<Sensor>& sensor);
+
  protected:
   void initCallbacks() override;
 

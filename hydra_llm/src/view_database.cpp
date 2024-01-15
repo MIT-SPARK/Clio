@@ -45,8 +45,8 @@ void ViewDatabase::addView(NodeId node, ClipEmbedding::Ptr&& embedding) {
     return;  // required for threadsafey
   }
 
-  LOG(FATAL) << "sensor tracking not implemented";
-  entries_.emplace(node, ViewEntry{node, std::move(embedding), nullptr});
+  CHECK(sensor_) << "sensor not set!";
+  entries_.emplace(node, ViewEntry{node, std::move(embedding), sensor_.get()});
 }
 
 const ViewEntry* ViewDatabase::getView(NodeId node) const {
@@ -92,6 +92,10 @@ void ViewDatabase::updateAssignments(const DynamicSceneGraph& graph,
 
     best_views[node_id] = *best_view;
   }
+}
+
+void ViewDatabase::setSensor(const std::shared_ptr<Sensor>& sensor) {
+  sensor_ = sensor;
 }
 
 }  // namespace hydra::llm
