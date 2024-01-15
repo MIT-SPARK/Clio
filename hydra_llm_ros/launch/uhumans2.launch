@@ -22,9 +22,8 @@
     <arg name="semantic_map_path" default="$(arg semantic_map_dir)/$(arg semantic_map_file)"/>
     <arg name="color_mesh_by_label" default="false" doc="display mesh colored by semantic label"/>
 
-    <arg name="config_dir" default="$(find hydra)/config/uhumans2"/>
     <arg name="visual_lcd_config_path" default="$(find hydra)/config/default/visual_lcd_config.yaml"/>
-    <arg name="graph_lcd_config_path" default="$(arg config_dir)/lcd_config.yaml"/>
+    <arg name="graph_lcd_config_path" default="$(find hydra)/config/uhumans2/lcd_config.yaml"/>
 
     <include file="$(find hydra_ros)/launch/static_tfs/uhumans2_static_tfs.xml" if="$(arg use_static_tfs)"/>
 

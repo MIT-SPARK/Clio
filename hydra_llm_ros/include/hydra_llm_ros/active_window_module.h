@@ -31,6 +31,8 @@ class ActiveWindowModule : public Module {
 
   void spin();
 
+  DataInputQueue::Ptr getInputQueue() const { return queue_; }
+
  public:
   const Config config;
 

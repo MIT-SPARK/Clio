@@ -12,13 +12,9 @@
     <arg name="rgb_image_transport" default="raw"/>
 
     <!-- parameter files -->
-    <arg name="config_dir"/>
     <arg name="dataset_name"/>
     <arg name="semantic_map_path"/>
-    <arg name="input_config_path" default="$(find hydra_ros)/config/datasets/$(arg dataset_name).yaml"/>
-    <arg name="reconstruction_config_path" default="$(arg config_dir)/reconstruction_config.yaml"/>
-    <arg name="frontend_config_path" default="$(find hydra_llm_ros)/config/frontend_config.yaml"/>
-    <arg name="backend_config_path" default="$(find hydra_llm_ros)/config/backend_config.yaml"/>
+    <arg name="config_path" default="$(find hydra_llm_ros)/config/$(arg dataset_name).yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
     <!-- labelspace configuration -->
     <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
@@ -86,10 +82,7 @@
 
         <!-- parameter files -->
         <rosparam file="$(arg labelspace_path)"/>
-        <rosparam file="$(arg input_config_path)" ns="input" subst_value="true"/>
-        <rosparam file="$(arg reconstruction_config_path)" ns="reconstruction" subst_value="true"/>
-        <rosparam file="$(arg frontend_config_path)" ns="frontend" subst_value="true"/>
-        <rosparam file="$(arg backend_config_path)" ns="backend" subst_value="true"/>
+        <rosparam file="$(arg config_path)" subst_value="true"/>
         <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
         <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)" subst_value="true"/>
         <rosparam file="$(arg ros_params_file)" subst_value="true"/>

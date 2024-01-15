@@ -4,7 +4,6 @@ odom_frame: $(arg odom_frame)
 robot_frame: $(arg robot_frame)
 map_frame: $(arg map_frame)
 exit_after_clock: $(arg exit_after_clock)
-do_reconstruction: true
 enable_frontend_output: $(arg enable_frontend_output)
 semantic_colormap_file: $(arg semantic_map_path)
 enable_lcd: $(arg enable_lcd)

@@ -1,6 +1,7 @@
 #pragma once
 #include <hydra_llm/region_update_functor.h>
 #include <hydra_ros/common/hydra_ros_pipeline.h>
+#include <khronos_ros/input/input_synchronizer.h>
 
 namespace hydra::llm {
 
@@ -13,6 +14,12 @@ class HydraLLMPipeline : public HydraRosPipeline {
   void init() override;
 
  protected:
+  void initReconstruction() override;
+
+  void configureRegions();
+
+  void initInput();
+
   std::shared_ptr<RegionUpdateFunctor> region_clustering_;
 };
 

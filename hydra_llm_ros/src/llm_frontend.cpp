@@ -7,6 +7,8 @@
 #include <hydra/common/hydra_config.h>
 #include <hydra/utils/nearest_neighbor_utilities.h>
 #include <hydra/utils/timing_utilities.h>
+#include <khronos/active_window/data/output_data.h>
+#include <khronos/common/utils/khronos_attribute_utils.h>
 
 namespace hydra::llm {
 
@@ -31,6 +33,47 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
 }
 
 LLMFrontend::~LLMFrontend() {}
+
+void LLMFrontend::initCallbacks() {
+  initialized_ = true;
+  input_callbacks_.clear();
+  input_callbacks_.push_back(
+      std::bind(&LLMFrontend::updateMesh, this, std::placeholders::_1));
+  input_callbacks_.push_back(
+      std::bind(&LLMFrontend::updateDeformationGraph, this, std::placeholders::_1));
+  input_callbacks_.push_back(
+      std::bind(&LLMFrontend::updatePoseGraph, this, std::placeholders::_1));
+  input_callbacks_.push_back(
+      std::bind(&LLMFrontend::updateKhronosObjects, this, std::placeholders::_1));
+
+  post_mesh_callbacks_.clear();
+
+  if (!place_extractor_) {
+    return;
+  }
+
+  input_callbacks_.push_back(
+      std::bind(&LLMFrontend::updatePlaces, this, std::placeholders::_1));
+}
+
+void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
+  // this is janky, but the try-catch is uglier
+  const auto derived = dynamic_cast<const khronos::OutputData*>(&base_msg);
+  CHECK(derived) << "ActiveWindow output required!";
+  const auto& msg = *derived;
+
+  std::lock_guard<std::mutex> lock(dsg_->mutex);
+  ScopedTimer timer("frontend/update_objects", msg.timestamp_ns);
+
+  for (const auto& object : msg.objects) {
+    const NodeSymbol node_id(config.object_config.prefix, object.id);
+    CHECK(!dsg_->graph->hasNode(node_id))
+        << "Found duplicate node " << node_id.getLabel();
+
+    auto attrs = khronos::fromOutputObject(object);
+    dsg_->graph->emplaceNode(DsgLayers::OBJECTS, node_id, std::move(attrs));
+  }
+}
 
 void LLMFrontend::handleClipFeatures(const ::llm::ClipVectorStamped& msg) {
   const auto timestamp_ns = msg.header.stamp.toNSec();

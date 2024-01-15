@@ -28,11 +28,15 @@ class LLMFrontend : public FrontendModule {
   void addViewCallback(const ViewCallback& func);
 
  protected:
+  void initCallbacks() override;
+
   void handleClipFeatures(const ::llm::ClipVectorStamped& msg);
 
   void updateActiveWindowViews(uint64_t curr_timestamp_ns);
 
   void updateImpl(const ReconstructionOutput& msg) override;
+
+  void updateKhronosObjects(const ReconstructionOutput& base_msg);
 
  protected:
   ros::NodeHandle nh_;
