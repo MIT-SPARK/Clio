@@ -132,10 +132,10 @@ void LLMFrontend::addViewCallback(const ViewCallback& func) {
   view_callbacks_.push_back(func);
 }
 
-void LLMFrontend::updateImpl(const ReconstructionOutput& msg) {
+void LLMFrontend::updateImpl(const ReconstructionOutput::Ptr& msg) {
   FrontendModule::updateImpl(msg);
   // okay without locking: we're not modifying the graph
-  updateActiveWindowViews(msg.timestamp_ns);
+  updateActiveWindowViews(msg->timestamp_ns);
 
   const auto& prefix = HydraConfig::instance().getRobotPrefix();
   const auto& active_nodes = active_agent_nodes_.at(prefix.key);

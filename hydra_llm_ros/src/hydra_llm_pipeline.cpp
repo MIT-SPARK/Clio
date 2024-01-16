@@ -69,6 +69,10 @@ void HydraLLMPipeline::init() {
   const auto conf = config::fromRos<PipelineSensorConfig>(nh);
   std::shared_ptr<Sensor> sensor(config::checkValid(conf).sensor.create());
   khronos::Globals::setSensor(sensor);
+
+  auto frontend = getModule<LLMFrontend>("frontend");
+  CHECK(frontend);
+  frontend->setSensor(sensor);
 }
 
 void HydraLLMPipeline::initReconstruction() {
