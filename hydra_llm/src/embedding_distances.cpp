@@ -4,7 +4,8 @@ namespace hydra::llm {
 
 double CosineDistance::dist(const Eigen::VectorXd& lhs,
                             const Eigen::VectorXd& rhs) const {
-  return lhs.dot(rhs);
+  const auto divisor = lhs.norm() * rhs.norm();
+  return lhs.dot(rhs) / divisor;
 }
 
 double CosineDistance::score(const Eigen::VectorXd& lhs,
@@ -14,7 +15,7 @@ double CosineDistance::score(const Eigen::VectorXd& lhs,
 }
 
 double L2Norm::dist(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const {
-  return (lhs - rhs).norm();
+  return (lhs.normalized() - rhs.normalized()).norm();
 }
 
 double L2Norm::score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const {
@@ -23,7 +24,7 @@ double L2Norm::score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) con
 }
 
 double L1Norm::dist(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const {
-  return (lhs - rhs).lpNorm<1>();
+  return (lhs.normalized() - rhs.normalized()).lpNorm<1>();
 }
 
 double L1Norm::score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const {

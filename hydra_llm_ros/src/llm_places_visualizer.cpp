@@ -1,6 +1,7 @@
 #include "hydra_llm_ros/llm_places_visualizer.h"
 
 #include <config_utilities/parsing/ros.h>
+#include <config_utilities/printing.h>
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
 #include <hydra/common/hydra_config.h>
@@ -16,16 +17,14 @@ namespace hydra::llm {
 using visualization_msgs::Marker;
 using visualization_msgs::MarkerArray;
 
-struct LLMPlacesConfig {
-  config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
-  std::string colormap_filepath = "";
-};
-
 void declare_config(LLMPlacesConfig& config) {
   using namespace config;
   name("LLMPlacesConfig");
   field(config.metric, "metric");
   field(config.colormap_filepath, "colormap_filepath");
+  field(config.min_score, "min_score");
+  field(config.max_score, "max_score");
+  field(config.layer_to_use, "layer_to_use");
 }
 
 LLMPlacesVisualizer::LLMPlacesVisualizer(const ros::NodeHandle& nh,
@@ -39,9 +38,10 @@ LLMPlacesVisualizer::LLMPlacesVisualizer(const ros::NodeHandle& nh,
   srv_ =
       nh_.advertiseService("color_by_task", &LLMPlacesVisualizer::handleService, this);
 
-  const auto config = config::checkValid(config::fromRos<LLMPlacesConfig>(nh_));
-  colormap_ = SemanticColorMap::fromCsv(config.colormap_filepath);
-  metric_ = config.metric.create();
+  config_ = config::checkValid(config::fromRos<LLMPlacesConfig>(nh_));
+  LOG(INFO) << std::endl << config::toString(config_);
+  colormap_ = SemanticColorMap::fromCsv(config_.colormap_filepath);
+  metric_ = config_.metric.create();
   CHECK(metric_);
 }
 
@@ -76,14 +76,29 @@ NodeColor LLMPlacesVisualizer::getNodeColor(const ConfigManager& configs,
   }
 
   const auto score = metric_->score(current_task_feature_, attrs.semantic_feature);
+  auto ratio = (score - config_.min_score) / (config_.max_score - config_.min_score);
+  ratio = std::clamp(ratio, 0.0, 1.0);
   return dsg_utils::interpolateColorMap(configs.getColormapConfig("place_tasks"),
-                                        score);
+                                        ratio);
 }
 
 void LLMPlacesVisualizer::draw(const ConfigManager& configs,
                                const std_msgs::Header& header,
                                const DynamicSceneGraph& graph) {
-  resetTasks();
+  if (color_by_task_) {
+    resetTasks();
+  }
+
+  const auto& places = graph.getLayer(config_.layer_to_use);
+  if (has_current_task_feature_) {
+    double average_score = 0.0;
+    for (const auto& id_node_pair : places.nodes()) {
+      const auto& attrs = id_node_pair.second->attributes<SemanticNodeAttributes>();
+      average_score += metric_->score(current_task_feature_, attrs.semantic_feature);
+    }
+    average_score /= places.numNodes();
+    LOG(ERROR) << "Average score: " << average_score;
+  }
 
   MarkerArray msg;
 
@@ -91,7 +106,6 @@ void LLMPlacesVisualizer::draw(const ConfigManager& configs,
   // TODO(nathan) make this flexible
   const auto layer_config = configs.getLayerConfig(DsgLayers::PLACES);
   const auto node_ns = ns_ + "_nodes";
-  const auto& places = graph.getLayer(DsgLayers::PLACES);
   Marker nodes = makeCentroidMarkers(header,
                                      *CHECK_NOTNULL(layer_config),
                                      places,

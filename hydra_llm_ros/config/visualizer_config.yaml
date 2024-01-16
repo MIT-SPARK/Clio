@@ -36,7 +36,7 @@ config:
   layer2:
     # generic
     z_offset_scale: 2.0
-    visualize: true
+    visualize: false
     # node
     marker_scale: 0.40
     marker_color_mode: 0  # default
@@ -121,3 +121,6 @@ llm_plugins:
 dsg_mesh:
   label_colormap: ''
   color_by_label: false
+llm_places:
+  min_score: 0.58
+  max_score: 0.65

@@ -12,6 +12,14 @@ namespace hydra::llm {
 
 using NodeColor = SemanticNodeAttributes::ColorVector;
 
+struct LLMPlacesConfig {
+  config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
+  std::string colormap_filepath = "";
+  double min_score = 0.0;
+  double max_score = 1.0;
+  LayerId layer_to_use = DsgLayers::PLACES;
+};
+
 class LLMPlacesVisualizer : public DsgVisualizerPlugin {
  public:
   LLMPlacesVisualizer(const ros::NodeHandle& nh, const std::string& name);
@@ -53,6 +61,8 @@ class LLMPlacesVisualizer : public DsgVisualizerPlugin {
   Eigen::VectorXd current_task_feature_;
   std::set<std::string> published_markers_;
   SemanticColorMap::Ptr colormap_;
+
+  LLMPlacesConfig config_;
 
   inline static const auto registration_ =
       config::Registration<DsgVisualizerPlugin,
