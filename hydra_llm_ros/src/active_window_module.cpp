@@ -17,13 +17,16 @@ void declare_config(ActiveWindowModule::Config& config) {
 ActiveWindowModule::ActiveWindowModule(const Config& config,
                                        const OutputQueue::Ptr& output_queue)
     : config(config::checkValid(config)),
-      active_window_(std::make_unique<khronos::ActiveWindow>(config.active_window)),
       queue_(std::make_shared<DataInputQueue>(config.max_queue_size)),
       output_queue_(output_queue) {}
 
 ActiveWindowModule::~ActiveWindowModule() {}
 
 void ActiveWindowModule::start() {
+  if (!active_window_) {
+    active_window_ = std::make_unique<khronos::ActiveWindow>(config.active_window);
+  }
+
   spin_thread_ = std::make_unique<std::thread>(&ActiveWindowModule::spin, this);
   LOG(INFO) << "[Hydra-LLM ActiveWindow] started!";
 }

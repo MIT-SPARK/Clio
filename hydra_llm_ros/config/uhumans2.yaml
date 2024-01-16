@@ -3,6 +3,14 @@
 #  Input Module Parameters  #
 #############################
 input:
+  sensor:
+    type: camera_info
+    min_range: $(arg sensor_min_range)
+    max_range: $(arg sensor_max_range)
+    camera_info_topic: $(arg rgb_info_topic)
+    extrinsics:
+      type: ros
+      sensor_frame: $(arg sensor_frame)
   subscriber:
     type: semantic
     input_images_are_const: false

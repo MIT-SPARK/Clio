@@ -65,8 +65,9 @@ void HydraLLMPipeline::init() {
   configureRegions();
   initInput();
 
-  const auto conf = config::fromRos<PipelineSensorConfig>(nh_);
-  std::shared_ptr<Sensor> sensor(conf.sensor.create());
+  const ros::NodeHandle nh(nh_, "input");
+  const auto conf = config::fromRos<PipelineSensorConfig>(nh);
+  std::shared_ptr<Sensor> sensor(config::checkValid(conf).sensor.create());
   khronos::Globals::setSensor(sensor);
 }
 
