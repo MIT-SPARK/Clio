@@ -32,9 +32,23 @@
  * Government is authorized to reproduce and distribute reprints for Government
  * purposes notwithstanding any copyright notation herein.
  * -------------------------------------------------------------------------- */
+#include <config_utilities/config_utilities.h>
+#include <config_utilities/parsing/ros.h>
 #include <glog/logging.h>
-
+#include <hydra_ros/visualizer/dsg_visualizer_plugin.h>
 #include <hydra_ros/visualizer/hydra_visualizer.h>
+
+#include "hydra_llm_ros/llm_places_visualizer.h"
+
+struct LLMPluginConfig {
+  std::map<std::string, std::string> plugins;
+};
+
+void declare_config(LLMPluginConfig& config) {
+  using namespace config;
+  name("LLMPluginConfig");
+  field(config.plugins, "llm_plugins");
+}
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "dsg_visualizer_node");
@@ -49,6 +63,13 @@ int main(int argc, char** argv) {
 
   ros::NodeHandle nh("~");
   hydra::HydraVisualizer node(nh);
+  node.clearPlugins();
+
+  const auto conf = config::fromRos<LLMPluginConfig>(nh);
+  for (auto&& [name, plugin_type] : conf.plugins) {
+    node.addPlugin(config::create<hydra::DsgVisualizerPlugin>(plugin_type, nh, name));
+  }
+
   node.spin();
 
   return 0;

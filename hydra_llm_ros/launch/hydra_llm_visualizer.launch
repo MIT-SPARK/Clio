@@ -1,0 +1,45 @@
+<launch>
+  <arg name="scene_graph_path" doc="scene graph filename to show"/>
+  <arg name="mesh_filepath" default=""/>
+
+  <arg name="visualizer_ns" value="hydra_visualizer" doc="visualizer namespace"/>
+  <arg name="visualizer_frame" default="map"/>
+  <arg name="color_places_by_distance" default="false"/>
+  <arg name="start_rviz" default="true" doc="automatically start rviz"/>
+  <arg name="verbosity" default="0" doc="visualizer verbosity"/>
+  <arg name="start_mesh_publisher" value="$(eval 'false' if arg('mesh_filepath') == '' else 'true')"/>
+  <arg name="semantic_colormap" default="$(find semantic_recolor)/config/colors/ade20k_mp3d.csv"/>
+
+  <arg name="rviz_dir" default="$(find hydra_ros)/rviz"/>
+  <arg name="rviz_file" default="hydra_visualizer.rviz"/>
+  <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+
+  <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
+  <arg name="viz_config_file" default="visualizer_config.yaml"/>
+  <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
+
+  <arg name="viz_debug" default="false"/>
+  <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
+  <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
+
+  <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"/>
+
+  <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
+        launch-prefix="$(arg viz_launch_prefix)"
+        output="screen"
+        required="true"
+        args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
+    <param name="scene_graph_filepath" value="$(arg scene_graph_path)"/>
+    <param name="load_graph" value="true"/>
+    <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
+    <remap from="~llm_places/current_task" to="/current_task"/>
+    <param name="llm_places/colormap_filepath" value="$(arg semantic_colormap)"/>
+  </node>
+
+  <node pkg="hydra_ros" type="mesh_publisher_node" name="mesh_publisher_node"
+        if="$(arg start_mesh_publisher)">
+      <param name="mesh_filepath" value="$(arg mesh_filepath)"/>
+      <param name="mesh_frame" value="$(arg visualizer_frame)"/>
+  </node>
+
+</launch>

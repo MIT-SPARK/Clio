@@ -11,10 +11,11 @@ void declare_config(RosEmbeddingGroup::Config& config) {
   using namespace config;
   name("RosEmbeddingGroup::Config");
   field(config.service_name, "service_name");
+  field(config.silent_wait, "silent_wait");
 }
 
 RosEmbeddingGroup::RosEmbeddingGroup(const Config& config) {
-  LOG(INFO) << "Waiting for task service on '/get_tasks'";
+  LOG_IF(INFO, !config.silent_wait) << "Waiting for task service on '/get_tasks'";
   ros::service::waitForService(config.service_name);
   ::llm::RequestTaskEmbeddings msg;
   CHECK(ros::service::call(config.service_name, msg));
