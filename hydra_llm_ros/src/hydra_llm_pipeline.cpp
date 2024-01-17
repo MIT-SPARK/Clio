@@ -40,12 +40,15 @@ using RegionConfig = RegionUpdateFunctor::Config;
 
 struct PipelineSensorConfig {
   config::VirtualConfig<Sensor> sensor;
+  config::VirtualConfig<khronos::LabelHandler> label_info;
 };
 
 void declare_config(PipelineSensorConfig& config) {
   using namespace config;
   name("PipelineSensorConfig");
   field(config.sensor, "sensor");
+  config.label_info.setOptional();
+  field(config.label_info, "label_info");
 }
 
 HydraLLMPipeline::HydraLLMPipeline(const ros::NodeHandle& nh, int robot_id)
@@ -55,6 +58,13 @@ HydraLLMPipeline::~HydraLLMPipeline() {}
 
 void HydraLLMPipeline::init() {
   const auto& pipeline_config = HydraConfig::instance().getConfig();
+
+  const ros::NodeHandle nh(nh_, "input");
+  const auto conf = config::fromRos<PipelineSensorConfig>(nh);
+  if (conf.label_info) {
+    khronos::Globals::setLabelHandler(conf.label_info.create());
+  }
+
   initFrontend();
   initBackend();
   initReconstruction();
@@ -65,8 +75,6 @@ void HydraLLMPipeline::init() {
   configureRegions();
   initInput();
 
-  const ros::NodeHandle nh(nh_, "input");
-  const auto conf = config::fromRos<PipelineSensorConfig>(nh);
   std::shared_ptr<Sensor> sensor(config::checkValid(conf).sensor.create());
   khronos::Globals::setSensor(sensor);
 

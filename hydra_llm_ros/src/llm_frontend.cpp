@@ -9,6 +9,7 @@
 #include <hydra/utils/timing_utilities.h>
 #include <khronos/active_window/data/output_data.h>
 #include <khronos/common/utils/khronos_attribute_utils.h>
+#include <kimera_pgmo/compression/DeltaCompression.h>
 
 namespace hydra::llm {
 
@@ -18,6 +19,7 @@ void declare_config(LLMFrontendConfig& config) {
   using namespace config;
   name("LLMFrontendConfig");
   base<FrontendConfig>(config);
+  field(config.spatial_window_radius_m, "spatial_window_radius_m");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -69,13 +71,17 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
   std::lock_guard<std::mutex> lock(dsg_->mutex);
   ScopedTimer timer("frontend/update_objects", msg.timestamp_ns);
 
+  VLOG(VLEVEL_TRACE) << "Got " << msg.objects.size() << " new objects ("
+                     << dsg_->graph->getLayer(DsgLayers::OBJECTS).numNodes()
+                     << " total nodes)";
   for (const auto& object : msg.objects) {
     const NodeSymbol node_id(config.object_config.prefix, object.id);
     CHECK(!dsg_->graph->hasNode(node_id))
         << "Found duplicate node " << node_id.getLabel();
 
     auto attrs = khronos::fromOutputObject(object);
-    dsg_->graph->emplaceNode(DsgLayers::OBJECTS, node_id, std::move(attrs));
+    CHECK(dsg_->graph->emplaceNode(DsgLayers::OBJECTS, node_id, std::move(attrs)));
+    new_objects_.insert(node_id);
   }
 }
 
@@ -132,11 +138,51 @@ void LLMFrontend::addViewCallback(const ViewCallback& func) {
   view_callbacks_.push_back(func);
 }
 
-void LLMFrontend::updateImpl(const ReconstructionOutput::Ptr& msg) {
-  FrontendModule::updateImpl(msg);
-  // okay without locking: we're not modifying the graph
-  updateActiveWindowViews(msg->timestamp_ns);
+void LLMFrontend::archiveObjects() {
+  for (const auto prev : previous_active_places_) {
+    const auto has_prev_node = dsg_->graph->getNode(prev);
+    if (!has_prev_node) {
+      continue;
+    }
 
+    const SceneGraphNode& node = *has_prev_node;
+    if (node.attributes().is_active) {
+      continue;
+    }
+
+    for (const auto& child : node.children()) {
+      // this is lazy but probably faster than checking if the child is actually an
+      // object
+      new_objects_.erase(child);
+    }
+  }
+}
+
+void LLMFrontend::connectNewObjects() {
+  if (places_nn_finder_) {
+  }
+
+  for (const auto& object_id : new_objects_) {
+    const auto object_opt = dsg_->graph->getNode(object_id);
+    if (!object_opt) {
+      continue;
+    }
+
+    const SceneGraphNode& object_node = *object_opt;
+    const auto parent_opt = object_node.getParent();
+    if (parent_opt) {
+      dsg_->graph->removeEdge(object_id, *parent_opt);
+    }
+
+    const Eigen::Vector3d object_position = dsg_->graph->getPosition(object_id);
+    places_nn_finder_->find(
+        object_position, 1, false, [&](NodeId place_id, size_t, double) {
+          dsg_->graph->insertEdge(place_id, object_id);
+        });
+  }
+}
+
+void LLMFrontend::updateBestViews() {
   const auto& prefix = HydraConfig::instance().getRobotPrefix();
   const auto& active_nodes = active_agent_nodes_.at(prefix.key);
   if (active_nodes.empty()) {
@@ -154,6 +200,66 @@ void LLMFrontend::updateImpl(const ReconstructionOutput::Ptr& msg) {
   for (const auto& cb : view_callbacks_) {
     cb(*views_database_, best_views);
   }
+}
+
+void LLMFrontend::updateMap(ReconstructionOutput& msg) {
+  if (!map_) {
+    map_ = msg.getMapPointer();
+    return;
+  }
+
+  // copy updates into larger map
+  // TODO(nathan) filter empty blocks?
+  map_->updateFrom(msg.map());
+
+  const auto& tsdf = map_->getTsdfLayer();
+
+  archived_blocks_.clear();
+  voxblox::BlockIndexList blocks;
+  tsdf.getAllAllocatedBlocks(&blocks);
+  for (const auto& idx : blocks) {
+    auto block = tsdf.getBlockPtrByIndex(idx);
+    const auto dist_m = (msg.world_t_body.cast<float>() - block->origin()).norm();
+    if (dist_m < config.spatial_window_radius_m) {
+      continue;
+    }
+
+    archived_blocks_.push_back(idx);
+  }
+
+  // we override the map to use a spatial active window for
+  // the places and other processes
+  msg.setMap(map_);
+  msg.archived_blocks = archived_blocks_;
+}
+
+void LLMFrontend::pruneMap(const ReconstructionOutput&) {
+  if (!map_) {
+    return;
+  }
+
+  map_->removeBlocks(archived_blocks_);
+
+  auto& tsdf = map_->getTsdfLayer();
+  voxblox::BlockIndexList blocks;
+  tsdf.getAllAllocatedBlocks(&blocks);
+  for (const auto& idx : blocks) {
+    tsdf.getBlockPtrByIndex(idx)->updated().reset();
+  }
+}
+
+void LLMFrontend::updateImpl(const ReconstructionOutput::Ptr& msg) {
+  updateMap(*msg);
+
+  FrontendModule::updateImpl(msg);
+
+  // okay without locking: no one else is modifying the graph
+  archiveObjects();
+  connectNewObjects();
+  updateActiveWindowViews(msg->timestamp_ns);
+  updateBestViews();
+
+  pruneMap(*msg);
 }
 
 }  // namespace hydra::llm

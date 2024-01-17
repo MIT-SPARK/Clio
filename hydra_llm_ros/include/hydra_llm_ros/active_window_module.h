@@ -4,6 +4,7 @@
 #include <hydra/reconstruction/reconstruction_output.h>
 #include <hydra/utils/log_utilities.h>
 #include <khronos/active_window/active_window.h>
+#include <khronos_ros/visualization/active_window_visualizer.h>
 
 namespace hydra::llm {
 
@@ -15,6 +16,8 @@ class ActiveWindowModule : public Module {
   struct Config {
     khronos::ActiveWindow::Config active_window;
     size_t max_queue_size = 0;
+    bool use_visualizer = false;
+    std::string active_window_visualizer_ns = "~reconstruction/active_window_viz";
   };
 
   ActiveWindowModule(const Config& config, const OutputQueue::Ptr& output_queue);
@@ -43,6 +46,7 @@ class ActiveWindowModule : public Module {
   DataInputQueue::Ptr queue_;
   OutputQueue::Ptr output_queue_;
   std::unique_ptr<std::thread> spin_thread_;
+  std::unique_ptr<khronos::ActiveWindowVisualizer> visualizer_;
 
  private:
   inline static const auto registration_ =

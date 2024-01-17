@@ -15,7 +15,7 @@ config:
     max_saturation: 0.8
     min_luminance: 0.6
     max_luminance: 0.85
-  dynamic_layer:
+  dynamic_layers:
     '2':
       visualize: true
       num_colors: 5
@@ -36,7 +36,7 @@ config:
   layer2:
     # generic
     z_offset_scale: 2.0
-    visualize: false
+    visualize: true
     # node
     marker_scale: 0.40
     marker_color_mode: 0  # default
@@ -63,8 +63,8 @@ config:
     intralayer_edge_insertion_skip: 0
   layer3:
     # general
-    z_offset_scale: 0.0
-    visualize: false
+    z_offset_scale: 3.0
+    visualize: true
     # nodes
     marker_scale: 0.2
     marker_color_mode: 2  # parent
@@ -90,13 +90,13 @@ config:
   layer4:
     # general
     z_offset_scale: 4.2
-    visualize: false
+    visualize: true
     # nodes
     marker_scale: 0.2
     marker_color_mode: 0  # default
     marker_alpha: 0.8
     use_sphere_marker: false
-    use_label: true
+    use_label: false
     use_collapsed_label: false
     label_height: 1.25
     label_scale: 0.3
@@ -117,7 +117,7 @@ config:
     visualize: false
 llm_plugins:
   dsg_mesh: MeshPlugin
-  llm_places: LLMPlacesVisualizer
+  # llm_places: LLMPlacesVisualizer
 dsg_mesh:
   label_colormap: ''
   color_by_label: false

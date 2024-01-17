@@ -10,6 +10,7 @@
     <arg name="depth_topic" default="depth_registered/image_rect"/>
     <arg name="label_topic" default="semantic/image_raw"/>
     <arg name="rgb_image_transport" default="raw"/>
+    <arg name="object_label_file" default=""/>
 
     <!-- parameter files -->
     <arg name="dataset_name"/>
@@ -49,6 +50,26 @@
     <arg name="zmq_recv_url" default="tcp://$(arg zmq_ip):8002"/>
     <!-- misc visualization -->
     <arg name="start_visualizer" default="true"/>
+    <arg name="visualizer_frame" default="$(arg map_frame)"/>
+    <arg name="visualizer_ns" default="hydra_dsg_visualizer" doc="visualizer namespace to use"/>
+    <arg name="start_rviz" default="true" doc="automatically start rviz"/>
+    <arg name="viz_use_zmq" default="false" doc="use zmq to receive scene graphs"/>
+    <arg name="viz_zmq_ip" default="127.0.0.1" doc="zmq IP to listen on"/>
+    <arg name="viz_zmq_port" default="8001" doc="zmq port to listen on"/>
+    <arg name="viz_zmq_url" default="tcp://$(arg viz_zmq_ip):$(arg viz_zmq_port)"
+         doc="full zmq url to listen on, including protocol"/>
+    <arg name="viz_debug" default="false"/>
+    <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
+    <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
+    <arg name="color_places_by_distance" default="false"/>
+    <arg name="show_frontend" default="false" doc="show frontend scene graph"/>
+    <arg name="rviz_dir" default="$(find hydra_llm_ros)/rviz"/>
+    <arg name="rviz_file" if="$(arg start_visualizer)"/>
+    <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+    <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
+    <arg name="viz_config_file" default="visualizer_config.yaml"/>
+    <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
+    <arg name="viz_semantic_colormap" default="$(find semantic_recolor)/config/colors/ade20k_mp3d.csv"/>
 
     <!-- logging output for hydra -->
     <arg name="log_output_dir" default="$(find hydra)/output/"/>
@@ -93,12 +114,26 @@
         <arg name="clip_topic" default="hydra_llm_node/input/clip_vector"/>
     </include>
 
-    <include file="$(find hydra_ros)/launch/visualizer/hydra_streaming_visualizer.launch"
-             pass_all_args="true"
-             if="$(arg start_visualizer)">
-        <arg name="visualizer_frame" default="$(arg map_frame)"/>
-        <arg name="dsg_topic" default="hydra_llm_node/dsg"/>
-        <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
-    </include>
+    <group if="$(arg start_visualizer)">
+        <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"
+              if="$(arg start_rviz)"/>
+
+        <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
+              launch-prefix="$(arg viz_launch_prefix)"
+              output="screen"
+              required="true"
+              args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
+          <remap from="~dsg" to="hydra_llm_node/dsg" unless="$(arg show_frontend)"/>
+          <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
+          <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh" unless="$(arg show_frontend)"/>
+          <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
+          <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
+          <remap from="~llm_places/current_task" to="/current_task"/>
+          <param name="llm_places/colormap_filepath" value="$(arg viz_semantic_colormap)"/>
+          <param name="load_graph" value="false"/>
+          <param name="use_zmq" value="$(arg viz_use_zmq)"/>
+          <param name="zmq_url" value="$(arg viz_zmq_url)"/>
+        </node>
+    </group>
 
 </launch>

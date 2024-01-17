@@ -12,13 +12,20 @@ void declare_config(ActiveWindowModule::Config& config) {
   name("ActiveWindowModule::Config");
   field(config.active_window, "active_window");
   field(config.max_queue_size, "max_queue_size");
+  field(config.use_visualizer, "use_visualizer");
+  field(config.active_window_visualizer_ns, "~active_window_viz");
 }
 
 ActiveWindowModule::ActiveWindowModule(const Config& config,
                                        const OutputQueue::Ptr& output_queue)
     : config(config::checkValid(config)),
       queue_(std::make_shared<DataInputQueue>(config.max_queue_size)),
-      output_queue_(output_queue) {}
+      output_queue_(output_queue) {
+  if (config.use_visualizer) {
+    visualizer_ = std::make_unique<khronos::ActiveWindowVisualizer>(
+        ros::NodeHandle(config.active_window_visualizer_ns));
+  }
+}
 
 ActiveWindowModule::~ActiveWindowModule() {}
 
@@ -61,6 +68,14 @@ void ActiveWindowModule::spin() {
 
     auto output = active_window_->getOutput();
     output_queue_->push(output);
+
+    if (visualizer_) {
+      const auto frame_data =
+          dynamic_cast<const khronos::FrameData*>(output->sensor_data.get());
+      CHECK(frame_data);
+      visualizer_->visualizeAll(
+          active_window_->getMap(), *frame_data, active_window_->getTracks(), output);
+    }
   }
 }
 

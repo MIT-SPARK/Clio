@@ -37,17 +37,23 @@
 #include <glog/logging.h>
 #include <hydra_ros/visualizer/dsg_visualizer_plugin.h>
 #include <hydra_ros/visualizer/hydra_visualizer.h>
+#include <khronos_ros/visualization/dsg_visualizer_plugins/dsg_visualizer_plugin.h>
 
 #include "hydra_llm_ros/llm_places_visualizer.h"
 
 struct LLMPluginConfig {
   std::map<std::string, std::string> plugins;
+  std::vector<config::VirtualConfig<khronos::DsgVisualizerPlugin>> khronos_plugins;
 };
+
+using KhronosPluginList =
+    std::vector<config::VirtualConfig<khronos::DsgVisualizerPlugin>>;
 
 void declare_config(LLMPluginConfig& config) {
   using namespace config;
   name("LLMPluginConfig");
   field(config.plugins, "llm_plugins");
+  field(config.khronos_plugins, "khronos_plugins");
 }
 
 int main(int argc, char** argv) {
@@ -65,9 +71,13 @@ int main(int argc, char** argv) {
   hydra::HydraVisualizer node(nh);
   node.clearPlugins();
 
-  const auto conf = config::fromRos<LLMPluginConfig>(nh);
-  for (auto&& [name, plugin_type] : conf.plugins) {
+  const auto plugin_config = config::fromRos<LLMPluginConfig>(nh);
+  for (auto&& [name, plugin_type] : plugin_config.plugins) {
     node.addPlugin(config::create<hydra::DsgVisualizerPlugin>(plugin_type, nh, name));
+  }
+
+  for (const auto& conf : plugin_config.khronos_plugins) {
+    node.addPlugin(conf.create(nh, node.visualizer_));
   }
 
   node.spin();

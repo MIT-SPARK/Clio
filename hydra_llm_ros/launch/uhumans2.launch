@@ -24,6 +24,7 @@
 
     <arg name="visual_lcd_config_path" default="$(find hydra)/config/default/visual_lcd_config.yaml"/>
     <arg name="graph_lcd_config_path" default="$(find hydra)/config/uhumans2/lcd_config.yaml"/>
+    <arg name="object_label_file" default="$(find khronos_ros)/config/semantic_labels/uHumans2_office.csv"/>
 
     <node name="semantic_converter" pkg="khronos_utils" type="semantic_converter_node">
         <param name="semantics_file" value="$(arg semantic_map_path)"/>

@@ -7,7 +7,9 @@
 
 namespace hydra::llm {
 
-struct LLMFrontendConfig : public FrontendConfig {};
+struct LLMFrontendConfig : public FrontendConfig {
+  double spatial_window_radius_m = 8.0;
+};
 
 void declare_config(LLMFrontendConfig& config);
 
@@ -40,6 +42,16 @@ class LLMFrontend : public FrontendModule {
 
   void updateKhronosObjects(const ReconstructionOutput& base_msg);
 
+  void archiveObjects();
+
+  void connectNewObjects();
+
+  void updateBestViews();
+
+  void updateMap(ReconstructionOutput& msg);
+
+  void pruneMap(const ReconstructionOutput& msg);
+
  protected:
   ros::NodeHandle nh_;
   ros::Subscriber clip_sub_;
@@ -48,6 +60,9 @@ class LLMFrontend : public FrontendModule {
   std::map<uint64_t, ClipEmbedding::Ptr> keyframe_clip_vectors_;
   ViewDatabase::Ptr views_database_;
   std::list<ViewCallback> view_callbacks_;
+  std::set<NodeId> new_objects_;
+  std::shared_ptr<VolumetricMap> map_;
+  voxblox::BlockIndexList archived_blocks_;
 
  private:
   inline static const auto registration_ =

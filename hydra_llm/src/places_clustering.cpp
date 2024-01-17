@@ -79,9 +79,9 @@ void PlaceClustering::updateGraphIncremental(DynamicSceneGraph& graph,
     }
   }
 
-  LOG(WARNING) << "Got " << clusters.size() << " cluster(s) with "
-               << associations.size() << " associations to " << region_sets.size()
-               << " previous clusters";
+  VLOG(VLEVEL_TRACE) << "Got " << clusters.size() << " cluster(s) with "
+                     << associations.size() << " associations to " << region_sets.size()
+                     << " previous clusters";
 
   // TODO(nathan) make region layer make semantic sense
   std::set<NodeId> updated_regions;
@@ -161,7 +161,7 @@ void PlaceClustering::updateGraphIncremental(DynamicSceneGraph& graph,
 
 void PlaceClustering::updateGraphBatch(DynamicSceneGraph& graph,
                                        const Clusters& clusters) const {
-  LOG(WARNING) << "Got " << clusters.size() << " cluster(s)";
+  VLOG(VLEVEL_TRACE) << "Got " << clusters.size() << " cluster(s)";
 
   std::vector<NodeId> prev_regions;
   for (const auto& id_node_pair : graph.getLayer(DsgLayers::ROOMS).nodes()) {

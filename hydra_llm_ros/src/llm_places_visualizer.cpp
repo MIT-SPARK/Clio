@@ -39,7 +39,7 @@ LLMPlacesVisualizer::LLMPlacesVisualizer(const ros::NodeHandle& nh,
       nh_.advertiseService("color_by_task", &LLMPlacesVisualizer::handleService, this);
 
   config_ = config::checkValid(config::fromRos<LLMPlacesConfig>(nh_));
-  LOG(INFO) << std::endl << config::toString(config_);
+  VLOG(2) << std::endl << config::toString(config_);
   colormap_ = SemanticColorMap::fromCsv(config_.colormap_filepath);
   metric_ = config_.metric.create();
   CHECK(metric_);
