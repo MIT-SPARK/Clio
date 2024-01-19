@@ -9,6 +9,7 @@ namespace hydra::llm {
 
 struct LLMFrontendConfig : public FrontendConfig {
   double spatial_window_radius_m = 8.0;
+  bool override_active_window = false;
 };
 
 void declare_config(LLMFrontendConfig& config);
@@ -41,6 +42,8 @@ class LLMFrontend : public FrontendModule {
   void updateImpl(const ReconstructionOutput::Ptr& msg) override;
 
   void updateKhronosObjects(const ReconstructionOutput& base_msg);
+
+  void updateLLmPlaces(const ReconstructionOutput& msg);
 
   void archiveObjects();
 

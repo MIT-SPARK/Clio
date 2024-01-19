@@ -20,6 +20,7 @@ void declare_config(LLMFrontendConfig& config) {
   name("LLMFrontendConfig");
   base<FrontendConfig>(config);
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
+  field(config.override_active_window, "override_active_window");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -59,7 +60,7 @@ void LLMFrontend::initCallbacks() {
   }
 
   input_callbacks_.push_back(
-      std::bind(&LLMFrontend::updatePlaces, this, std::placeholders::_1));
+      std::bind(&LLMFrontend::updateLLmPlaces, this, std::placeholders::_1));
 }
 
 void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
@@ -202,6 +203,29 @@ void LLMFrontend::updateBestViews() {
   }
 }
 
+void LLMFrontend::updateLLmPlaces(const ReconstructionOutput& input) {
+  if (!place_extractor_ || !map_) {
+    return;
+  }
+
+  NodeIdSet active_nodes;
+  place_extractor_->detect(input.timestamp_ns, *map_, archived_blocks_);
+  {  // start graph critical section
+    std::unique_lock<std::mutex> graph_lock(dsg_->mutex);
+    place_extractor_->updateGraph(input.timestamp_ns, *dsg_->graph);
+
+    active_nodes = place_extractor_->getActiveNodes();
+    const auto& places = dsg_->graph->getLayer(DsgLayers::PLACES);
+    places_nn_finder_.reset(new NearestNodeFinder(places, active_nodes));
+    addPlaceAgentEdges(input.timestamp_ns);
+    addPlaceObjectEdges(input.timestamp_ns);
+    state_->latest_places = active_nodes;
+  }  // end graph update critical section
+
+  archivePlaces(active_nodes);
+  previous_active_places_ = active_nodes;
+}
+
 void LLMFrontend::updateMap(ReconstructionOutput& msg) {
   if (!map_) {
     map_ = msg.getMapPointer();
@@ -229,8 +253,10 @@ void LLMFrontend::updateMap(ReconstructionOutput& msg) {
 
   // we override the map to use a spatial active window for
   // the places and other processes
-  msg.setMap(map_);
-  msg.archived_blocks = archived_blocks_;
+  if (config.override_active_window) {
+    msg.setMap(map_);
+    msg.archived_blocks = archived_blocks_;
+  }
 }
 
 void LLMFrontend::pruneMap(const ReconstructionOutput&) {
