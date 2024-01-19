@@ -18,7 +18,7 @@ catkin config --skiplist hdf5_map_io mesh_msgs_hdf5 label_manager mesh_tools \
 
 cd src
 git clone git@github.mit.edu:SPARK/Hydra-LLM.git hydra_llm
-vcs import . < hydra/install/hydra_llm.rosinstall
+vcs import . < hydra_llm/install/hydra_llm.rosinstall
 
 rosdep install --from-paths . --ignore-src -r -y
 
