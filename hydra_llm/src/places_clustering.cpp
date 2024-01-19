@@ -205,7 +205,7 @@ void PlaceClustering::updateGraphBatch(DynamicSceneGraph& graph,
 void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph,
                                     const NodeEmbeddingMap& views) {
   if (views.empty()) {
-    LOG(ERROR) << "Need to have at least one view";
+    VLOG(VLEVEL_TRACE) << "Need to have at least one view";
     return;
   }
 
