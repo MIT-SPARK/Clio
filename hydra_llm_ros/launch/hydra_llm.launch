@@ -11,6 +11,7 @@
     <arg name="label_topic" default="semantic/image_raw"/>
     <arg name="rgb_image_transport" default="raw"/>
     <arg name="object_label_file" default=""/>
+    <arg name="run_openset_places" default="true"/>
 
     <!-- parameter files -->
     <arg name="dataset_name"/>
@@ -69,7 +70,7 @@
     <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
     <arg name="viz_config_file" default="visualizer_config.yaml"/>
     <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
-    <arg name="viz_semantic_colormap" default="$(find semantic_recolor)/config/colors/ade20k_mp3d.csv"/>
+    <arg name="viz_semantic_colormap" default="$(find hydra_ros)/config/color/uhumans2_office.csv"/>
 
     <!-- logging output for hydra -->
     <arg name="log_output_dir" default="$(find hydra)/output/"/>
@@ -83,7 +84,8 @@
     <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
     <arg name="launch_prefix" value="" unless="$(arg debug)"/>
 
-    <arg name="places_clustering_type" default="PassthroughClustering"/>
+    <arg name="places_clustering_type" default="PassthroughClustering" if="$(arg run_openset_places)"/>
+    <arg name="places_clustering_type" default="NoClustering" unless="$(arg run_openset_places)"/>
 
     <node pkg="hydra_llm_ros"
           type="hydra_llm_node"
@@ -110,7 +112,8 @@
         <rosparam file="$(arg ros_params_file)" subst_value="true"/>
     </node>
 
-    <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true">
+    <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true"
+             if="$(arg run_openset_places)">
         <arg name="clip_topic" default="hydra_llm_node/input/clip_vector"/>
     </include>
 

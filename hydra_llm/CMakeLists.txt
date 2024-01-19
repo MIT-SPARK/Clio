@@ -23,6 +23,7 @@ add_library(
   src/embedding_group.cpp
   src/greedy_clustering.cpp
   src/merge_utilities.cpp
+  src/no_clustering.cpp
   src/passthrough_clustering.cpp
   src/places_clustering.cpp
   src/region_update_functor.cpp

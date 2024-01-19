@@ -21,6 +21,7 @@ void declare_config(LLMFrontendConfig& config) {
   base<FrontendConfig>(config);
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
   field(config.override_active_window, "override_active_window");
+  field(config.min_object_merge_iou, "min_object_merge_iou");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -76,6 +77,33 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
                      << dsg_->graph->getLayer(DsgLayers::OBJECTS).numNodes()
                      << " total nodes)";
   for (const auto& object : msg.objects) {
+    double max_iou = config.min_object_merge_iou;
+    std::optional<NodeId> association;
+    for (const auto existing : new_objects_) {
+      // TODO(nathan) fix this
+      const auto bbox =
+          khronos::BoundingBox::fromSpark(dsg_->graph->getNode(existing)
+                                              ->get()
+                                              .attributes<SemanticNodeAttributes>()
+                                              .bounding_box);
+      const auto iou = object.bounding_box.computeIoU(bbox);
+      if (iou < max_iou) {
+        continue;
+      }
+
+      // TODO(nathan) semantic consistency check
+      association = existing;
+      max_iou = iou;
+    }
+
+    if (association) {
+      VLOG(VLEVEL_TRACE) << "Dropping repeated active window object " << object.id
+                         << " for existing node " << NodeSymbol(*association).getLabel()
+                         << " (IoU: " << max_iou << ")";
+      // TODO(nathan) merge attributes
+      continue;
+    }
+
     const NodeSymbol node_id(config.object_config.prefix, object.id);
     CHECK(!dsg_->graph->hasNode(node_id))
         << "Found duplicate node " << node_id.getLabel();
