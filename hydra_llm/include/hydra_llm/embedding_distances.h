@@ -23,13 +23,19 @@ struct EmbeddingDistance {
 };
 
 struct CosineDistance : EmbeddingDistance {
-  struct Config {};
+  struct Config {
+    double tolerance = 1.0e-9;
+  };
 
-  explicit CosineDistance(const Config& = {}) {}
+  explicit CosineDistance() : CosineDistance(Config()) {}
+
+  explicit CosineDistance(const Config& config) : config(config) {}
 
   double dist(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
   double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+  const Config config;
 
  private:
   inline static const auto registration_ =
@@ -37,8 +43,10 @@ struct CosineDistance : EmbeddingDistance {
           "cosine");
 };
 
-inline void declare_config(CosineDistance::Config&) {
+inline void declare_config(CosineDistance::Config& config) {
   config::name("CosineDistance::Config");
+  config::field(config.tolerance, "tolerance");
+  config::check(config.tolerance, config::GT, 0.0, "tolerance");
 }
 
 struct L1Norm : public EmbeddingDistance {
@@ -76,6 +84,7 @@ inline void declare_config(L2Norm::Config&) { config::name("L2Norm::Config"); }
 struct LerfScore : public EmbeddingDistance {
   struct Config {
     config::VirtualConfig<EmbeddingGroup> cannonical_features;
+    double tolerance = 1.0e-9;
   };
 
   explicit LerfScore(const Config& config);
@@ -83,6 +92,8 @@ struct LerfScore : public EmbeddingDistance {
   double dist(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
 
   double score(const Eigen::VectorXd& lhs, const Eigen::VectorXd& rhs) const override;
+
+  const Config config;
 
  private:
   std::unique_ptr<EmbeddingGroup> cannonical_;
