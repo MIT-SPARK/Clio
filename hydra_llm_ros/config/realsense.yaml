@@ -3,14 +3,20 @@
 #  Input Module Parameters  #
 #############################
 input:
+  global_frame_name: $(arg odom_frame)
+  sensor_frame_name: $(arg sensor_frame)
   sensor:
-    type: camera_info
+    type: camera
+    width: 640
+    height: 360
+    cx: 315.9902073557914
+    cy: 254.59437002701452
+    fx: 372.4634094238281
+    fy: 371.5072021484375
     min_range: $(arg sensor_min_range)
     max_range: $(arg sensor_max_range)
-    camera_info_topic: $(arg rgb_info_topic)
     extrinsics:
-      type: ros
-      sensor_frame: $(arg sensor_frame)
+      type: identity
   subscriber:
     type: $(arg subscriber_type)
     input_images_are_const: false
@@ -18,30 +24,29 @@ input:
     depth_image_topic: depth/image_rect
     semantic_image_topic: semantic/image_raw
     queue_size: 100
-  label_info:
-    type: csv
-    label_file: $(arg object_label_file)
 #############################################
 #  Active-Window Reconstruction Parameters  #
 #############################################
 reconstruction:
   use_visualizer: true
   active_window_viz:
+    global_frame_name: $(arg odom_frame)
     color_mode: "color"
     slice_height: -0.5
     slice_height_is_relative: true
     activity_shading_intensity: 0.6
     object_color_mode: 0
+    dynamic_point_scale: 0.1
   active_window:  # taken from Khronos
     verbosity: 1
     find_visible_blocks_accurately: false
     max_frame_data_buffer_size: 300
     store_every_n_frame_data: 1
     min_object_allocation_confidence: 0.5
-    min_object_volume: 0.01  # m^3
+    min_object_volume: 0.0  # m^3
     min_object_reconstruction_confidence: 0.5
     scale_object_reconstruction_confidence_with_weight: true
-    min_object_reconstruction_observations: 5
+    min_object_reconstruction_observations: 0
     object_reconstruction_resolution: -0.1  # Positive: voxel size in meters. Negative: fraction of the extent. 0: Skip. (-0.02)
     volumetric_map:
       voxel_size: 0.1  # m
@@ -57,11 +62,11 @@ reconstruction:
     tracker:
       type: max_iou   # 'max_iou'
       track_by: voxels   # 'pixels', 'voxels', 'bounding_box'
-      min_semantic_iou: 0.25
-      min_cosine_sim: -1.0
+      min_semantic_iou: 0.3
+      min_cosine_sim: 0.7
       min_cross_iou: 0.1
       temporal_window: $(arg temporal_window_size_s)
-      min_num_observations: 30
+      min_num_observations: 3
     projective_integrator:
       max_weight: 100000
       interpolation_method: adaptive   # "nearest", "bilinear", "adaptive"
@@ -74,6 +79,7 @@ reconstruction:
 #########################
 frontend:
   type: LLMFrontend
+  min_object_merge_similiarity: 0.6
   pgmo:
     horizon: 15.0
     d_graph_resolution: 2.5

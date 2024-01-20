@@ -9,18 +9,24 @@
     <arg name="rgb_topic" default="rgb/image_raw"/>
     <arg name="depth_topic" default="depth_registered/image_rect"/>
     <arg name="label_topic" default="semantic/image_raw"/>
+    <arg name="object_topic" default="object/image_raw"/>
     <arg name="rgb_image_transport" default="raw"/>
-    <arg name="object_label_file" default=""/>
-    <arg name="run_openset_places" default="true"/>
+    <arg name="object_label_file" default="''"/>
+    <arg name="run_openset_places" default="false"/>
+
+    <arg name="closed_set" default="true"/>
+    <arg name="object_label_file" default="" if="$(arg closed_set)"/>
+    <arg name="object_detection_type" default="$(eval 'connected_semantics' if arg('closed_set') else 'instance_forwarding')"/>
+    <arg name="subscriber_type" default="$(eval 'semantic' if arg('closed_set') else 'openset')"/>
 
     <!-- parameter files -->
     <arg name="dataset_name"/>
-    <arg name="semantic_map_path"/>
+    <arg name="semantic_map_path" default="''"/>
     <arg name="config_path" default="$(find hydra_llm_ros)/config/$(arg dataset_name).yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
     <!-- labelspace configuration -->
     <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
-    <arg name="labelspace_name"/>
+    <arg name="labelspace_name" default=""/>
     <arg name="labelspace_path" default="$(arg labelspace_dir)/$(arg labelspace_name)_label_space.yaml"/>
 
     <!-- sensor configuration -->
@@ -101,11 +107,12 @@
         <remap from="~input/color/camera_info" to="$(arg rgb_info_topic)"/>
         <remap from="~input/depth/image_rect" to="$(arg depth_topic)"/>
         <remap from="~input/semantic/image_raw" to="$(arg label_topic)"/>
+        <remap from="~input/object_image" to="$(arg object_topic)"/>
         <!-- image transport -->
         <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
 
         <!-- parameter files -->
-        <rosparam file="$(arg labelspace_path)"/>
+        <rosparam file="$(arg labelspace_path)" if="$(arg closed_set)"/>
         <rosparam file="$(arg config_path)" subst_value="true"/>
         <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
         <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)" subst_value="true"/>
@@ -126,6 +133,7 @@
               output="screen"
               required="true"
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
+          <param name="~visualizer_frame" value="$(arg map_frame)"/>
           <remap from="~dsg" to="hydra_llm_node/dsg" unless="$(arg show_frontend)"/>
           <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh" unless="$(arg show_frontend)"/>

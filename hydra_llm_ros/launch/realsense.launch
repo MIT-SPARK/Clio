@@ -1,0 +1,23 @@
+<launch>
+    <arg name="sim_time_required" default="true"/>
+    <param name="use_sim_time" value="$(arg sim_time_required)"/>
+
+    <arg name="robot_name" default="realsense"/>
+    <arg name="robot_id" default="0"/>
+
+    <arg name="map_frame" default="world"/>
+    <arg name="odom_frame" default="world"/>
+    <arg name="robot_frame" default="dominic/forward_link"/>
+    <arg name="sensor_frame" default="dominic/forward_link"/>
+
+    <arg name="rgb_topic" default="/dominic/forward/color/image_raw"/>
+    <arg name="depth_topic" default="/dominic/forward/depth/image_rect_raw"/>
+    <arg name="object_topic" default="/dominic/forward/object_image"/>
+
+    <include file="$(find hydra_llm_ros)/launch/hydra_llm.launch" pass_all_args="true">
+        <arg name="dataset_name" default="realsense"/>
+        <arg name="rviz_file" default="realsense.rviz"/>
+        <arg name="closed_set" default="false"/>
+    </include>
+
+</launch>
