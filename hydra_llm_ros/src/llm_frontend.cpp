@@ -7,6 +7,7 @@
 #include <hydra/common/hydra_config.h>
 #include <hydra/utils/nearest_neighbor_utilities.h>
 #include <hydra/utils/timing_utilities.h>
+#include <hydra_llm/embedding_distances.h>
 #include <khronos/active_window/data/output_data.h>
 #include <khronos/common/utils/khronos_attribute_utils.h>
 #include <kimera_pgmo/compression/DeltaCompression.h>
@@ -21,7 +22,7 @@ void declare_config(LLMFrontendConfig& config) {
   base<FrontendConfig>(config);
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
   field(config.override_active_window, "override_active_window");
-  field(config.min_object_merge_iou, "min_object_merge_iou");
+  field(config.min_object_merge_similiarity, "min_object_merge_similiarity");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -64,6 +65,26 @@ void LLMFrontend::initCallbacks() {
       std::bind(&LLMFrontend::updateLLmPlaces, this, std::placeholders::_1));
 }
 
+bool isSameClass(const khronos::OutputObject& object,
+                 const SemanticNodeAttributes& attrs,
+                 double min_similiarity) {
+  // note: eigen default vectors are not size 0, but we likely will never
+  // have scalar semantic features
+  if (object.semantic_feature.size() <= 1) {
+    return static_cast<uint32_t>(object.semantic_id) == attrs.semantic_label;
+  }
+
+  const auto score =
+      CosineDistance().dist(object.semantic_feature, attrs.semantic_feature);
+  return score >= min_similiarity;
+}
+
+bool objectsOverlap(const spark_dsg::BoundingBox& bbox,
+                    const Eigen::Vector3f& pos,
+                    const SemanticNodeAttributes& attrs) {
+  return bbox.isInside(attrs.position) || attrs.bounding_box.isInside(pos);
+}
+
 void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
   // this is janky, but the try-catch is uglier
   const auto derived = dynamic_cast<const khronos::OutputData*>(&base_msg);
@@ -77,31 +98,22 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
                      << dsg_->graph->getLayer(DsgLayers::OBJECTS).numNodes()
                      << " total nodes)";
   for (const auto& object : msg.objects) {
-    double max_iou = config.min_object_merge_iou;
+    const auto bbox = object.bounding_box.toSpark();
+    const Eigen::Vector3f pos =
+        object.bounding_box.origin + (object.bounding_box.size / 2);
+
     std::optional<NodeId> association;
     for (const auto existing : new_objects_) {
-      // TODO(nathan) fix this
-      const auto bbox =
-          khronos::BoundingBox::fromSpark(dsg_->graph->getNode(existing)
-                                              ->get()
-                                              .attributes<SemanticNodeAttributes>()
-                                              .bounding_box);
-      const auto iou = object.bounding_box.computeIoU(bbox);
-      if (iou < max_iou) {
+      const auto& attrs =
+          dsg_->graph->getNode(existing)->get().attributes<SemanticNodeAttributes>();
+      const bool overlap = objectsOverlap(bbox, pos, attrs);
+      const bool same_class =
+          isSameClass(object, attrs, config.min_object_merge_similiarity);
+      if (!overlap || !same_class) {
         continue;
       }
 
-      // TODO(nathan) semantic consistency check
       association = existing;
-      max_iou = iou;
-    }
-
-    if (association) {
-      VLOG(VLEVEL_TRACE) << "Dropping repeated active window object " << object.id
-                         << " for existing node " << NodeSymbol(*association).getLabel()
-                         << " (IoU: " << max_iou << ")";
-      // TODO(nathan) merge attributes
-      continue;
     }
 
     const NodeSymbol node_id(config.object_config.prefix, object.id);
@@ -109,8 +121,24 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
         << "Found duplicate node " << node_id.getLabel();
 
     auto attrs = khronos::fromOutputObject(object);
+    attrs->is_active = true;
     CHECK(dsg_->graph->emplaceNode(DsgLayers::OBJECTS, node_id, std::move(attrs)));
     new_objects_.insert(node_id);
+
+    if (association) {
+      // TODO(nathan) this isn't super ideal, but no good way to handle convey attribute updates
+      // from the frontend to other layers
+      VLOG(VLEVEL_TRACE) << "Dropping repeated active window object " << object.id
+                         << " for existing node "
+                         << NodeSymbol(*association).getLabel();
+      const auto& attrs = dsg_->graph->getNode(*association)
+                              ->get()
+                              .attributes<SemanticNodeAttributes>();
+      if (bbox.volume() > attrs.bounding_box.volume()) {
+        dsg_->graph->mergeNodes(*association, node_id);
+        new_objects_.erase(*association);
+      }
+    }
   }
 }
 
@@ -180,8 +208,12 @@ void LLMFrontend::archiveObjects() {
     }
 
     for (const auto& child : node.children()) {
-      // this is lazy but probably faster than checking if the child is actually an
-      // object
+      if (!new_objects_.count(child)) {
+        continue;
+      }
+
+      auto& attrs = dsg_->graph->getNode(child)->get().attributes<NodeAttributes>();
+      attrs.is_active = false;
       new_objects_.erase(child);
     }
   }
