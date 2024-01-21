@@ -5,6 +5,8 @@
     <arg name="robot_name" default="realsense"/>
     <arg name="robot_id" default="0"/>
 
+    <arg name="dataset_name" default="realsense"/>
+
     <arg name="map_frame" default="world"/>
     <arg name="odom_frame" default="world"/>
     <arg name="robot_frame" default="dominic/forward_link"/>
@@ -15,9 +17,10 @@
     <arg name="object_topic" default="/dominic/forward/object_image"/>
 
     <include file="$(find hydra_llm_ros)/launch/hydra_llm.launch" pass_all_args="true">
-        <arg name="dataset_name" default="realsense"/>
-        <arg name="rviz_file" default="realsense.rviz"/>
-        <arg name="closed_set" default="false"/>
+        <arg name="dataset_name" value="$(arg dataset_name)"/>
+        <arg name="rviz_file" value="realsense.rviz"/>
+        <arg name="closed_set" value="false"/>
+        <arg name="temporal_window_size_s" value="30"/>
     </include>
 
 </launch>
