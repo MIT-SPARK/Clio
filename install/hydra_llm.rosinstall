@@ -23,15 +23,15 @@
 - git:
     local-name: hydra
     uri: git@github.mit.edu:SPARK/Hydra.git
-    version: feature/lcd
+    version: llm/main
 - git:
     local-name: hydra_ros
     uri: git@github.mit.edu:SPARK/Hydra-ROS.git
-    version: feature/lcd
+    version: llm/main
 - git:
     local-name: khronos
     uri: git@github.mit.edu:SPARK/Khronos.git
-    version: llm/feature/lcd
+    version: llm/main
 - git:
     local-name: kimera_pgmo
     uri: git@github.mit.edu:SPARK/Kimera-PGMO.git
