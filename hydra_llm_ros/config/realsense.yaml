@@ -108,6 +108,7 @@ backend:
   type: BackendModule
   dsg:
     places_merge_distance_tolerance_m: 0.4
+    enable_node_merging: false
   pgmo:
     run_mode: 0  # kimera_pgmo run mode FULL (required)
     use_msg_time: true
