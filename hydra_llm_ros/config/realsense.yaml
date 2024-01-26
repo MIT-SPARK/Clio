@@ -49,8 +49,8 @@ reconstruction:
     min_object_reconstruction_observations: 0
     object_reconstruction_resolution: -0.02  # Positive: voxel size in meters. Negative: fraction of the extent. 0: Skip. (-0.02)
     volumetric_map:
-      voxel_size: 0.12  # m
-      truncation_distance: 0.2  # m (Usually 2-3x voxel size)
+      voxel_size: 0.1  # m
+      truncation_distance: 0.3  # m (Usually 2-3x voxel size)
       voxels_per_side: 16
     object_detector:
       type: $(arg object_detection_type)
