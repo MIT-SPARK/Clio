@@ -9,6 +9,7 @@
 #include <hydra/utils/timing_utilities.h>
 #include <hydra_llm/embedding_distances.h>
 #include <khronos/active_window/data/output_data.h>
+#include <khronos/common/utils/globals.h>
 #include <khronos/common/utils/khronos_attribute_utils.h>
 #include <kimera_pgmo/compression/DeltaCompression.h>
 
@@ -38,10 +39,6 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
 }
 
 LLMFrontend::~LLMFrontend() {}
-
-void LLMFrontend::setSensor(const std::shared_ptr<Sensor>& sensor) {
-  views_database_->setSensor(sensor);
-}
 
 void LLMFrontend::initCallbacks() {
   initialized_ = true;
@@ -126,8 +123,8 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
     new_objects_.insert(node_id);
 
     if (association) {
-      // TODO(nathan) this isn't super ideal, but no good way to handle convey attribute updates
-      // from the frontend to other layers
+      // TODO(nathan) this isn't super ideal, but no good way to handle convey attribute
+      // updates from the frontend to other layers
       VLOG(VLEVEL_TRACE) << "Dropping repeated active window object " << object.id
                          << " for existing node "
                          << NodeSymbol(*association).getLabel();
@@ -153,6 +150,10 @@ void LLMFrontend::handleClipFeatures(const ::llm::ClipVectorStamped& msg) {
 void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
   ScopedTimer timer("frontend/update_active_views", curr_timestamp_ns);
   const auto& prefix = HydraConfig::instance().getRobotPrefix();
+  if (!active_agent_nodes_.count(prefix.key)) {
+    return;
+  }
+
   const auto& active_nodes = active_agent_nodes_.at(prefix.key);
   if (active_nodes.empty()) {
     return;
@@ -186,7 +187,9 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     }
 
     const auto node_id = stamp_iter->second;
-    views_database_->addView(node_id, std::move(iter->second));
+    // TODO(nathan) handle the clip view assumption better
+    const auto sensor = CHECK_NOTNULL(khronos::Globals::getSensor(0));
+    views_database_->addView(node_id, std::move(iter->second), sensor);
     iter = keyframe_clip_vectors_.erase(iter);
   }
 }
@@ -220,7 +223,8 @@ void LLMFrontend::archiveObjects() {
 }
 
 void LLMFrontend::connectNewObjects() {
-  if (places_nn_finder_) {
+  if (!places_nn_finder_) {
+    return;
   }
 
   for (const auto& object_id : new_objects_) {
@@ -245,6 +249,10 @@ void LLMFrontend::connectNewObjects() {
 
 void LLMFrontend::updateBestViews() {
   const auto& prefix = HydraConfig::instance().getRobotPrefix();
+  if (!active_agent_nodes_.count(prefix.key)) {
+    return;
+  }
+
   const auto& active_nodes = active_agent_nodes_.at(prefix.key);
   if (active_nodes.empty()) {
     return;
@@ -269,7 +277,8 @@ void LLMFrontend::updateLLmPlaces(const ReconstructionOutput& input) {
   }
 
   NodeIdSet active_nodes;
-  place_extractor_->detect(input.timestamp_ns, *map_, archived_blocks_);
+  place_extractor_->detectImpl(
+      input.timestamp_ns, input.world_T_body<float>(), archived_blocks_, *map_);
   {  // start graph critical section
     std::unique_lock<std::mutex> graph_lock(dsg_->mutex);
     place_extractor_->updateGraph(input.timestamp_ns, *dsg_->graph);

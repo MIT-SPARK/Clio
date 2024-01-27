@@ -6,9 +6,12 @@
     <arg name="robot_id" default="0"/>
 
     <arg name="dataset_name" default="realsense"/>
+    <arg name="use_gravity_aligned" default="false"/>
 
-    <arg name="map_frame" default="world"/>
-    <arg name="odom_frame" default="world"/>
+    <arg name="map_frame" default="world" unless="$(arg use_gravity_aligned)"/>
+    <arg name="odom_frame" default="world" unless="$(arg use_gravity_aligned)"/>
+    <arg name="map_frame" default="map" if="$(arg use_gravity_aligned)"/>
+    <arg name="odom_frame" default="map" if="$(arg use_gravity_aligned)"/>
     <arg name="robot_frame" default="dominic/forward_link"/>
     <arg name="sensor_frame" default="dominic/forward_link"/>
 
@@ -21,6 +24,11 @@
         <arg name="rviz_file" value="realsense.rviz"/>
         <arg name="closed_set" value="false"/>
         <arg name="temporal_window_size_s" value="9"/>
+        <arg name="viz_config_file" default="visualizer_config.yaml"/>
     </include>
+
+    <!-- this is the inverse of the negative z -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="gravity_aligned"
+          args="0 0 0 -0.17417 -0.77360 0.601111 0.09927298 map world"/>
 
 </launch>

@@ -3,21 +3,42 @@
 #  Input Module Parameters  #
 #############################
 label_info:
-  type: csv
+  type: $(arg label_type)
   label_file: $(arg object_label_file)
 inputs:
-  - ns: input
+  - ns: input1
     sensor:
       type: camera_info
       min_range: $(arg sensor_min_range)
       max_range: $(arg sensor_max_range)
-      camera_info_topic: $(arg rgb_info_topic)
+      camera_info_topic: $(arg input1/rgb_info_topic)
       extrinsics:
         type: ros
-        sensor_frame: $(arg sensor_frame)
-input:
+        sensor_frame: $(arg sensor1_frame)
+  - ns: input2
+    sensor:
+      type: camera_info
+      min_range: $(arg sensor_min_range)
+      max_range: $(arg sensor_max_range)
+      camera_info_topic: $(arg input2/rgb_info_topic)
+      extrinsics:
+        type: ros
+        sensor_frame: $(arg sensor2_frame)
+input1:
+  global_frame_name: $(arg odom_frame)
+  sensor_frame_name: $(arg sensor1_frame)
   subscriber:
-    type: $(arg subscriber_type)
+    type: semantic
+    input_images_are_const: false
+    color_image_topic: color/image_raw
+    depth_image_topic: depth/image_rect
+    semantic_image_topic: semantic/image_raw
+    queue_size: 100
+input2:
+  global_frame_name: $(arg odom_frame)
+  sensor_frame_name: $(arg sensor2_frame)
+  subscriber:
+    type: semantic
     input_images_are_const: false
     color_image_topic: color/image_raw
     depth_image_topic: depth/image_rect
@@ -29,7 +50,8 @@ input:
 reconstruction:
   use_visualizer: true
   active_window_viz:
-    color_mode: color
+    color_mode: "color"
+    global_frame_name: $(arg odom_frame)
     slice_height: -0.5
     slice_height_is_relative: true
     activity_shading_intensity: 0.6
@@ -40,7 +62,7 @@ reconstruction:
     max_frame_data_buffer_size: 300
     store_every_n_frame_data: 1
     min_object_allocation_confidence: 0.5
-    min_object_volume: 0.01  # m^3
+    min_object_volume: 0.0  # m^3
     min_object_reconstruction_confidence: 0.5
     scale_object_reconstruction_confidence_with_weight: true
     min_object_reconstruction_observations: 5
@@ -50,7 +72,7 @@ reconstruction:
       truncation_distance: 0.3  # m (Usually 2-3x voxel size)
       voxels_per_side: 16
     object_detector:
-      type: $(arg object_detection_type)
+      type: $(arg object_detection_type)   # 'connected_semantics' 'instance_forwarding'
       min_cluster_size: 100  # pixels
       use_full_connectivity: true
       use_3d: true
@@ -71,6 +93,11 @@ reconstruction:
     tracking_integrator:
       temporal_window: $(arg temporal_window_size_s)
       verbosity: 1
+    robot_footprint:
+      type: RobotFootprintIntegrator
+      bbox_min: [-0.5, -0.15, -0.1]
+      bbox_max: [0.5, 0.15, 0.1]
+      tsdf_weight: 1.0e-4
 #########################
 #  Frontend Parameters  #
 #########################
@@ -98,7 +125,7 @@ frontend:
       min_node_distance_m: 0.4
       min_edge_distance_m: 0.25
       node_merge_distance_m: 0.5
-      add_heuristic_edges: false
+      add_heuristic_edges: true
 ########################
 #  Backend Parameters  #
 ########################
@@ -150,3 +177,22 @@ backend:
           type: cosine
         merge:
           type: weighted_mean
+#############################
+#  ROS Argument Parameters  #
+#############################
+robot_id: $(arg robot_id)
+odom_frame: $(arg odom_frame)
+robot_frame: $(arg robot_frame)
+map_frame: $(arg map_frame)
+exit_after_clock: false
+enable_frontend_output: true
+semantic_colormap_file: $(arg semantic_map_path)
+enable_lcd: $(arg enable_lcd)
+log_path: $(arg log_path)
+frontend/objects/bounding_box_type: AABB
+frontend/validate_vertices: false
+backend/dsg/optimize_on_lc: true
+backend/dsg/enable_merge_undos: false
+backend/dsg/use_zmq_interface: false
+loop_closure/type: LoopClosureModule
+loop_closure/detector/agent/descriptors/vocabulary_path: $(arg vocabulary_path)

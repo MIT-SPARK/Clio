@@ -19,7 +19,7 @@ class ViewDatabase {
 
   ~ViewDatabase();
 
-  void addView(NodeId node, ClipEmbedding::Ptr&& embedding);
+  void addView(NodeId node, ClipEmbedding::Ptr&& embedding, const Sensor* sensor);
 
   const ViewEntry* getView(NodeId node) const;
 
@@ -28,10 +28,7 @@ class ViewDatabase {
                          const std::unordered_set<NodeId>& active_places,
                          std::map<NodeId, NodeId>& best_views) const;
 
-  void setSensor(const std::shared_ptr<Sensor>& sensor);
-
  protected:
-  std::shared_ptr<Sensor> sensor_;
   std::map<NodeId, ViewEntry> entries_;
 };
 

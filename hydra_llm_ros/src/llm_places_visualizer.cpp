@@ -24,6 +24,7 @@ void declare_config(LLMPlacesConfig& config) {
   field(config.colormap_filepath, "colormap_filepath");
   field(config.min_score, "min_score");
   field(config.max_score, "max_score");
+  field(config.use_fixed_range, "use_fixed_range");
   field(config.layer_to_use, "layer_to_use");
 }
 
@@ -38,8 +39,9 @@ LLMPlacesVisualizer::LLMPlacesVisualizer(const ros::NodeHandle& nh,
   srv_ =
       nh_.advertiseService("color_by_task", &LLMPlacesVisualizer::handleService, this);
 
-  config_ = config::checkValid(config::fromRos<LLMPlacesConfig>(nh_));
+  config_ = config::fromRos<LLMPlacesConfig>(nh_);
   VLOG(2) << std::endl << config::toString(config_);
+  config::checkValid(config_);
   colormap_ = SemanticColorMap::fromCsv(config_.colormap_filepath);
   metric_ = config_.metric.create();
   CHECK(metric_);
@@ -76,7 +78,13 @@ NodeColor LLMPlacesVisualizer::getNodeColor(const ConfigManager& configs,
   }
 
   const auto score = metric_->score(current_task_feature_, attrs.semantic_feature);
-  auto ratio = (score - config_.min_score) / (config_.max_score - config_.min_score);
+  double ratio;
+  if (config_.use_fixed_range) {
+    ratio = (score - config_.min_score) / (config_.max_score - config_.min_score);
+  } else {
+    ratio = (score - curr_score_range_.first) /
+            (curr_score_range_.second - curr_score_range_.first);
+  }
   ratio = std::clamp(ratio, 0.0, 1.0);
   return dsg_utils::interpolateColorMap(configs.getColormapConfig("place_tasks"),
                                         ratio);
@@ -91,13 +99,20 @@ void LLMPlacesVisualizer::draw(const ConfigManager& configs,
 
   const auto& places = graph.getLayer(config_.layer_to_use);
   if (has_current_task_feature_) {
+    double min_score = 1.0;
+    double max_score = 0.0;
     double average_score = 0.0;
     for (const auto& id_node_pair : places.nodes()) {
       const auto& attrs = id_node_pair.second->attributes<SemanticNodeAttributes>();
-      average_score += metric_->score(current_task_feature_, attrs.semantic_feature);
+      const auto score = metric_->score(current_task_feature_, attrs.semantic_feature);
+      average_score += score;
+      min_score = std::min(min_score, score);
+      max_score = std::max(max_score, score);
     }
     average_score /= places.numNodes();
-    LOG(ERROR) << "Average score: " << average_score;
+    LOG(ERROR) << "Scores: " << average_score << " average score (range: [" << min_score << ", "
+               << max_score << "])";
+    curr_score_range_ = {min_score, max_score};
   }
 
   MarkerArray msg;

@@ -4,18 +4,18 @@
 
   <arg name="visualizer_ns" value="hydra_visualizer" doc="visualizer namespace"/>
   <arg name="visualizer_frame" default="map"/>
-  <arg name="color_places_by_distance" default="false"/>
   <arg name="start_rviz" default="true" doc="automatically start rviz"/>
   <arg name="verbosity" default="0" doc="visualizer verbosity"/>
   <arg name="start_mesh_publisher" value="$(eval 'false' if arg('mesh_filepath') == '' else 'true')"/>
   <arg name="semantic_colormap" default="$(find semantic_recolor)/config/colors/ade20k_mp3d.csv"/>
+  <arg name="run_task_embeddings" default="true"/>
 
   <arg name="rviz_dir" default="$(find hydra_ros)/rviz"/>
   <arg name="rviz_file" default="hydra_visualizer.rviz"/>
   <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
 
   <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
-  <arg name="viz_config_file" default="visualizer_config.yaml"/>
+  <arg name="viz_config_file" default="task_visualizer_config.yaml"/>
   <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
 
   <arg name="viz_debug" default="false"/>
@@ -23,6 +23,8 @@
   <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
 
   <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"/>
+
+  <include file="$(find llm)/launch/task_embedding.launch" pass_all_args="true" if="$(arg run_task_embeddings)"/>
 
   <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
         launch-prefix="$(arg viz_launch_prefix)"

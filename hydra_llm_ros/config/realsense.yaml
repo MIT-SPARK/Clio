@@ -2,21 +2,23 @@
 #############################
 #  Input Module Parameters  #
 #############################
+inputs:
+  - ns: input
+    sensor:
+      type: camera
+      width: 640
+      height: 360
+      cx: 315.9902073557914
+      cy: 254.59437002701452
+      fx: 372.4634094238281
+      fy: 371.5072021484375
+      min_range: $(arg sensor_min_range)
+      max_range: $(arg sensor_max_range)
+      extrinsics:
+        type: identity
 input:
   global_frame_name: $(arg odom_frame)
   sensor_frame_name: $(arg sensor_frame)
-  sensor:
-    type: camera
-    width: 640
-    height: 360
-    cx: 315.9902073557914
-    cy: 254.59437002701452
-    fx: 372.4634094238281
-    fy: 371.5072021484375
-    min_range: $(arg sensor_min_range)
-    max_range: $(arg sensor_max_range)
-    extrinsics:
-      type: identity
   subscriber:
     type: $(arg subscriber_type)
     input_images_are_const: false
@@ -88,21 +90,23 @@ frontend:
     output_mesh_resolution: 0.02
   min_object_vertices: 0
   prune_mesh_indices: true
-  gvd:
-    max_distance_m: 4.5
-    min_diff_m: 0.1
-    min_basis_for_extraction: 1
-    voronoi_config:
-      min_distance_m: 0.30
-      parent_l1_separation: 20
-      parent_cos_angle_separation: 0.2
-  graph_extractor:
-    type: CompressionGraphExtractor
-    compression_distance_m: 1.0
-    min_node_distance_m: 0.4
-    min_edge_distance_m: 0.25
-    node_merge_distance_m: 0.5
-    add_heuristic_edges: false
+  places:
+    type: gvd
+    gvd:
+      max_distance_m: 4.5
+      min_diff_m: 0.1
+      min_basis_for_extraction: 1
+      voronoi_config:
+        min_distance_m: 0.30
+        parent_l1_separation: 20
+        parent_cos_angle_separation: 0.2
+    graph:
+      type: CompressionGraphExtractor
+      compression_distance_m: 1.0
+      min_node_distance_m: 0.4
+      min_edge_distance_m: 0.25
+      node_merge_distance_m: 0.5
+      add_heuristic_edges: false
 ########################
 #  Backend Parameters  #
 ########################
@@ -148,7 +152,7 @@ backend:
       min_assocation_iou: 0.8
       clustering:
         type: $(arg places_clustering_type)
-        stop_value: 0.0
+        stop_value: 0.01
         tasks:
           type: RosEmbeddingGroup
         metric:

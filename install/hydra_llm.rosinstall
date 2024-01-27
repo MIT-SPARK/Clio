@@ -31,7 +31,7 @@
 - git:
     local-name: khronos
     uri: git@github.mit.edu:SPARK/Khronos.git
-    version: llm/main
+    version: llm/feature/robot_aware_places
 - git:
     local-name: kimera_pgmo
     uri: git@github.mit.edu:SPARK/Kimera-PGMO.git

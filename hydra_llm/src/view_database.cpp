@@ -39,14 +39,15 @@ ViewDatabase::ViewDatabase() {}
 
 ViewDatabase::~ViewDatabase() {}
 
-void ViewDatabase::addView(NodeId node, ClipEmbedding::Ptr&& embedding) {
+void ViewDatabase::addView(NodeId node,
+                           ClipEmbedding::Ptr&& embedding,
+                           const Sensor* sensor) {
   auto iter = entries_.find(node);
   if (iter != entries_.end()) {
     return;  // required for threadsafey
   }
 
-  CHECK(sensor_) << "sensor not set!";
-  entries_.emplace(node, ViewEntry{node, std::move(embedding), sensor_.get()});
+  entries_.emplace(node, ViewEntry{node, std::move(embedding), sensor});
 }
 
 const ViewEntry* ViewDatabase::getView(NodeId node) const {
@@ -92,10 +93,6 @@ void ViewDatabase::updateAssignments(const DynamicSceneGraph& graph,
 
     best_views[node_id] = *best_view;
   }
-}
-
-void ViewDatabase::setSensor(const std::shared_ptr<Sensor>& sensor) {
-  sensor_ = sensor;
 }
 
 }  // namespace hydra::llm

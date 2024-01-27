@@ -68,7 +68,6 @@
     <arg name="viz_debug" default="false"/>
     <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
     <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
-    <arg name="color_places_by_distance" default="false"/>
     <arg name="show_frontend" default="false" doc="show frontend scene graph"/>
     <arg name="rviz_dir" default="$(find hydra_llm_ros)/rviz"/>
     <arg name="rviz_file" if="$(arg start_visualizer)"/>
@@ -135,7 +134,7 @@
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
           <param name="~visualizer_frame" value="$(arg map_frame)"/>
           <remap from="~dsg" to="hydra_llm_node/dsg" unless="$(arg show_frontend)"/>
-          <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
+o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>

@@ -18,8 +18,6 @@ class HydraLLMPipeline : public HydraRosPipeline {
 
   void configureRegions();
 
-  void initInput();
-
   std::shared_ptr<RegionUpdateFunctor> region_clustering_;
 };
 
