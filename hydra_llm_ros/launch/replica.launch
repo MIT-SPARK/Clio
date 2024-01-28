@@ -21,7 +21,7 @@
         <arg name="rviz_file" value="realsense.rviz"/>
         <arg name="closed_set" value="false"/>
         <arg name="temporal_window_size_s" value="9"/>
-        <arg name="viz_config_file" default="dev_visualizer_config.yaml"/>
+        <arg name="viz_config_file" default="visualizer_config.yaml"/>
         <arg name="sensor_min_range" default="0.3" doc="minimum sensor range in meters"/>
         <arg name="sensor_max_range" default="8.0" doc="maximum sensor range in meters"/>
     </include>
