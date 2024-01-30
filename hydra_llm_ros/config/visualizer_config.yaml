@@ -37,7 +37,7 @@ config:
     visualize: true
     # node
     marker_scale: 0.30
-    marker_color_mode: 3  # default
+    marker_color_mode: 0  # default
     marker_alpha: 0.6
     use_sphere_marker: false
     use_label: false

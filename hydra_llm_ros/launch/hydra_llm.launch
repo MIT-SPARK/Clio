@@ -75,7 +75,6 @@
     <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
     <arg name="viz_config_file" default="visualizer_config.yaml"/>
     <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
-    <arg name="viz_semantic_colormap" default="$(find hydra_ros)/config/color/uhumans2_office.csv"/>
 
     <!-- logging output for hydra -->
     <arg name="log_output_dir" default="$(find hydra)/output/"/>
@@ -138,8 +137,10 @@ o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_fro
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
-          <remap from="~llm_places/current_task" to="/current_task"/>
-          <param name="llm_places/colormap_filepath" value="$(arg viz_semantic_colormap)"/>
+          <remap from="~tasks_visualizer/current_task" to="/llm_frontend/object_detector_node/current_task"/>
+          <remap from="/get_tasks" to="/llm_frontend/object_detector_node/get_tasks"/>
+          <param name="tasks_visualizer/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
+          <param name="tasks_visualizer/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
           <param name="load_graph" value="false"/>
           <param name="use_zmq" value="$(arg viz_use_zmq)"/>
           <param name="zmq_url" value="$(arg viz_zmq_url)"/>

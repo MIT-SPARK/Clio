@@ -19,6 +19,16 @@
     <arg name="depth_topic" default="/dominic/forward/depth/image_rect_raw"/>
     <arg name="object_topic" default="/dominic/forward/object_image"/>
 
+    <arg name="run_object_detector" default="false"/>
+    <arg name="object_detector_config" default="$(find llm)/experiments/configs/cluster/rs_large_clip_averaging.yaml"/>
+    <arg name="object_detector_type" default="2"/>
+    <include file="$(find llm)/launch/object_detect.launch" if="$(arg run_object_detector)">
+        <arg name="rgb_topic" value="$(arg rgb_topic)"/>
+        <arg name="output_topic" value="$(arg object_topic)"/>
+        <arg name="config_path" value="$(arg object_detector_config)"/>
+        <arg name="cluster_type" value="$(arg object_detector_type)"/>
+    </include>
+
     <include file="$(find hydra_llm_ros)/launch/hydra_llm.launch" pass_all_args="true">
         <arg name="dataset_name" value="$(arg dataset_name)"/>
         <arg name="rviz_file" value="realsense.rviz"/>
