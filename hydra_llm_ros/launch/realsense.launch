@@ -35,6 +35,8 @@
         <arg name="closed_set" value="false"/>
         <arg name="temporal_window_size_s" value="9"/>
         <arg name="viz_config_file" default="visualizer_config.yaml"/>
+        <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
+        <arg name="sensor_max_range" default="3.0" doc="maximum sensor range in meters"/>
     </include>
 
     <!-- this is the inverse of the negative z -->
