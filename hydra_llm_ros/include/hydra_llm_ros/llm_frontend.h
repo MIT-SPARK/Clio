@@ -11,15 +11,13 @@ struct LLMFrontendConfig : public FrontendConfig {
   double spatial_window_radius_m = 8.0;
   bool override_active_window = false;
   double min_object_merge_similiarity = 0.3;
+  ViewDatabase::Config view_database;
 };
 
 void declare_config(LLMFrontendConfig& config);
 
 class LLMFrontend : public FrontendModule {
  public:
-  using ViewCallback =
-      std::function<void(const ViewDatabase&, const std::map<NodeId, NodeId>&)>;
-
   LLMFrontend(const LLMFrontendConfig& config,
               const SharedDsgInfo::Ptr& dsg,
               const SharedModuleState::Ptr& state,
@@ -28,8 +26,6 @@ class LLMFrontend : public FrontendModule {
   virtual ~LLMFrontend();
 
   const LLMFrontendConfig config;
-
-  void addViewCallback(const ViewCallback& func);
 
  protected:
   void initCallbacks() override;
@@ -59,9 +55,8 @@ class LLMFrontend : public FrontendModule {
   ros::Subscriber clip_sub_;
 
   std::mutex clip_mutex_;
-  std::map<uint64_t, ClipEmbedding::Ptr> keyframe_clip_vectors_;
+  std::map<uint64_t, Eigen::VectorXd> keyframe_clip_vectors_;
   ViewDatabase::Ptr views_database_;
-  std::list<ViewCallback> view_callbacks_;
   std::set<NodeId> new_objects_;
   std::shared_ptr<VolumetricMap> map_;
   voxblox::BlockIndexList archived_blocks_;

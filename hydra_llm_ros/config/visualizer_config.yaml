@@ -103,9 +103,9 @@ config:
     collapse_bounding_box: false
     # edges
     use_edge_source: true
-    interlayer_edge_scale: 0.08
+    interlayer_edge_scale: 0.02
     interlayer_edge_alpha: 0.4
-    interlayer_edge_use_color: true
+    interlayer_edge_use_color: false
     interlayer_edge_insertion_skip: 0
     intralayer_edge_scale: 0.01
     intralayer_edge_alpha: 0.5

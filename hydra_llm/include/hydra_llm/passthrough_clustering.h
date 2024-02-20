@@ -4,8 +4,6 @@
 
 namespace hydra::llm {
 
-using NodeEmbeddingMap = std::map<NodeId, const ClipEmbedding*>;
-
 class PassthroughClustering : public Clustering {
  public:
   struct Config : Clustering::Config {

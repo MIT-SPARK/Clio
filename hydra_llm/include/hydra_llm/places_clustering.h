@@ -13,8 +13,6 @@ struct PlaceClustering {
   using Ptr = std::unique_ptr<PlaceClustering>;
   struct Config {
     config::VirtualConfig<Clustering> clustering;
-    bool is_batch = true;
-    double min_assocation_iou = 1.0;
     bool color_by_task = true;
   };
 
@@ -22,17 +20,13 @@ struct PlaceClustering {
 
   ~PlaceClustering();
 
-  void clusterPlaces(DynamicSceneGraph& graph, const NodeEmbeddingMap& views);
+  void clusterPlaces(DynamicSceneGraph& graph);
 
   const Config config;
 
  protected:
   void updateGraphBatch(DynamicSceneGraph& graph,
                         const std::vector<Cluster::Ptr>& clusters) const;
-
-  void updateGraphIncremental(DynamicSceneGraph& graph,
-                              const NodeEmbeddingMap& views,
-                              const std::vector<Cluster::Ptr>& clusters) const;
 
  private:
   std::unique_ptr<Clustering> clustering_;

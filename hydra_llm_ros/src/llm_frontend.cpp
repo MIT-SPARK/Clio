@@ -24,6 +24,7 @@ void declare_config(LLMFrontendConfig& config) {
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
   field(config.override_active_window, "override_active_window");
   field(config.min_object_merge_similiarity, "min_object_merge_similiarity");
+  field(config.view_database, "view_database");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -33,7 +34,7 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
       nh_("~") {
-  views_database_ = std::make_shared<ViewDatabase>();
+  views_database_ = std::make_shared<ViewDatabase>(config.view_database);
   clip_sub_ =
       nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
 }
@@ -139,12 +140,15 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
   }
 }
 
+inline Eigen::VectorXd msgToVec(const ::llm::ClipVector& msg) {
+  return Eigen::Map<const Eigen::VectorXd>(msg.elements.data(), msg.elements.size());
+}
+
 void LLMFrontend::handleClipFeatures(const ::llm::ClipVectorStamped& msg) {
   const auto timestamp_ns = msg.header.stamp.toNSec();
-  auto clip = std::make_unique<ClipEmbedding>(msg.embedding.elements);
   // start critical section to push clip vector from ROS thread
   std::lock_guard<std::mutex> lock(clip_mutex_);
-  keyframe_clip_vectors_.emplace(timestamp_ns, std::move(clip));
+  keyframe_clip_vectors_.emplace(timestamp_ns, msgToVec(msg.embedding));
 }
 
 void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
@@ -192,10 +196,6 @@ void LLMFrontend::updateActiveWindowViews(uint64_t curr_timestamp_ns) {
     views_database_->addView(node_id, std::move(iter->second), sensor);
     iter = keyframe_clip_vectors_.erase(iter);
   }
-}
-
-void LLMFrontend::addViewCallback(const ViewCallback& func) {
-  view_callbacks_.push_back(func);
 }
 
 void LLMFrontend::archiveObjects() {
@@ -248,27 +248,7 @@ void LLMFrontend::connectNewObjects() {
 }
 
 void LLMFrontend::updateBestViews() {
-  const auto& prefix = HydraConfig::instance().getRobotPrefix();
-  if (!active_agent_nodes_.count(prefix.key)) {
-    return;
-  }
-
-  const auto& active_nodes = active_agent_nodes_.at(prefix.key);
-  if (active_nodes.empty()) {
-    return;
-  }
-
-  std::vector<NodeId> active_ids;
-  for (const auto index : active_nodes) {
-    active_ids.push_back(NodeSymbol(prefix.key, index));
-  }
-
-  std::map<NodeId, NodeId> best_views;
-  views_database_->updateAssignments(
-      *dsg_->graph, active_ids, previous_active_places_, best_views);
-  for (const auto& cb : view_callbacks_) {
-    cb(*views_database_, best_views);
-  }
+  views_database_->updateAssignments(*dsg_->graph, previous_active_places_);
 }
 
 void LLMFrontend::updateLLmPlaces(const ReconstructionOutput& input) {

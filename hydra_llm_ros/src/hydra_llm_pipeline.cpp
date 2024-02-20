@@ -132,12 +132,6 @@ void HydraLLMPipeline::configureRegions() {
   auto backend = getModule<BackendModule>("backend");
   CHECK(backend);
   backend->setUpdateFunctor(DsgLayers::ROOMS, region_clustering_);
-
-  auto frontend = getModule<LLMFrontend>("frontend");
-  CHECK(frontend);
-  frontend->addViewCallback([this](const auto& db, const auto& views) {
-    region_clustering_->updateFromViewDb(db, views);
-  });
 }
 
 }  // namespace hydra::llm

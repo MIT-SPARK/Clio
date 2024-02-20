@@ -24,7 +24,7 @@
 
   <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"/>
 
-  <include file="$(find llm)/launch/task_embedding.launch" pass_all_args="true" if="$(arg run_task_embeddings)"/>
+  <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true" if="$(arg run_task_embeddings)"/>
 
   <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
         launch-prefix="$(arg viz_launch_prefix)"

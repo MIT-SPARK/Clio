@@ -3,7 +3,6 @@
 #include <hydra/backend/update_functions.h>
 
 #include "hydra_llm/places_clustering.h"
-#include "hydra_llm/view_database.h"
 
 namespace hydra::llm {
 
@@ -16,12 +15,6 @@ struct RegionUpdateFunctor : dsg_updates::UpdateFunctor {
 
   MergeMap call(SharedDsgInfo& dsg, const UpdateInfo& info) const override;
 
-  void updateFromViewDb(const ViewDatabase& db,
-                        const std::map<NodeId, NodeId>& best_views);
-
-  mutable std::mutex feature_mutex;
-  mutable NodeEmbeddingMap latest_features;
-  mutable NodeEmbeddingMap place_features;
   PlaceClustering::Ptr places_clustering;
 };
 

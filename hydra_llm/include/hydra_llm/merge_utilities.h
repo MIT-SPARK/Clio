@@ -9,10 +9,11 @@ namespace hydra::llm {
 struct EmbeddingMerger {
   using Ptr = std::unique_ptr<EmbeddingMerger>;
 
-  virtual ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
-                                   double lhs_score,
-                                   const ClipEmbedding& rhs,
-                                   double rhs_score) const = 0;
+  // TODO(nathan) refactor to do mutliple merges
+  virtual Eigen::VectorXd merge(const Eigen::VectorXd& lhs,
+                                double lhs_score,
+                                const Eigen::VectorXd& rhs,
+                                double rhs_score) const = 0;
 };
 
 struct MeanMerger : EmbeddingMerger {
@@ -20,10 +21,10 @@ struct MeanMerger : EmbeddingMerger {
 
   explicit MeanMerger(const Config& = {}) {}
 
-  ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
-                           double lhs_score,
-                           const ClipEmbedding& rhs,
-                           double rhs_score) const override;
+  Eigen::VectorXd merge(const Eigen::VectorXd& lhs,
+                        double lhs_score,
+                        const Eigen::VectorXd& rhs,
+                        double rhs_score) const override;
 
  private:
   inline static const auto registration_ =
@@ -37,10 +38,10 @@ struct WeightedMeanMerger : EmbeddingMerger {
 
   explicit WeightedMeanMerger(const Config& = {}) {}
 
-  ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
-                           double lhs_score,
-                           const ClipEmbedding& rhs,
-                           double rhs_score) const override;
+  Eigen::VectorXd merge(const Eigen::VectorXd& lhs,
+                        double lhs_score,
+                        const Eigen::VectorXd& rhs,
+                        double rhs_score) const override;
 
  private:
   inline static const auto registration_ =
@@ -57,10 +58,10 @@ struct MaxMerger : EmbeddingMerger {
 
   explicit MaxMerger(const Config& = {}) {}
 
-  ClipEmbedding::Ptr merge(const ClipEmbedding& lhs,
-                           double lhs_score,
-                           const ClipEmbedding& rhs,
-                           double rhs_score) const override;
+  Eigen::VectorXd merge(const Eigen::VectorXd& lhs,
+                        double lhs_score,
+                        const Eigen::VectorXd& rhs,
+                        double rhs_score) const override;
 
  private:
   inline static const auto registration_ =

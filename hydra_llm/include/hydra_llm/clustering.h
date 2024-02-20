@@ -4,21 +4,14 @@
 #include <Eigen/Dense>
 
 #include "hydra_llm/clip_types.h"
+#include "hydra_llm/cluster.h"
 #include "hydra_llm/embedding_group.h"
 
 namespace hydra::llm {
 
-struct Cluster {
-  using Ptr = std::shared_ptr<Cluster>;
-  std::set<NodeId> nodes;
-  double score;
-  ClipEmbedding::Ptr clip;
-  size_t best_task_index;
-  std::string best_task_name;
-};
-
 class Clustering {
  public:
+  using Clusters = std::vector<Cluster::Ptr>;
   struct Config {
     config::VirtualConfig<EmbeddingGroup> tasks;
   };
@@ -27,8 +20,8 @@ class Clustering {
 
   virtual ~Clustering() = default;
 
-  virtual std::vector<Cluster::Ptr> cluster(
-      const SceneGraphLayer& layer, const NodeEmbeddingMap& embeddings) const = 0;
+  virtual Clusters cluster(const SceneGraphLayer& layer,
+                           const NodeEmbeddingMap& embeddings) const = 0;
 
   const Config config;
 

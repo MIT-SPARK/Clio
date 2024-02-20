@@ -33,7 +33,7 @@ reconstruction:
   use_visualizer: true
   active_window_viz:
     global_frame_name: $(arg odom_frame)
-    color_mode: "color"
+    color_mode: color
     slice_height: -0.5
     slice_height_is_relative: true
     activity_shading_intensity: 0.6
@@ -58,7 +58,7 @@ reconstruction:
     object_detector:
       type: $(arg object_detection_type)
       min_cluster_size: 20  # pixels
-      max_cluster_size: 50000 # pixels
+      max_cluster_size: 50000  # pixels
       use_full_connectivity: true
       use_3d: true
       grid_size: 0.1  # m
@@ -90,6 +90,8 @@ frontend:
     output_mesh_resolution: 0.02
   min_object_vertices: 0
   prune_mesh_indices: true
+  view_database:
+    selection_method: boundary
   places:
     type: gvd
     gvd:
@@ -114,7 +116,7 @@ backend:
   type: BackendModule
   dsg:
     places_merge_distance_tolerance_m: 0.4
-    enable_node_merging: false
+    enable_node_merging: true
   pgmo:
     run_mode: 0  # kimera_pgmo run mode FULL (required)
     use_msg_time: true
@@ -152,10 +154,11 @@ backend:
       min_assocation_iou: 0.8
       clustering:
         type: $(arg places_clustering_type)
-        stop_value: 0.01
         tasks:
           type: RosEmbeddingGroup
+        selector:
+          type: IB
+          min_beta: 5.0e3
+          score_threshold: 0.2
         metric:
           type: cosine
-        merge:
-          type: weighted_mean

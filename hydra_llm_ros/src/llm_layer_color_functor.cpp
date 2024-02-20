@@ -23,6 +23,7 @@ void declare_config(ColorFunctorConfig& config) {
   name("ColorFunctorConfig");
   field(config.color_by_task, "color_by_task");
   field(config.metric, "metric");
+  field(config.task_service_name, "task_service_name");
   field(config.colormap_filepath, "colormap_filepath");
   field(config.min_score, "min_score");
   field(config.max_score, "max_score");
@@ -152,6 +153,7 @@ bool LayerColorFunctor::handleService(std_srvs::SetBool::Request& req,
 
 void LayerColorFunctor::resetTasks() const {
   RosEmbeddingGroup::Config config;
+  config.service_name = config_.task_service_name;
   config.silent_wait = true;
   tasks_ = std::make_shared<RosEmbeddingGroup>(config);
 }

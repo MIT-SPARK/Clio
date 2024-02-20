@@ -2,28 +2,25 @@
 
 namespace hydra::llm {
 
-ClipEmbedding::Ptr MeanMerger::merge(const ClipEmbedding& lhs,
-                                     double,
-                                     const ClipEmbedding& rhs,
-                                     double) const {
-  return std::make_unique<ClipEmbedding>((lhs.embedding + rhs.embedding) / 2.0);
+Eigen::VectorXd MeanMerger::merge(const Eigen::VectorXd& lhs,
+                                  double,
+                                  const Eigen::VectorXd& rhs,
+                                  double) const {
+  return (lhs + rhs) / 2.0;
 }
 
-ClipEmbedding::Ptr WeightedMeanMerger::merge(const ClipEmbedding& lhs,
-                                             double lhs_score,
-                                             const ClipEmbedding& rhs,
-                                             double rhs_score) const {
-  return std::make_unique<ClipEmbedding>(
-      (lhs_score * lhs.embedding + rhs_score * rhs.embedding) /
-      (lhs_score + rhs_score));
+Eigen::VectorXd WeightedMeanMerger::merge(const Eigen::VectorXd& lhs,
+                                          double lhs_score,
+                                          const Eigen::VectorXd& rhs,
+                                          double rhs_score) const {
+  return (lhs_score * lhs + rhs_score * rhs) / (lhs_score + rhs_score);
 }
 
-ClipEmbedding::Ptr MaxMerger::merge(const ClipEmbedding& lhs,
-                                    double lhs_score,
-                                    const ClipEmbedding& rhs,
-                                    double rhs_score) const {
-  return lhs_score >= rhs_score ? std::make_unique<ClipEmbedding>(lhs.embedding)
-                                : std::make_unique<ClipEmbedding>(rhs.embedding);
+Eigen::VectorXd MaxMerger::merge(const Eigen::VectorXd& lhs,
+                                 double lhs_score,
+                                 const Eigen::VectorXd& rhs,
+                                 double rhs_score) const {
+  return lhs_score >= rhs_score ? lhs : rhs;
 }
 
 }  // namespace hydra::llm

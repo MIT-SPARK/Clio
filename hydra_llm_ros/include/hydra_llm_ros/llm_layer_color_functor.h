@@ -12,6 +12,7 @@ using NodeColor = SemanticNodeAttributes::ColorVector;
 
 struct ColorFunctorConfig {
   bool color_by_task = true;
+  std::string task_service_name = "/get_tasks";
   config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
   std::string colormap_filepath = "";
   double min_score = 0.0;

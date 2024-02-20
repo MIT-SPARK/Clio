@@ -18,15 +18,19 @@ catkin_package(
 
 add_library(
   ${PROJECT_NAME}
+  src/agglomerative_clustering.cpp
   src/clustering.cpp
+  src/clustering_workspace.cpp
   src/embedding_distances.cpp
   src/embedding_group.cpp
-  src/greedy_clustering.cpp
+  src/ib_edge_selector.cpp
   src/merge_utilities.cpp
   src/no_clustering.cpp
   src/passthrough_clustering.cpp
   src/places_clustering.cpp
+  src/probability_utilities.cpp
   src/region_update_functor.cpp
+  src/requery_edge_selector.cpp
   src/view_database.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})

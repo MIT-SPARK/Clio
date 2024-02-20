@@ -89,10 +89,9 @@ dsg_mesh:
 llm_places:
   min_score: 0.20
   max_score: 0.35
-  use_fixed_range: true
+  use_fixed_range: false
   metric:
-    type: cosine  # lerf
+    type: lerf
     cannonical_features:
       type: RosEmbeddingGroup
       service_name: /get_cannonical
-

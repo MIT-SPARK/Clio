@@ -80,21 +80,30 @@ int main(int argc, char** argv) {
     node.addPlugin(conf.create(nh, node.visualizer_));
   }
 
-  auto& viz = node.getVisualizer();
-  hydra::llm::LayerColorFunctor task_colors(ros::NodeHandle(nh, "tasks_visualizer"));
-  viz.addUpdateCallback([&](const auto& graph) { task_colors.setGraph(graph); });
-  viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS,
-                            [&](const spark_dsg::SceneGraphNode& node)
-                                -> spark_dsg::SemanticNodeAttributes::ColorVector {
-                              return task_colors.getNodeColor(node);
-                            });
-
   std::shared_ptr<hydra::llm::LayerColorFunctor> room_colors;
-  bool separate_room_tasks = false;
-  nh.getParam("separate_room_tasks", separate_room_tasks);
-  bool color_places_by_task = false;
+  std::shared_ptr<hydra::llm::LayerColorFunctor> object_colors;
+
+  bool color_objects_by_task = false;
+  nh.getParam("color_objects_by_task", color_objects_by_task);
+  bool color_rooms_by_task = false;
+  nh.getParam("color_rooms_by_task", color_rooms_by_task);
+  bool color_places_by_task = true;
   nh.getParam("color_places_by_task", color_places_by_task);
-  if (separate_room_tasks) {
+
+  auto& viz = node.getVisualizer();
+
+  if (color_objects_by_task) {
+    object_colors = std::make_shared<hydra::llm::LayerColorFunctor>(
+        ros::NodeHandle(nh, "room_tasks_visualizer"));
+    viz.addUpdateCallback([&](const auto& graph) { object_colors->setGraph(graph); });
+    viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS,
+                              [&](const spark_dsg::SceneGraphNode& node)
+                                  -> spark_dsg::SemanticNodeAttributes::ColorVector {
+                                return object_colors->getNodeColor(node);
+                              });
+  }
+
+  if (color_rooms_by_task) {
     room_colors = std::make_shared<hydra::llm::LayerColorFunctor>(
         ros::NodeHandle(nh, "room_tasks_visualizer"));
     viz.addUpdateCallback([&](const auto& graph) { room_colors->setGraph(graph); });
@@ -108,19 +117,6 @@ int main(int argc, char** argv) {
                                 [&](const spark_dsg::SceneGraphNode& node)
                                     -> spark_dsg::SemanticNodeAttributes::ColorVector {
                                   return room_colors->getNodeColor(node);
-                                });
-    }
-  } else {
-    viz.setLayerColorFunction(spark_dsg::DsgLayers::ROOMS,
-                              [&](const spark_dsg::SceneGraphNode& node)
-                                  -> spark_dsg::SemanticNodeAttributes::ColorVector {
-                                return task_colors.getNodeColor(node);
-                              });
-    if (color_places_by_task) {
-      viz.setLayerColorFunction(spark_dsg::DsgLayers::PLACES,
-                                [&](const spark_dsg::SceneGraphNode& node)
-                                    -> spark_dsg::SemanticNodeAttributes::ColorVector {
-                                  return task_colors.getNodeColor(node);
                                 });
     }
   }
