@@ -10,15 +10,7 @@
 
 namespace hydra::llm {
 
-size_t numFeatures(const NodeEmbeddingMap& features) {
-  size_t num_valid = 0;
-  for (const auto& id_embedding_pair : features) {
-    if (id_embedding_pair.second) {
-      ++num_valid;
-    }
-  }
-  return num_valid;
-}
+size_t numFeatures(const NodeEmbeddingMap& features) { return features.size(); }
 
 void declare_config(IBEdgeSelector::Config& config) {
   using namespace config;

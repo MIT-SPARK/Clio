@@ -102,10 +102,10 @@ Clusters AgglomerativeClustering::getClusters(
 
   for (const auto& cluster : to_return) {
     auto iter = cluster->nodes.begin();
-    cluster->feature = *features.at(*iter);
+    cluster->feature = features.at(*iter);
     ++iter;
     while (iter != cluster->nodes.end()) {
-      cluster->feature += *features.at(*iter);
+      cluster->feature += features.at(*iter);
       ++iter;
     }
 

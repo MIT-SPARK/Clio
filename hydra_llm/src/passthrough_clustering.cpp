@@ -29,16 +29,10 @@ Clusters PassthroughClustering::cluster(const SceneGraphLayer&,
 
   Clusters to_return;
   for (auto&& [node, feature] : embeddings) {
-    if (!feature) {
-      LOG(WARNING) << "Node '" << NodeSymbol(node).getLabel()
-                   << "' missing clip feature";
-      continue;
-    }
-
-    const auto result = tasks_->getBestScore(*metric_, *feature);
+    const auto result = tasks_->getBestScore(*metric_, feature);
 
     auto new_cluster = std::make_shared<Cluster>();
-    new_cluster->feature = *feature;
+    new_cluster->feature = feature;
     new_cluster->score = result.score;
     new_cluster->best_task_index = result.index;
     new_cluster->best_task_name = tasks_->tasks.at(result.index);

@@ -16,12 +16,7 @@ ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer,
                                          const NodeEmbeddingMap& node_embeddings) {
   size_t index = 0;
   for (auto&& [node_id, feature] : node_embeddings) {
-    if (!feature) {
-      LOG(WARNING) << "Node '" << printNodeId(node_id) << "' missing feature";
-      continue;
-    }
-
-    features[index] = feature;
+    features[index] = &feature;
     node_lookup[index] = node_id;
     order[node_id] = index;
     ++index;

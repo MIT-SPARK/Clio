@@ -6,6 +6,6 @@
 
 namespace hydra::llm {
 
-using NodeEmbeddingMap = std::map<NodeId, const Eigen::VectorXd*>;
+using NodeEmbeddingMap = std::map<NodeId, Eigen::VectorXd>;
 
 }  // namespace hydra::llm

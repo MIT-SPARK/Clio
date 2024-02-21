@@ -97,7 +97,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph) {
       continue;
     }
 
-    valid_features[node_id] = &(attrs.semantic_feature);
+    valid_features[node_id] = attrs.semantic_feature.rightCols<1>();
   }
 
   if (valid_features.empty()) {
