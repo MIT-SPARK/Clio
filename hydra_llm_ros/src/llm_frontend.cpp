@@ -20,7 +20,7 @@ using hydra::timing::ScopedTimer;
 void declare_config(LLMFrontendConfig& config) {
   using namespace config;
   name("LLMFrontendConfig");
-  base<FrontendConfig>(config);
+  base<FrontendModule::Config>(config);
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
   field(config.override_active_window, "override_active_window");
   field(config.min_object_merge_similiarity, "min_object_merge_similiarity");

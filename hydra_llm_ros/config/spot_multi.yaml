@@ -49,8 +49,10 @@ input2:
 #############################################
 reconstruction:
   use_visualizer: true
+  sinks:
+    - {type: TsdfOccupancyPublisher, extraction: {min_distance: 0.25}}
   active_window_viz:
-    color_mode: "color"
+    color_mode: color
     global_frame_name: $(arg odom_frame)
     slice_height: -0.5
     slice_height_is_relative: true
@@ -126,6 +128,8 @@ frontend:
       min_edge_distance_m: 0.25
       node_merge_distance_m: 0.5
       add_heuristic_edges: true
+    sinks:
+      - {type: GvdOccupancyPublisher, extraction: {min_distance: 0.25}}
 ########################
 #  Backend Parameters  #
 ########################

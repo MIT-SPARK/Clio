@@ -133,9 +133,9 @@
               required="true"
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
           <param name="~visualizer_frame" value="$(arg map_frame)"/>
-          <remap from="~dsg" to="hydra_llm_node/dsg" unless="$(arg show_frontend)"/>
+          <remap from="~dsg" to="hydra_llm_node/backend/dsg" unless="$(arg show_frontend)"/>
 o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
-          <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh" unless="$(arg show_frontend)"/>
+          <remap from="~dsg_mesh_updates" to="hydra_llm_node/backend/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
           <remap from="~tasks_visualizer/current_task" to="/llm_frontend/object_detector_node/current_task"/>

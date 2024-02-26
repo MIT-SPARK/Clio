@@ -7,7 +7,7 @@
 
 namespace hydra::llm {
 
-struct LLMFrontendConfig : public FrontendConfig {
+struct LLMFrontendConfig : public FrontendModule::Config {
   double spatial_window_radius_m = 8.0;
   bool override_active_window = false;
   double min_object_merge_similiarity = 0.3;

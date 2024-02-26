@@ -115,8 +115,8 @@
               required="true"
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
           <param name="~visualizer_frame" value="$(arg map_frame)"/>
-          <remap from="~dsg" to="hydra_llm_node/dsg"/>
-          <remap from="~dsg_mesh_updates" to="hydra_llm_node/dsg_mesh"/>
+          <remap from="~dsg" to="hydra_llm_node/backend/dsg"/>
+          <remap from="~dsg_mesh_updates" to="hydra_llm_node/backend/dsg_mesh"/>
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
           <remap from="~llm_places/current_task" to="/current_task"/>
           <param name="load_graph" value="false"/>

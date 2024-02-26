@@ -14,13 +14,15 @@ void declare_config(ActiveWindowModule::Config& config) {
   field(config.max_queue_size, "max_queue_size");
   field(config.use_visualizer, "use_visualizer");
   field(config.active_window_visualizer_ns, "~active_window_viz");
+  field(config.sinks, "sinks");
 }
 
 ActiveWindowModule::ActiveWindowModule(const Config& config,
                                        const OutputQueue::Ptr& output_queue)
     : config(config::checkValid(config)),
       queue_(std::make_shared<DataInputQueue>(config.max_queue_size)),
-      output_queue_(output_queue) {
+      output_queue_(output_queue),
+      sinks_(Sink::instantiate(config.sinks)) {
   if (config.use_visualizer) {
     visualizer_ = std::make_unique<khronos::ActiveWindowVisualizer>(
         ros::NodeHandle(config.active_window_visualizer_ns));
@@ -76,6 +78,12 @@ void ActiveWindowModule::spin() {
       visualizer_->visualizeAll(
           active_window_->getMap(), *frame_data, active_window_->getTracks(), output);
     }
+
+    Sink::callAll(sinks_,
+                  output->timestamp_ns,
+                  output->sensor_data->world_T_body,
+                  active_window_->getMap().getTsdfLayer(),
+                  *output);
   }
 }
 
