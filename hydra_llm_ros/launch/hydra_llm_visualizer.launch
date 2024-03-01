@@ -7,7 +7,7 @@
   <arg name="start_rviz" default="true" doc="automatically start rviz"/>
   <arg name="verbosity" default="0" doc="visualizer verbosity"/>
   <arg name="start_mesh_publisher" value="$(eval 'false' if arg('mesh_filepath') == '' else 'true')"/>
-  <arg name="semantic_colormap" default="$(find semantic_recolor)/config/colors/ade20k_mp3d.csv"/>
+  <arg name="semantic_colormap" default="$(find hydra_llm_ros)/config/task_colors.csv"/>
   <arg name="run_task_embeddings" default="true"/>
 
   <arg name="rviz_dir" default="$(find hydra_ros)/rviz"/>

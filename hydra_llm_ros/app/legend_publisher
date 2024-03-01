@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Node to publish legends for rviz."""
+import rospy
+import sensor_msgs.msg
+import std_msgs.msg
+
+from PIL import Image
+import numpy as np
+import colorsys
+import math
+import yaml
+import io
+
+from matplotlib.colors import Normalize, Colormap
+from matplotlib.cm import ScalarMappable
+from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
+
+
+def _render(fig, size=None, dpi=300.0):
+    if size:
+        fig.set_size_inches(size)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi)
+
+    img = Image.open(buf)
+    img.load()
+    img = np.array(img)[:, :, :3]
+
+    msg = sensor_msgs.msg.Image()
+    msg.header.stamp = rospy.Time.now()
+    msg.header.frame_id = "legend"
+    msg.height = img.shape[0]
+    msg.width = img.shape[1]
+    msg.encoding = "rgb8"
+    msg.step = 3 * img.shape[1]
+    msg.data = img.tobytes()
+    return msg
+
+
+def _disable_axes(ax):
+    ax.yaxis.set_visible(False)
+    ax.xaxis.set_visible(False)
+    ax.set_axis_off()
+
+
+def _line_length(x):
+    return len(x) + sum([len(w) for w in x])
+
+
+def _wrap(label, width=15):
+    words = label.split(" ")
+    lines = []
+
+    line = []
+    for word in words:
+        if len(line) == 0:
+            line.append(word)
+            continue
+
+        curr_length = len(word) + _line_length(line)
+        if curr_length > width:
+            lines.append(" ".join(line))
+            line = [word]
+        else:
+            line.append(word)
+
+    if len(line) > 0:
+        lines.append(" ".join(line))
+
+    return "\n".join(lines)
+
+
+# adapted from https://matplotlib.org/stable/gallery/color/named_colors.html
+def _make_grid_legend(
+    color_dict,
+    ncols=8,
+    cell_width=60,
+    cell_height=22,
+    swatch_width=10,
+    swatch_height=18,
+    margin=12,
+    text_margin=4,
+    width_inches=30,
+    dpi=300,
+    fontsize=8,
+    wrapsize=15,
+):
+    """Plot a color table."""
+    N = len(color_dict)
+    nrows = N // ncols + int(N % ncols > 0)
+    width = cell_width * ncols + 2 * margin
+    height = cell_height * nrows + 2 * margin
+    # ratio = height / width
+
+    fig = Figure(dpi=dpi, figsize=(width / dpi, height / dpi))
+    ax = fig.subplots()
+    _disable_axes(ax)
+
+    fig.subplots_adjust(
+        margin / width,
+        margin / height,
+        (width - margin) / width,
+        (height - margin) / height,
+    )
+    ax.set_xlim(0, cell_width * ncols)
+    ax.set_ylim(cell_height * (nrows - 0.5), -cell_height / 2.0)
+
+    labels = sorted([x for x in color_dict])
+    for i, label in enumerate(labels):
+        row = i % nrows
+        col = i // nrows
+        y = row * cell_height
+
+        swatch_start_x = cell_width * col
+        text_pos_x = cell_width * col + swatch_width + text_margin
+
+        ax.text(
+            text_pos_x,
+            y,
+            _wrap(label, width=wrapsize),
+            fontsize=fontsize,
+            horizontalalignment="left",
+            verticalalignment="center",
+        )
+
+        ax.add_patch(
+            Rectangle(
+                xy=(swatch_start_x, y - swatch_height / 2),
+                width=swatch_width,
+                height=swatch_height,
+                facecolor=color_dict[label],
+                edgecolor="0.7",
+            )
+        )
+
+    # return _render(fig, (width_inches, ratio * width_inches), dpi=dpi)
+    return _render(fig, dpi=dpi)
+
+
+class HlsCmap(Colormap):
+    """Matplotlib colormap interface."""
+
+    def __init__(
+        self,
+        hue_start=0.0,
+        hue_end=1.0,
+        luminance_start=0.0,
+        luminance_end=1.0,
+        saturation_start=0.0,
+        saturation_end=1.0,
+    ):
+        """Construct the colormap."""
+        super(HlsCmap, self).__init__("custom_hls")
+        self.hls_start = np.array([hue_start, luminance_start, saturation_start])
+        self.hls_end = np.array([hue_end, luminance_end, saturation_end])
+        self.hls_diff = self.hls_start - self.hls_end
+
+    def __call__(self, x, alpha=None, bytes=False):
+        """Return interpolated color."""
+        if isinstance(x, np.ndarray):
+            result = np.array(
+                [self._get_color(v, alpha=alpha, bytes=bytes) for v in x],
+                dtype=np.uint8 if bytes else np.float64,
+            )
+        else:
+            result = self._get_color(x, alpha=alpha, bytes=bytes)
+
+        return result
+
+    def _get_color(self, x, alpha=None, bytes=False):
+        if x < 0 or x > 1:
+            raise ValueError(f"invalid input for colormap: {x} ∉ [0, 1]")
+
+        diff = self.hls_end - self.hls_start
+        p_hls = self.hls_start + x * diff
+        p_rgb = colorsys.hls_to_rgb(p_hls[0], p_hls[1], p_hls[2])
+        p_rgb = p_rgb + (alpha if alpha is not None else 1.0,)
+
+        if not bytes:
+            return p_rgb
+
+        return tuple(int(math.floor(255 * x)) for x in p_rgb)
+
+
+def _make_cmap_legend(
+    vmin=0.0,
+    vmax=1.0,
+    label=None,
+    height_inches=10,
+    width_inches=2,
+    dpi=300.0,
+    **kwargs,
+):
+    fig = Figure(layout="constrained", dpi=dpi)
+    ax = fig.subplots()
+    _disable_axes(ax)
+
+    colors = HlsCmap(**kwargs)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    cmap = ScalarMappable(norm=norm, cmap=colors)
+    fig.colorbar(cmap, ax=ax, label=label, fraction=1.0)
+    return _render(fig, (width_inches, height_inches), dpi=dpi)
+
+
+class PublisherNode:
+    """Node to handle publishing."""
+
+    def __init__(self):
+        """Make a node."""
+        self._publishers = {}
+        self._sub = rospy.Subscriber(
+            "legend_config", std_msgs.msg.String, self._callback, tcp_nodelay=True
+        )
+
+    def _get_pub(self, name):
+        if name not in self._publishers:
+            self._publishers[name] = rospy.Publisher(
+                name, sensor_msgs.msg.Image, queue_size=1, latch=True
+            )
+
+        return self._publishers[name]
+
+    def _callback(self, msg):
+        """Parse a config and create a legend."""
+        conf = yaml.safe_load(msg.data)
+        topic = conf["topic"]
+        pub = self._get_pub(topic)
+        legend_type = conf.get("type", "cmap").lower()
+        rospy.logdebug(f"got request of '{legend_type}' on topic '{topic}'")
+        kwargs = conf.get("kwargs", {})
+        if legend_type == "cmap":
+            pub.publish(_make_cmap_legend(**kwargs))
+        elif legend_type == "grid":
+            pub.publish(_make_grid_legend(**kwargs))
+        else:
+            rospy.logerr(f"invalid legend type '{type}'. must be 'grid' or 'cmap'")
+
+    def spin(self):
+        """Wait for ros to shutdown."""
+        rospy.spin()
+
+
+def main():
+    """Start the node."""
+    rospy.init_node("legend_publisher")
+    node = PublisherNode()
+    node.spin()
+
+
+if __name__ == "__main__":
+    main()

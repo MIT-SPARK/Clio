@@ -19,8 +19,20 @@ catkin_package(
 
 add_library(
   ${PROJECT_NAME}
-  src/active_window_module.cpp src/hydra_llm_pipeline.cpp src/llm_frontend.cpp
-  src/llm_layer_color_functor.cpp src/ros_embedding_group.cpp
+  src/active_window_module.cpp
+  src/category_legend.cpp
+  src/colormap_legend.cpp
+  src/graph_wrappers.cpp
+  src/gt_publisher.cpp
+  src/hydra_llm_pipeline.cpp
+  src/interlayer_plugin.cpp
+  src/llm_frontend.cpp
+  src/llm_layer_color_functor.cpp
+  src/llm_layer_plugin.cpp
+  src/marker_tracker.cpp
+  src/node_filter.cpp
+  src/ros_embedding_group.cpp
+  src/task_information.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} hydra::hydra)
@@ -33,8 +45,11 @@ target_link_libraries(hydra_llm_node PUBLIC ${PROJECT_NAME})
 add_executable(hydra_llm_visualizer_node app/hydra_llm_visualizer_node.cpp)
 target_link_libraries(hydra_llm_visualizer_node PUBLIC ${PROJECT_NAME})
 
+add_executable(clustering_visualizer app/clustering_visualizer.cpp)
+target_link_libraries(clustering_visualizer PUBLIC ${PROJECT_NAME})
+
 install(
-  TARGETS ${PROJECT_NAME} hydra_llm_node hydra_llm_visualizer_node
+  TARGETS ${PROJECT_NAME} hydra_llm_node hydra_llm_visualizer_node clustering_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}

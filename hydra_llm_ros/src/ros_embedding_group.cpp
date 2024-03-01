@@ -2,7 +2,7 @@
 
 #include <config_utilities/config.h>
 #include <glog/logging.h>
-#include <llm/RequestTaskEmbeddings.h>
+#include <llm/RequestEmbedding.h>
 #include <ros/ros.h>
 
 namespace hydra::llm {
@@ -12,21 +12,22 @@ void declare_config(RosEmbeddingGroup::Config& config) {
   name("RosEmbeddingGroup::Config");
   field(config.service_name, "service_name");
   field(config.silent_wait, "silent_wait");
+  field(config.prompts, "prompts");
 }
 
 RosEmbeddingGroup::RosEmbeddingGroup(const Config& config) {
   LOG_IF(INFO, !config.silent_wait)
       << "Waiting for task service on '" << config.service_name << "'";
   ros::service::waitForService(config.service_name);
-  ::llm::RequestTaskEmbeddings msg;
-  CHECK(ros::service::call(config.service_name, msg));
 
-  for (const auto& embedding : msg.response.embeddings) {
-    const auto& vec = embedding.elements;
+  for (const auto& prompt : config.prompts) {
+    ::llm::RequestEmbedding msg;
+    msg.request.prompt = prompt;
+    CHECK(ros::service::call(config.service_name, msg));
+    tasks.push_back(prompt);
+    const auto& vec = msg.response.embedding.elements;
     embeddings.emplace_back(Eigen::Map<const Eigen::VectorXd>(vec.data(), vec.size()));
   }
-
-  tasks = msg.response.tasks;
 }
 
 }  // namespace hydra::llm

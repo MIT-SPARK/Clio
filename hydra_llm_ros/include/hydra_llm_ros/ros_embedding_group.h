@@ -6,8 +6,9 @@ namespace hydra::llm {
 
 struct RosEmbeddingGroup : public EmbeddingGroup {
   struct Config {
-    std::string service_name = "/get_tasks";
+    std::string service_name = "/get_embedding";
     bool silent_wait = false;
+    std::vector<std::string> prompts;
   };
 
   explicit RosEmbeddingGroup(const Config& config);

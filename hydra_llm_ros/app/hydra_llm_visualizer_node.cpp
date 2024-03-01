@@ -40,20 +40,38 @@
 #include <khronos_ros/visualization/dsg_visualizer_plugins/dsg_visualizer_plugin.h>
 
 #include "hydra_llm_ros/llm_layer_color_functor.h"
-
-struct LLMPluginConfig {
-  std::map<std::string, std::string> plugins;
-  std::vector<config::VirtualConfig<khronos::DsgVisualizerPlugin>> khronos_plugins;
-};
+#include "hydra_llm_ros/task_information.h"
 
 using KhronosPluginList =
     std::vector<config::VirtualConfig<khronos::DsgVisualizerPlugin>>;
+using NodeColor = spark_dsg::SemanticNodeAttributes::ColorVector;
+
+struct LLMPluginConfig {
+  std::map<std::string, std::string> plugins;
+  KhronosPluginList khronos_plugins;
+  bool color_objects_by_task = false;
+  bool color_rooms_by_task = false;
+  bool color_places_by_task = false;
+  std::string object_ns = "object_task_visualizer";
+  std::string room_ns = "room_tasks_visualizer";
+  std::vector<std::string> tasks;
+  std::vector<std::string> room_tasks;
+  hydra::llm::TaskInformation::Config tasks_config;
+};
 
 void declare_config(LLMPluginConfig& config) {
   using namespace config;
   name("LLMPluginConfig");
   field(config.plugins, "llm_plugins");
   field(config.khronos_plugins, "khronos_plugins");
+  field(config.color_objects_by_task, "color_objects_by_task");
+  field(config.color_rooms_by_task, "color_rooms_by_task");
+  field(config.color_places_by_task, "color_places_by_task");
+  field(config.object_ns, "object_ns");
+  field(config.room_ns, "room_ns");
+  field(config.tasks, "tasks");
+  field(config.room_tasks, "room_tasks");
+  field(config.tasks_config, "tasks_config");
 }
 
 int main(int argc, char** argv) {
@@ -71,54 +89,65 @@ int main(int argc, char** argv) {
   hydra::HydraVisualizer node(nh);
   node.clearPlugins();
 
-  const auto plugin_config = config::fromRos<LLMPluginConfig>(nh);
-  for (auto&& [name, plugin_type] : plugin_config.plugins) {
+  const auto config = config::fromRos<LLMPluginConfig>(nh);
+  for (auto&& [name, plugin_type] : config.plugins) {
     node.addPlugin(config::create<hydra::DsgVisualizerPlugin>(plugin_type, nh, name));
   }
 
-  for (const auto& conf : plugin_config.khronos_plugins) {
+  for (const auto& conf : config.khronos_plugins) {
     node.addPlugin(conf.create(nh, node.visualizer_));
   }
 
   std::shared_ptr<hydra::llm::LayerColorFunctor> room_colors;
   std::shared_ptr<hydra::llm::LayerColorFunctor> object_colors;
 
-  bool color_objects_by_task = false;
-  nh.getParam("color_objects_by_task", color_objects_by_task);
-  bool color_rooms_by_task = false;
-  nh.getParam("color_rooms_by_task", color_rooms_by_task);
-  bool color_places_by_task = true;
-  nh.getParam("color_places_by_task", color_places_by_task);
-
   auto& viz = node.getVisualizer();
+  auto object_task_info =
+      std::make_shared<hydra::llm::TaskInformation>(config.tasks_config, config.tasks);
 
-  if (color_objects_by_task) {
-    object_colors = std::make_shared<hydra::llm::LayerColorFunctor>(
-        ros::NodeHandle(nh, "room_tasks_visualizer"));
-    viz.addUpdateCallback([&](const auto& graph) { object_colors->setGraph(graph); });
+  hydra::llm::TaskInformation::Ptr room_task_info;
+  if (config.room_tasks.empty()) {
+    room_task_info = object_task_info;
+  } else {
+    room_task_info = std::make_shared<hydra::llm::TaskInformation>(config.tasks_config,
+                                                                   config.room_tasks);
+  }
+
+  if (config.color_objects_by_task) {
+    const ros::NodeHandle onh(nh, config.object_ns);
+    object_colors = std::make_shared<hydra::llm::LayerColorFunctor>(onh);
+    object_colors->setTasks(object_task_info);
+    viz.addUpdateCallback([&](const auto& graph) {
+      if (graph) {
+        object_colors->setGraph(*graph);
+      }
+    });
     viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS,
-                              [&](const spark_dsg::SceneGraphNode& node)
-                                  -> spark_dsg::SemanticNodeAttributes::ColorVector {
+                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
                                 return object_colors->getNodeColor(node);
                               });
   }
 
-  if (color_rooms_by_task) {
-    room_colors = std::make_shared<hydra::llm::LayerColorFunctor>(
-        ros::NodeHandle(nh, "room_tasks_visualizer"));
-    viz.addUpdateCallback([&](const auto& graph) { room_colors->setGraph(graph); });
+  if (config.color_rooms_by_task) {
+    const ros::NodeHandle rnh(nh, config.room_ns);
+    room_colors = std::make_shared<hydra::llm::LayerColorFunctor>(rnh);
+    room_colors->setTasks(room_task_info);
+    viz.addUpdateCallback([&](const auto& graph) {
+      if (graph) {
+        room_colors->setGraph(*graph);
+      }
+    });
     viz.setLayerColorFunction(spark_dsg::DsgLayers::ROOMS,
-                              [&](const spark_dsg::SceneGraphNode& node)
-                                  -> spark_dsg::SemanticNodeAttributes::ColorVector {
+                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
                                 return room_colors->getNodeColor(node);
                               });
-    if (color_places_by_task) {
-      viz.setLayerColorFunction(spark_dsg::DsgLayers::PLACES,
-                                [&](const spark_dsg::SceneGraphNode& node)
-                                    -> spark_dsg::SemanticNodeAttributes::ColorVector {
-                                  return room_colors->getNodeColor(node);
-                                });
-    }
+  }
+
+  if (config.color_rooms_by_task && config.color_places_by_task) {
+    viz.setLayerColorFunction(spark_dsg::DsgLayers::PLACES,
+                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
+                                return room_colors->getNodeColor(node);
+                              });
   }
 
   node.spin();
