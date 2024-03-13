@@ -17,6 +17,7 @@ void declare_config(TaskInformation::Config& config) {
   field(config.ns, "ns");
   field<Path>(config.colormap_filepath, "colormap_filepath");
   field(config.task_service_name, "task_service_name");
+  field(config.make_legend, "make_legend");
   field(config.metric, "metric");
 }
 
@@ -57,7 +58,8 @@ TaskInformation::TaskInformation(const Config& config,
     : config(config::checkValid(config)),
       colormap_(getColormap(config.colormap_filepath, tasks.size())),
       task_indices_(getIndices(tasks)),
-      legend_(getLegend(config.ns, *colormap_, task_indices_)),
+      legend_(config.make_legend ? getLegend(config.ns, *colormap_, task_indices_)
+                                 : nullptr),
       tasks_(getTasks(config.task_service_name, tasks)),
       metric_(config.metric.create()) {
   VLOG(1) << std::endl << config::toString(config);

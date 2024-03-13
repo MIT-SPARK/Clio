@@ -53,6 +53,7 @@ class TaskInformation {
     std::string ns = "~";
     std::filesystem::path colormap_filepath;
     std::string task_service_name = "/get_embedding";
+    bool make_legend = true;
     config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
   } const config;
 

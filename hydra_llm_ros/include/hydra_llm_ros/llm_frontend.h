@@ -1,9 +1,12 @@
 #pragma once
 #include <config_utilities/virtual_config.h>
 #include <hydra/frontend/frontend_module.h>
+#include <hydra_llm/embedding_distances.h>
 #include <hydra_llm/places_clustering.h>
 #include <hydra_llm/view_database.h>
 #include <llm/ClipVectorStamped.h>
+
+#include "hydra_llm_ros/ros_embedding_group.h"
 
 namespace hydra::llm {
 
@@ -12,6 +15,10 @@ struct LLMFrontendConfig : public FrontendModule::Config {
   bool override_active_window = false;
   double min_object_merge_similiarity = 0.3;
   ViewDatabase::Config view_database;
+  config::VirtualConfig<EmbeddingGroup> tasks{RosEmbeddingGroup::Config(),
+                                              "RosEmbeddingGroup"};
+  config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
+  double min_object_score = 0.0;
 };
 
 void declare_config(LLMFrontendConfig& config);
@@ -60,6 +67,9 @@ class LLMFrontend : public FrontendModule {
   std::set<NodeId> new_objects_;
   std::shared_ptr<VolumetricMap> map_;
   voxblox::BlockIndexList archived_blocks_;
+
+  EmbeddingGroup::Ptr tasks_;
+  std::unique_ptr<EmbeddingDistance> metric_;
 
  private:
   inline static const auto registration_ =

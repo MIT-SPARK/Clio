@@ -25,6 +25,11 @@ void declare_config(LLMFrontendConfig& config) {
   field(config.override_active_window, "override_active_window");
   field(config.min_object_merge_similiarity, "min_object_merge_similiarity");
   field(config.view_database, "view_database");
+  field(config.tasks, "tasks");
+  config.tasks.setOptional();
+  field(config.metric, "metric");
+  config.metric.setOptional();
+  field(config.min_object_score, "min_object_score");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -33,7 +38,9 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
                          const LogSetup::Ptr& logs)
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
-      nh_("~") {
+      nh_("~"),
+      tasks_(config.tasks.create()),
+      metric_(config.metric.create()) {
   views_database_ = std::make_shared<ViewDatabase>(config.view_database);
   clip_sub_ =
       nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
@@ -96,6 +103,15 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
                      << dsg_->graph->getLayer(DsgLayers::OBJECTS).numNodes()
                      << " total nodes)";
   for (const auto& object : msg.objects) {
+    if (metric_ && tasks_ && !tasks_->empty() && object.semantic_feature.size() > 1) {
+      const Eigen::VectorXd feature = object.semantic_feature.rowwise().mean();
+      const auto result = tasks_->getBestScore(*metric_, feature);
+      if (result.score < config.min_object_score) {
+        LOG(ERROR) << "Skipping object with score: " << result.score;
+        continue;
+      }
+    }
+
     const auto bbox = object.bounding_box.toSpark();
     const Eigen::Vector3f pos =
         object.bounding_box.origin + (object.bounding_box.size / 2);
