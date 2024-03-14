@@ -25,10 +25,10 @@ void declare_config(LLMFrontendConfig& config) {
   field(config.override_active_window, "override_active_window");
   field(config.min_object_merge_similiarity, "min_object_merge_similiarity");
   field(config.view_database, "view_database");
-  field(config.tasks, "tasks");
   config.tasks.setOptional();
-  field(config.metric, "metric");
+  field(config.tasks, "tasks");
   config.metric.setOptional();
+  field(config.metric, "metric");
   field(config.min_object_score, "min_object_score");
 }
 
@@ -38,12 +38,14 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
                          const LogSetup::Ptr& logs)
     : FrontendModule(config, dsg, state, logs),
       config(config::checkValid(config)),
-      nh_("~"),
-      tasks_(config.tasks.create()),
-      metric_(config.metric.create()) {
+      nh_("~") {
   views_database_ = std::make_shared<ViewDatabase>(config.view_database);
   clip_sub_ =
       nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
+  if (config.min_object_score > 0.0) {
+    tasks_ = config.tasks.create();
+    metric_ = config.metric.create();
+  }
 }
 
 LLMFrontend::~LLMFrontend() {}

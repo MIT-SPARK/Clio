@@ -18,6 +18,7 @@ void declare_config(TaskInformation::Config& config) {
   field<Path>(config.colormap_filepath, "colormap_filepath");
   field(config.task_service_name, "task_service_name");
   field(config.make_legend, "make_legend");
+  config.metric.setOptional();
   field(config.metric, "metric");
 }
 
