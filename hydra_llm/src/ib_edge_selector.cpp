@@ -41,12 +41,11 @@ void IBEdgeSelector::setup(const ClusteringWorkspace& ws, const ScoreFunc& score
   for (auto&& [idx, feature] : ws.features) {
     py_x_(1, idx) = std::max(0.0, score_func(*feature));
   }
-  VLOG(VLEVEL_DEBUG) << "raw: p(y|x): " << py_x_.format(fmt);
+  VLOG(10) << "raw: p(y|x): " << py_x_.format(fmt);
   double min = py_x_.row(1).minCoeff();
   double max = py_x_.row(1).maxCoeff();
   double avg = py_x_.row(1).sum() / ws.features.size();
-  VLOG(VLEVEL_DEBUG) << "score average: " << avg << " (range: [" << min << ", " << max
-                     << "]";
+  VLOG(10) << "score average: " << avg << " (range: [" << min << ", " << max << "]";
 
   const auto norm_factor = py_x_.colwise().sum();
   py_x_.array().rowwise() /= norm_factor.array();
@@ -56,17 +55,17 @@ void IBEdgeSelector::setup(const ClusteringWorkspace& ws, const ScoreFunc& score
   // p(y) = p(y|x) * p(x)
   py_ = py_x_ * px_;
 
-  VLOG(VLEVEL_DEBUG) << "p(x): " << px_.format(fmt);
-  VLOG(VLEVEL_DEBUG) << "p(z): " << pz_.format(fmt);
-  VLOG(VLEVEL_DEBUG) << "p(y): " << py_.format(fmt);
-  VLOG(VLEVEL_DEBUG) << "p(y|x): " << py_x_.format(fmt);
-  VLOG(VLEVEL_DEBUG) << "p(y|z): " << py_z_.format(fmt);
-  VLOG(VLEVEL_DEBUG) << "p(z|x): " << pz_x_.format(fmt);
+  VLOG(10) << "p(x): " << px_.format(fmt);
+  VLOG(10) << "p(z): " << pz_.format(fmt);
+  VLOG(10) << "p(y): " << py_.format(fmt);
+  VLOG(10) << "p(y|x): " << py_x_.format(fmt);
+  VLOG(10) << "p(y|z): " << py_z_.format(fmt);
+  VLOG(10) << "p(z|x): " << pz_x_.format(fmt);
 
   // initialize mutual information to starting values;
   I_xz_prev_ = mutualInformation(pz_, px_, pz_x_);
   I_zy_prev_ = mutualInformation(py_, pz_, py_z_);
-  VLOG(VLEVEL_DEBUG) << "start: I[z;x]=" << I_xz_prev_ << ", I[y;z]=" << I_zy_prev_;
+  VLOG(10) << "start: I[z;x]=" << I_xz_prev_ << ", I[y;z]=" << I_zy_prev_;
   betas_.clear();
 }
 

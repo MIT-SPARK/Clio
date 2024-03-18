@@ -46,7 +46,7 @@ double computeIoU(const std::set<NodeId>& lhs, const std::set<NodeId>& rhs) {
 
 void PlaceClustering::updateGraphBatch(DynamicSceneGraph& graph,
                                        const Clusters& clusters) const {
-  VLOG(VLEVEL_TRACE) << "Got " << clusters.size() << " cluster(s)";
+  VLOG(2) << "Got " << clusters.size() << " cluster(s)";
 
   std::vector<NodeId> prev_regions;
   for (const auto& id_node_pair : graph.getLayer(DsgLayers::ROOMS).nodes()) {
@@ -101,7 +101,7 @@ void PlaceClustering::clusterPlaces(DynamicSceneGraph& graph) {
   }
 
   if (valid_features.empty()) {
-    VLOG(VLEVEL_TRACE) << "Need to have at least one valid place feature";
+    VLOG(2) << "Need to have at least one valid place feature";
     return;
   }
 
