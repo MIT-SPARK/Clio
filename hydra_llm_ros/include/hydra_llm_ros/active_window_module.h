@@ -45,6 +45,10 @@ class ActiveWindowModule : public Module {
  public:
   const Config config;
 
+  inline std::vector<khronos::OutputObject> extractActiveObjects() const {
+    return active_window_->extractObjects();
+  }
+
  protected:
   std::unique_ptr<khronos::ActiveWindow> active_window_;
 

@@ -13,6 +13,8 @@ class HydraLLMPipeline : public HydraRosPipeline {
 
   void init() override;
 
+  void stop() override;
+
  protected:
   void initReconstruction() override;
 

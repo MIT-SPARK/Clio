@@ -50,7 +50,7 @@ reconstruction:
     only_extract_reconstructed_objects: true
     min_object_reconstruction_confidence: 0.5
     scale_object_reconstruction_confidence_with_weight: true
-    min_object_reconstruction_observations: 2
+    min_object_reconstruction_observations: 5
     object_reconstruction_resolution: -0.02  # Positive: voxel size in meters. Negative: fraction of the extent. 0: Skip. (-0.02)
     volumetric_map:
       voxel_size: 0.15  # m
@@ -68,11 +68,11 @@ reconstruction:
       type: max_iou   # 'max_iou'
       track_by: voxels   # 'pixels', 'voxels', 'bounding_box'
       semantic_association: assign_track # 'assign_cluster', 'assign_track'
-      min_semantic_iou: 0.8
-      min_cosine_sim: 0.6
+      min_semantic_iou: 0.1
+      min_cosine_sim: 0.5
       min_cross_iou: 0.1
       temporal_window: $(arg temporal_window_size_s)
-      min_num_observations: 2
+      min_num_observations: 10
     projective_integrator:
       max_weight: 100000
       interpolation_method: adaptive   # "nearest", "bilinear", "adaptive"
@@ -85,7 +85,7 @@ reconstruction:
 #########################
 frontend:
   type: LLMFrontend
-  min_object_merge_similiarity: 0.9
+  min_object_merge_similiarity: 0.8
   pgmo:
     horizon: 60.0
     d_graph_resolution: 2.5
@@ -118,7 +118,7 @@ backend:
   type: BackendModule
   dsg:
     places_merge_distance_tolerance_m: 0.4
-    enable_node_merging: false
+    enable_node_merging: true
   pgmo:
     run_mode: 0  # kimera_pgmo run mode FULL (required)
     use_msg_time: true

@@ -8,6 +8,7 @@
 #include <hydra/common/hydra_config.h>
 #include <hydra_llm/view_database.h>
 #include <khronos/common/utils/globals.h>
+#include <khronos/common/utils/khronos_attribute_utils.h>
 
 #include "hydra_llm_ros/active_window_module.h"
 #include "hydra_llm_ros/llm_frontend.h"
@@ -112,6 +113,21 @@ void HydraLLMPipeline::init() {
 
   input_module_ =
       std::make_unique<KhronosInputModule>(nh_, conf.inputs, module->getInputQueue());
+}
+
+void HydraLLMPipeline::stop() {
+  const auto aw_module = getModule<ActiveWindowModule>("active_window");
+  // Add all objects that are currently in the active window.
+  const auto aw_objects = aw_module->extractActiveObjects();
+
+  HydraPipeline::stop();
+
+  for (const auto& object : aw_objects) {
+    auto attrs = khronos::fromOutputObject(object);
+    NodeSymbol object_symbol('O', object.id);
+    backend_dsg_->graph->emplaceNode(
+        DsgLayers::OBJECTS, object_symbol, std::move(attrs));
+  }
 }
 
 void HydraLLMPipeline::initReconstruction() {
