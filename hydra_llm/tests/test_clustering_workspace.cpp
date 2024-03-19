@@ -6,22 +6,21 @@ namespace hydra::llm {
 
 namespace {
 
-inline std::unique_ptr<Eigen::VectorXd> getOneHot(size_t i, size_t dim) {
+inline Eigen::VectorXd getOneHot(size_t i, size_t dim) {
   Eigen::VectorXd p = Eigen::VectorXd::Zero(dim);
   p(i) = 1.0;
-  return std::make_unique<Eigen::VectorXd>(p);
+  return p;
 }
 
 }  // namespace
 
 TEST(ClusteringWorkspace, InitCorrect) {
   IsolatedSceneGraphLayer layer(2);
-  std::vector<std::unique_ptr<Eigen::VectorXd>> features;
+
   NodeEmbeddingMap map;
   for (size_t i = 0; i < 5; ++i) {
     layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
-    features.emplace_back(getOneHot(i, 10));
-    map[2 * i] = features[i].get();
+    map[2 * i] = getOneHot(i, 10);
   }
 
   for (size_t i = 0; i < 5; ++i) {
@@ -84,12 +83,11 @@ TEST(ClusteringWorkspace, InitCorrect) {
 
 TEST(ClusteringWorkspace, MergeCorrect) {
   IsolatedSceneGraphLayer layer(2);
-  std::vector<std::unique_ptr<Eigen::VectorXd>> features;
+
   NodeEmbeddingMap map;
   for (size_t i = 0; i < 5; ++i) {
     layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
-    features.emplace_back(getOneHot(i, 10));
-    map[2 * i] = features[i].get();
+    map[2 * i] = getOneHot(i, 10);
   }
 
   for (size_t i = 0; i < 5; ++i) {

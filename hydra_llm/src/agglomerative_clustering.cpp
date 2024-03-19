@@ -8,7 +8,6 @@
 
 #include <numeric>
 
-#include "hydra_llm/clustering_workspace.h"
 #include "hydra_llm/edge_selector.h"
 
 namespace hydra::llm {
@@ -19,6 +18,45 @@ void declare_config(AgglomerativeClustering::Config& config) {
   base<Clustering::Config>(config);
   field(config.metric, "metric");
   field(config.selector, "selector");
+}
+
+void clusterAgglomerative(ClusteringWorkspace& ws,
+                          EdgeSelector& edge_selector,
+                          const EdgeSelector::ScoreFunc& f_score) {
+  LOG(INFO) << "[IB] starting clustering with " << ws.edges.size() << " edges";
+
+  edge_selector.setup(ws, f_score);
+
+  for (auto& [edge, weight] : ws.edges) {
+    weight = edge_selector.scoreEdge(ws, f_score, edge);
+  }
+
+  for (size_t i = 0; i < ws.size(); ++i) {
+    if (ws.edges.empty()) {
+      // shouldn't happen unless |connected components| > 1
+      break;
+    }
+
+    // iter will always be valid: always at least one edge
+    auto best_edge_ptr = std::min_element(
+        ws.edges.begin(), ws.edges.end(), [&](const auto& lhs, const auto& rhs) {
+          return edge_selector.compareEdges(lhs, rhs);
+        });
+    CHECK(best_edge_ptr != ws.edges.end());
+
+    const EdgeKey best_edge = best_edge_ptr->first;
+    if (!edge_selector.updateFromEdge(ws, f_score, best_edge)) {
+      // we've hit a stop criteria
+      break;
+    }
+
+    const auto changed_edges = ws.addMerge(best_edge);
+    for (const auto edge : changed_edges) {
+      ws.edges[edge] = edge_selector.scoreEdge(ws, f_score, edge);
+    }
+  }
+
+  LOG(INFO) << "[IB] " << edge_selector.summarize();
 }
 
 AgglomerativeClustering::AgglomerativeClustering(const Config& config)
@@ -34,73 +72,27 @@ Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
     return {};
   }
 
-  ClusteringWorkspace ws(layer, features);
   const auto f_score = [this](const Eigen::VectorXd& x) {
     return tasks_->getBestScore(*metric_, x).score;
   };
-  LOG(INFO) << "[IB] starting clustering with " << ws.edges.size() << " edges";
 
-  edge_selector_->setup(ws, f_score);
+  ClusteringWorkspace ws(layer, features);
+  clusterAgglomerative(ws, *edge_selector_, f_score);
 
-  for (auto& [edge, weight] : ws.edges) {
-    weight = edge_selector_->scoreEdge(ws, f_score, edge);
-  }
-
-  for (size_t i = 0; i < ws.size(); ++i) {
-    if (ws.edges.empty()) {
-      // shouldn't happen unless |connected components| > 1
-      break;
-    }
-
-    // iter will always be valid: always at least one edge
-    auto best_edge_ptr = std::min_element(
-        ws.edges.begin(), ws.edges.end(), [&](const auto& lhs, const auto& rhs) {
-          return edge_selector_->compareEdges(lhs, rhs);
-        });
-    CHECK(best_edge_ptr != ws.edges.end());
-
-    const EdgeKey best_edge = best_edge_ptr->first;
-    if (!edge_selector_->updateFromEdge(ws, f_score, best_edge)) {
-      // we've hit a stop criteria
-      break;
-    }
-
-    const auto changed_edges = ws.addMerge(best_edge);
-    for (const auto edge : changed_edges) {
-      ws.edges[edge] = edge_selector_->scoreEdge(ws, f_score, edge);
-    }
-  }
-
-  const auto to_return = getClusters(ws.assignments, ws.node_lookup, features);
-  LOG(INFO) << "[IB] " << edge_selector_->summarize();
+  const auto to_return = getClusters(ws, features);
   LOG(INFO) << "[IB] finished clustering with " << to_return.size() << " clusters";
   return to_return;
 }
 
-Clusters AgglomerativeClustering::getClusters(
-    const std::vector<size_t>& assignments,
-    const std::map<size_t, NodeId>& node_lookup,
-    const NodeEmbeddingMap& features) const {
-  const std::set<size_t> cluster_ids(assignments.begin(), assignments.end());
+Clusters AgglomerativeClustering::getClusters(const ClusteringWorkspace& ws,
+                                              const NodeEmbeddingMap& features) const {
+  const auto cluster_nodes = ws.getClusters();
 
-  size_t index = 0;
-  std::map<size_t, size_t> cluster_lookup;
-  for (const auto cluster_id : cluster_ids) {
-    cluster_lookup[cluster_id] = index;
-    ++index;
-  }
+  Clusters to_return;
+  for (const auto& nodes : cluster_nodes) {
+    auto& cluster = to_return.emplace_back(std::make_shared<Cluster>());
+    cluster->nodes.insert(nodes.begin(), nodes.end());
 
-  Clusters to_return(cluster_ids.size());
-  for (size_t i = 0; i < assignments.size(); ++i) {
-    auto& cluster = to_return.at(cluster_lookup[assignments[i]]);
-    if (!cluster) {
-      cluster.reset(new Cluster());
-    }
-
-    cluster->nodes.insert(node_lookup.at(i));
-  }
-
-  for (const auto& cluster : to_return) {
     auto iter = cluster->nodes.begin();
     cluster->feature = features.at(*iter);
     ++iter;

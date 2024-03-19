@@ -12,6 +12,22 @@ bool keysIntersect(EdgeKey key1, EdgeKey key2) {
          key1.k2 == key2.k2;
 }
 
+NodeEmbeddingMap getEmbeddingMap(const SceneGraphLayer& layer,
+                                 const std::vector<NodeId>& nodes) {
+  NodeEmbeddingMap features;
+  for (const auto node : nodes) {
+    const auto& attrs = layer.getNode(node)->get().attributes<SemanticNodeAttributes>();
+    // TODO(nathan) consider other pooling operations
+    features[node] = attrs.semantic_feature.rowwise().mean();
+  }
+
+  return features;
+}
+
+ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer,
+                                         const std::vector<NodeId>& nodes)
+    : ClusteringWorkspace(layer, getEmbeddingMap(layer, nodes)) {}
+
 ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer,
                                          const NodeEmbeddingMap& node_embeddings) {
   size_t index = 0;
@@ -49,8 +65,8 @@ size_t ClusteringWorkspace::featureDim() const {
 }
 
 std::list<EdgeKey> ClusteringWorkspace::addMerge(EdgeKey key) {
-  // TODO(nathan) there are more efficient ways to maintain this, but modfiying disjoint
-  // set right now is not the best decision
+  // TODO(nathan) there are more efficient ways to maintain this, but modfiying
+  // disjoint set right now is not the best decision
   for (auto& parent : assignments) {
     if (parent == key.k2) {
       parent = key.k1;
@@ -88,6 +104,25 @@ std::list<EdgeKey> ClusteringWorkspace::addMerge(EdgeKey key) {
   }
 
   return to_update;
+}
+
+std::vector<std::vector<NodeId>> ClusteringWorkspace::getClusters() const {
+  const std::set<size_t> cluster_ids(assignments.begin(), assignments.end());
+
+  size_t index = 0;
+  std::map<size_t, size_t> cluster_lookup;
+  for (const auto cluster_id : cluster_ids) {
+    cluster_lookup[cluster_id] = index;
+    ++index;
+  }
+
+  std::vector<std::vector<NodeId>> to_return(cluster_ids.size());
+  for (size_t i = 0; i < assignments.size(); ++i) {
+    auto& cluster = to_return.at(cluster_lookup[assignments[i]]);
+    cluster.push_back(node_lookup.at(i));
+  }
+
+  return to_return;
 }
 
 }  // namespace hydra::llm

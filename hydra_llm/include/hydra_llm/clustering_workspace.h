@@ -13,11 +13,16 @@ struct ClusteringWorkspace {
   ClusteringWorkspace(const SceneGraphLayer& layer,
                       const NodeEmbeddingMap& node_embeddings);
 
+  ClusteringWorkspace(const SceneGraphLayer& layer,
+                      const std::vector<NodeId>& nodes);
+
   size_t size() const;
 
   size_t featureDim() const;
 
   std::list<EdgeKey> addMerge(EdgeKey to_merge);
+
+  std::vector<std::vector<NodeId>> getClusters() const;
 };
 
 }  // namespace hydra::llm

@@ -7,11 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(hydra REQUIRED)
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED khronos)
 
 catkin_package(
   CATKIN_DEPENDS
-  DEPENDS hydra
+  DEPENDS hydra khronos
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
 )
@@ -26,6 +26,7 @@ add_library(
   src/ib_edge_selector.cpp
   src/merge_utilities.cpp
   src/no_clustering.cpp
+  src/object_update_functor.cpp
   src/passthrough_clustering.cpp
   src/places_clustering.cpp
   src/probability_utilities.cpp

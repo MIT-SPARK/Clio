@@ -1,7 +1,6 @@
 #pragma once
 #include <hydra_llm/region_update_functor.h>
 #include <hydra_ros/common/hydra_ros_pipeline.h>
-#include <khronos_ros/input/input_synchronizer.h>
 
 namespace hydra::llm {
 

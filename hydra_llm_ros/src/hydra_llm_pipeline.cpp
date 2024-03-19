@@ -11,28 +11,17 @@
 #include <khronos/common/utils/khronos_attribute_utils.h>
 
 #include "hydra_llm_ros/active_window_module.h"
+#include "hydra_llm_ros/khronos_input_module.h"
 #include "hydra_llm_ros/llm_frontend.h"
 
 namespace hydra::llm {
 
 using RegionConfig = RegionUpdateFunctor::Config;
 
-struct InputSensorConfig {
-  std::string ns = "input";
-  config::VirtualConfig<Sensor> sensor;
-};
-
 struct PipelineConfig {
   std::vector<InputSensorConfig> inputs;
   config::VirtualConfig<khronos::LabelHandler> label_info;
 };
-
-void declare_config(InputSensorConfig& config) {
-  using namespace config;
-  name("InputSensorConfig");
-  field(config.ns, "ns");
-  field(config.sensor, "sensor");
-}
 
 void declare_config(PipelineConfig& config) {
   using namespace config;
@@ -42,52 +31,16 @@ void declare_config(PipelineConfig& config) {
   field(config.label_info, "label_info");
 }
 
-class KhronosInputModule : public Module {
- public:
-  using InputQueue = khronos::InputSynchronizer::InputQueue;
-
-  KhronosInputModule(const ros::NodeHandle& nh,
-                     const std::vector<InputSensorConfig>& inputs,
-                     const InputQueue::Ptr& data_queue) {
-    for (const auto& conf : inputs) {
-      std::shared_ptr<Sensor> sensor(config::checkValid(conf).sensor.create());
-      const size_t index = khronos::Globals::addSensor(sensor);
-      inputs_.push_back(std::make_shared<khronos::InputSynchronizer>(
-          ros::NodeHandle(nh, conf.ns), data_queue, index));
-    }
-  }
-
-  virtual ~KhronosInputModule() = default;
-
-  void start() override {
-    for (const auto& input : inputs_) {
-      input->start();
-    }
-  }
-
-  void stop() override {
-    for (const auto& input : inputs_) {
-      input->stop();
-    }
-  }
-
-  void save(const LogSetup&) override {}
-
-  std::string printInfo() const override {
-    std::stringstream ss;
-    size_t index = 0;
-    for (const auto& input : inputs_) {
-      ss << "input " << index << ": " << std::endl << config::toString(input->config());
-      ++index;
-    }
-    return ss.str();
-  }
-
-  std::vector<std::shared_ptr<khronos::InputSynchronizer>> inputs_;
-};
-
 HydraLLMPipeline::HydraLLMPipeline(const ros::NodeHandle& nh, int robot_id)
-    : HydraRosPipeline(nh, robot_id) {}
+    : HydraRosPipeline(nh, robot_id) {
+  // recreate scene graph with new bottom layer
+  auto layer_map = HydraConfig::instance().getConfig().layer_id_map;
+  layer_map[DsgLayers::SEGMENTS] = 's';
+  frontend_dsg_ = std::make_shared<SharedDsgInfo>(layer_map);
+  backend_dsg_ = std::make_shared<SharedDsgInfo>(layer_map);
+  shared_state_->lcd_graph = std::make_shared<SharedDsgInfo>(layer_map);
+  shared_state_->backend_graph = std::make_shared<SharedDsgInfo>(layer_map);
+}
 
 HydraLLMPipeline::~HydraLLMPipeline() {}
 

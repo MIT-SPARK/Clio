@@ -9,10 +9,10 @@ namespace hydra::llm {
 
 namespace {
 
-inline std::unique_ptr<Eigen::VectorXd> getOneHot(size_t i, size_t dim) {
+inline Eigen::VectorXd getOneHot(size_t i, size_t dim) {
   Eigen::VectorXd p = Eigen::VectorXd::Zero(dim);
   p(i) = 1.0;
-  return std::make_unique<Eigen::VectorXd>(p);
+  return p;
 }
 
 struct FakeEmbeddingGroup : public EmbeddingGroup {
@@ -98,12 +98,11 @@ std::string workspaceState(const ClusteringWorkspace& ws) {
 
 TEST(AgglomerativeClustering, GetClustersCorrect) {
   IsolatedSceneGraphLayer layer(2);
-  std::vector<std::unique_ptr<Eigen::VectorXd>> features;
+
   NodeEmbeddingMap map;
   for (size_t i = 0; i < 5; ++i) {
     layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
-    features.emplace_back(getOneHot(i, 10));
-    map[2 * i] = features[i].get();
+    map[2 * i] = getOneHot(i, 10);
   }
 
   for (size_t i = 0; i < 5; ++i) {
@@ -119,7 +118,7 @@ TEST(AgglomerativeClustering, GetClustersCorrect) {
   AgglomerativeClustering clustering(config);
 
   {  // expected_assignments = {0, 1, 2, 3, 4}
-    auto clusters = clustering.getClusters(ws.assignments, ws.node_lookup, map);
+    auto clusters = clustering.getClusters(ws, map);
     EXPECT_EQ(clusters.size(), 5);
     const auto result = getNodeAssignments(clusters);
     std::map<NodeId, size_t> expected{{0, 0}, {2, 1}, {4, 2}, {6, 3}, {8, 4}};
@@ -128,7 +127,7 @@ TEST(AgglomerativeClustering, GetClustersCorrect) {
 
   ws.addMerge({1, 2});
   {  // expected_assignments = {0, 1, 1, 3, 4}
-    auto clusters = clustering.getClusters(ws.assignments, ws.node_lookup, map);
+    auto clusters = clustering.getClusters(ws, map);
     EXPECT_EQ(clusters.size(), 4);
     const auto result = getNodeAssignments(clusters);
     std::map<NodeId, size_t> expected{{0, 0}, {2, 1}, {4, 1}, {6, 2}, {8, 3}};
@@ -137,7 +136,7 @@ TEST(AgglomerativeClustering, GetClustersCorrect) {
 
   ws.addMerge({3, 4});
   {  // expected_assignments = {0, 1, 1, 3, 3}
-    auto clusters = clustering.getClusters(ws.assignments, ws.node_lookup, map);
+    auto clusters = clustering.getClusters(ws, map);
     EXPECT_EQ(clusters.size(), 3);
     const auto result = getNodeAssignments(clusters);
     std::map<NodeId, size_t> expected{{0, 0}, {2, 1}, {4, 1}, {6, 2}, {8, 2}};
@@ -146,7 +145,7 @@ TEST(AgglomerativeClustering, GetClustersCorrect) {
 
   ws.addMerge({0, 1});
   {  // expected_assignments = {0, 0, 0, 3, 3}
-    auto clusters = clustering.getClusters(ws.assignments, ws.node_lookup, map);
+    auto clusters = clustering.getClusters(ws, map);
     EXPECT_EQ(clusters.size(), 2);
     const auto result = getNodeAssignments(clusters);
     std::map<NodeId, size_t> expected{{0, 0}, {2, 0}, {4, 0}, {6, 1}, {8, 1}};
@@ -155,7 +154,7 @@ TEST(AgglomerativeClustering, GetClustersCorrect) {
 
   ws.addMerge({0, 3});
   {  // expected_assignments = {0, 0, 0, 0, 0}
-    auto clusters = clustering.getClusters(ws.assignments, ws.node_lookup, map);
+    auto clusters = clustering.getClusters(ws, map);
     EXPECT_EQ(clusters.size(), 1);
     const auto result = getNodeAssignments(clusters);
     std::map<NodeId, size_t> expected{{0, 0}, {2, 0}, {4, 0}, {6, 0}, {8, 0}};

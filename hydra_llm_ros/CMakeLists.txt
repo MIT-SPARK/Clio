@@ -26,6 +26,7 @@ add_library(
   src/gt_publisher.cpp
   src/hydra_llm_pipeline.cpp
   src/interlayer_plugin.cpp
+  src/khronos_input_module.cpp
   src/llm_frontend.cpp
   src/llm_layer_color_functor.cpp
   src/llm_layer_plugin.cpp
