@@ -4,33 +4,34 @@
 #include <Eigen/Dense>
 
 #include "hydra_llm/edge_selector.h"
+#include "hydra_llm/ib_utils.h"
 
 namespace hydra::llm {
 
 class IBEdgeSelector : public EdgeSelector {
  public:
   struct Config {
-    double score_threshold = 0.25;
-    double min_beta = 1.0e3;
+    double max_delta = 1.0e-3;
     double tolerance = -1.0e-18;
+    PyGivenXConfig py_x;
   };
 
   explicit IBEdgeSelector(const Config& config);
 
   virtual ~IBEdgeSelector() = default;
 
-  void setup(const ClusteringWorkspace& ws, const ScoreFunc& score_func) override;
+  void setup(const ClusteringWorkspace& ws,
+             const EmbeddingGroup& tasks,
+             const EmbeddingDistance& metric) override;
 
-  double scoreEdge(const ClusteringWorkspace& ws,
-                   const ScoreFunc& score_func,
-                   EdgeKey edge) override;
+  double scoreEdge(EdgeKey edge) override;
 
-  bool updateFromEdge(const ClusteringWorkspace& ws,
-                      const ScoreFunc& score_func,
-                      EdgeKey edge) override;
+  bool updateFromEdge(EdgeKey edge) override;
 
   bool compareEdges(const std::pair<EdgeKey, double>& lhs,
                     const std::pair<EdgeKey, double>& rhs) const override;
+
+  void onlineReweighting(double Ixy, double delta_weight) override;
 
   const Config config;
 
@@ -46,9 +47,10 @@ class IBEdgeSelector : public EdgeSelector {
   Eigen::MatrixXd py_x_;  // 2xN
   Eigen::MatrixXd py_z_;  // 2xN
   // mutual information caches
-  double I_xz_prev_;
+  double I_xy_;
   double I_zy_prev_;
-  std::vector<double> betas_;
+  double delta_weight_ = 1.0;
+  std::vector<double> deltas_;
 
  private:
   inline static const auto registration_ =

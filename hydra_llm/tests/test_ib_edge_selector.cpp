@@ -27,13 +27,19 @@ inline Eigen::VectorXd getOneHot(size_t i, size_t dim) {
 
 }  // namespace
 
-TEST(IBEdgeSelector, SetupCorrect) {
+TEST(IBEdgeSelector, SetupSimpleCorrect) {
   IsolatedSceneGraphLayer layer(2);
 
-  NodeEmbeddingMap map;
+  NodeEmbeddingMap x_segments;
   for (size_t i = 0; i < 5; ++i) {
     layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
-    map[2 * i] = getOneHot(i, 10);
+    x_segments[2 * i] = getOneHot(i, 10);
+  }
+
+  EmbeddingGroup y_tasks;
+  for (size_t i = 0; i < 3; ++i) {
+    y_tasks.embeddings.push_back(getOneHot(i, 10));
+    y_tasks.tasks.push_back(std::to_string(i));
   }
 
   for (size_t i = 0; i < 5; ++i) {
@@ -44,53 +50,64 @@ TEST(IBEdgeSelector, SetupCorrect) {
     layer.insertEdge(2 * i, 2 * (i + 1));
   }
 
-  ClusteringWorkspace ws(layer, map);
+  ClusteringWorkspace ws(layer, x_segments);
   CosineDistance dist;
-  // results in nice distribution
-  auto ref = Eigen::VectorXd(10);
-  ref << 1, 2, 3, 4, 5, 0, 0, 0, 0, 0;
-  const auto score_func = [&](const Eigen::VectorXd& x) { return dist(x, ref); };
 
   IBEdgeSelector::Config config;
-  // makes the norms easy
-  config.score_threshold = 1.0 / std::sqrt(55);
+  config.py_x.score_threshold = 1.0;
+  // Test simplest case
+  config.py_x.cumulative = false;
+  config.py_x.null_task_preprune = false;
+  config.py_x.top_k = 100;  // Large so that essentially disabled
   TestableIBEdgeSelector selector(config);
-  selector.setup(ws, score_func);
+  selector.setup(ws, y_tasks, dist);
 
   ASSERT_EQ(selector.px_.rows(), 5);
   ASSERT_EQ(selector.pz_.rows(), 5);
-  ASSERT_EQ(selector.py_.rows(), 2);
+  ASSERT_EQ(selector.py_.rows(), 4);
   ASSERT_EQ(selector.pz_x_.rows(), 5);
   ASSERT_EQ(selector.pz_x_.cols(), 5);
-  ASSERT_EQ(selector.py_x_.rows(), 2);
+  ASSERT_EQ(selector.py_x_.rows(), 4);
   ASSERT_EQ(selector.py_x_.cols(), 5);
-  ASSERT_EQ(selector.py_z_.rows(), 2);
+  ASSERT_EQ(selector.py_z_.rows(), 4);
   ASSERT_EQ(selector.py_z_.cols(), 5);
   EXPECT_TRUE(selector.px_.isApprox(selector.pz_));
   EXPECT_TRUE(selector.py_x_.isApprox(selector.py_z_));
 
   const auto fmt = getDefaultFormat();
-  Eigen::MatrixXd expected_py_x(2, 5);
-  expected_py_x << 0.5, 1.0 / 3.0, 0.25, 0.2, 1.0 / 6.0, 0.5, 2.0 / 3.0, 0.75, 0.8,
-      5.0 / 6.0;
-  EXPECT_TRUE(selector.py_x_.isApprox(expected_py_x))
+  Eigen::VectorXd expected_px(5);
+  expected_px << 0.2, 0.2, 0.2, 0.2, 0.2;  // row-wise sum normalized via l1-norm
+  EXPECT_TRUE(selector.px_.isApprox(expected_px))
+      << "expected: " << expected_px.format(fmt)
+      << ", result: " << selector.px_.format(fmt);
+
+  Eigen::MatrixXd expected_py_x(4, 5);
+  expected_py_x << 0.5, 0.5, 0.5, 1.0, 1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.5, 0.0, 0.0;
+  EXPECT_TRUE(selector.py_x_.isApprox(expected_py_x, 1e-9))
       << "expected: " << expected_py_x.format(fmt)
       << ", result: " << selector.py_x_.format(fmt);
 
-  Eigen::VectorXd expected_py(2);
-  expected_py << 0.29, 0.71;  // row-wise sum normalized via l1-norm
+  Eigen::VectorXd expected_py(4);
+  expected_py << 0.25, 0.25, 0.25, 0.25;  // row-wise sum normalized via l1-norm
   EXPECT_TRUE(selector.py_.isApprox(expected_py))
       << "expected: " << expected_py.format(fmt)
       << ", result: " << selector.py_.format(fmt);
 }
 
-TEST(IBEdgeSelector, UpdateCorrect) {
+TEST(IBEdgeSelector, SetupTopKCorrect) {
   IsolatedSceneGraphLayer layer(2);
 
-  NodeEmbeddingMap map;
+  NodeEmbeddingMap x_segments;
   for (size_t i = 0; i < 5; ++i) {
     layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
-    map[2 * i] = getOneHot(i, 10);
+    x_segments[2 * i] = getOneHot(i, 10);
+  }
+
+  EmbeddingGroup y_tasks;
+  for (size_t i = 0; i < 3; ++i) {
+    y_tasks.embeddings.push_back(getOneHot(i, 10));
+    y_tasks.tasks.push_back(std::to_string(i));
   }
 
   for (size_t i = 0; i < 5; ++i) {
@@ -101,18 +118,157 @@ TEST(IBEdgeSelector, UpdateCorrect) {
     layer.insertEdge(2 * i, 2 * (i + 1));
   }
 
-  ClusteringWorkspace ws(layer, map);
+  ClusteringWorkspace ws(layer, x_segments);
   CosineDistance dist;
-  // results in nice distribution
-  auto ref = Eigen::VectorXd(10);
-  ref << 1, 2, 3, 4, 5, 0, 0, 0, 0, 0;
-  const auto score_func = [&](const Eigen::VectorXd& x) { return dist(x, ref); };
 
   IBEdgeSelector::Config config;
-  config.score_threshold = 1.0 / std::sqrt(55);  // makes the norms easy
+  config.py_x.score_threshold = 0.9;
+  // Test top k (k = 1)
+  config.py_x.cumulative = false;
+  config.py_x.null_task_preprune = false;
+  config.py_x.top_k = 1;  // Test single top k (one hot)
   TestableIBEdgeSelector selector(config);
-  selector.setup(ws, score_func);
-  selector.updateFromEdge(ws, score_func, EdgeKey(0, 1));
+  selector.setup(ws, y_tasks, dist);
+
+  const auto fmt = getDefaultFormat();
+
+  Eigen::MatrixXd expected_py_x(4, 5);
+  expected_py_x << 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 1.0, 0.0, 0.0;
+  EXPECT_TRUE(selector.py_x_.isApprox(expected_py_x, 1e-9))
+      << "expected: " << expected_py_x.format(fmt)
+      << ", result: " << selector.py_x_.format(fmt);
+}
+
+TEST(IBEdgeSelector, SetupCumulativeCorrect) {
+  IsolatedSceneGraphLayer layer(2);
+
+  NodeEmbeddingMap x_segments;
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
+    x_segments[2 * i] = getOneHot(i, 10);
+  }
+
+  EmbeddingGroup y_tasks;
+  for (size_t i = 0; i < 3; ++i) {
+    y_tasks.embeddings.push_back(getOneHot(i, 10));
+    y_tasks.tasks.push_back(std::to_string(i));
+  }
+
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i + 1, std::make_unique<NodeAttributes>());
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    layer.insertEdge(2 * i, 2 * (i + 1));
+  }
+
+  ClusteringWorkspace ws(layer, x_segments);
+  CosineDistance dist;
+
+  IBEdgeSelector::Config config;
+  config.py_x.score_threshold = 0.9;
+  // Test cumulative
+  config.py_x.cumulative = true;
+  config.py_x.null_task_preprune = false;
+  config.py_x.top_k = 2;
+  TestableIBEdgeSelector selector(config);
+  selector.setup(ws, y_tasks, dist);
+
+  const auto fmt = getDefaultFormat();
+
+  Eigen::MatrixXd expected_py_x(4, 5);
+  expected_py_x << 0.9 / 2.9, 0.9 / 2.9, 0.9 / 2.9, 1.0, 1.0, 2.0 / 2.9, 0.0, 0.0, 0.0,
+      0.0, 0.0, 2.0 / 2.9, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0 / 2.9, 0.0, 0.0;
+  EXPECT_TRUE(selector.py_x_.isApprox(expected_py_x, 1e-9))
+      << "expected: " << expected_py_x.format(fmt)
+      << ", result: " << selector.py_x_.format(fmt);
+}
+
+TEST(IBEdgeSelector, SetupNullPruneCorrect) {
+  IsolatedSceneGraphLayer layer(2);
+
+  NodeEmbeddingMap x_segments;
+  for (size_t i = 0; i < 3; ++i) {
+    layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
+    x_segments[2 * i] = getOneHot(i, 10);
+  }
+  for (size_t i = 3; i < 5; ++i) {
+    layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
+    x_segments[2 * i] = getOneHot(i, 10) + getOneHot(0, 10);
+  }
+
+  EmbeddingGroup y_tasks;
+  for (size_t i = 0; i < 3; ++i) {
+    y_tasks.embeddings.push_back(getOneHot(i, 10));
+    y_tasks.tasks.push_back(std::to_string(i));
+  }
+
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i + 1, std::make_unique<NodeAttributes>());
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    layer.insertEdge(2 * i, 2 * (i + 1));
+  }
+
+  ClusteringWorkspace ws(layer, x_segments);
+  CosineDistance dist;
+
+  IBEdgeSelector::Config config;
+  config.py_x.score_threshold = 0.9;
+  // Test null preprune
+  config.py_x.cumulative = false;
+  config.py_x.null_task_preprune = true;
+  config.py_x.top_k = 100;
+  TestableIBEdgeSelector selector(config);
+  selector.setup(ws, y_tasks, dist);
+
+  const auto fmt = getDefaultFormat();
+
+  Eigen::MatrixXd expected_py_x(4, 5);
+  expected_py_x << 0.9/1.9, 0.9/1.9, 0.9/1.9, 1.0, 1.0, 1.0/1.9, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0/1.9, 0.0, 0.0,
+      0.0, 0.0, 0.0, 1.0/1.9, 0.0, 0.0;
+  EXPECT_TRUE(selector.py_x_.isApprox(expected_py_x, 1e-9))
+      << "expected: " << expected_py_x.format(fmt)
+      << ", result: " << selector.py_x_.format(fmt);
+}
+
+TEST(IBEdgeSelector, UpdateCorrect) {
+  IsolatedSceneGraphLayer layer(2);
+
+  NodeEmbeddingMap x_segments;
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
+    x_segments[2 * i] = getOneHot(i, 10);
+  }
+
+  EmbeddingGroup y_tasks;
+  for (size_t i = 0; i < 3; ++i) {
+    y_tasks.embeddings.push_back(getOneHot(i, 10));
+    y_tasks.tasks.push_back(std::to_string(i));
+  }
+
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i + 1, std::make_unique<NodeAttributes>());
+  }
+
+  for (size_t i = 0; i < 4; ++i) {
+    layer.insertEdge(2 * i, 2 * (i + 1));
+  }
+
+  ClusteringWorkspace ws(layer, x_segments);
+  CosineDistance dist;
+
+  IBEdgeSelector::Config config;
+  config.py_x.score_threshold = 1.0;
+  // Test simplest case
+  config.py_x.cumulative = false;
+  config.py_x.null_task_preprune = false;
+  config.py_x.top_k = 100;  // Large so that essentially disabled
+  TestableIBEdgeSelector selector(config);
+  selector.setup(ws, y_tasks, dist);
+  selector.updateFromEdge(EdgeKey(0, 1));
 
   const auto fmt = getDefaultFormat();
 
@@ -123,12 +279,12 @@ TEST(IBEdgeSelector, UpdateCorrect) {
   EXPECT_EQ(selector.pz_x_(0, 0), 1.0);
   EXPECT_EQ(selector.pz_x_(1, 0), 1.0) << "p(z|x): " << selector.pz_x_.format(fmt);
 
-  Eigen::VectorXd py_0(2);
-  py_0 << 5.0 / 12.0, 7.0 / 12.0;
-  EXPECT_TRUE(selector.py_z_.col(0).isApprox(py_0))
+  Eigen::VectorXd py_0(4);
+  py_0 << 0.5, 0.25, 0.25, 0.0;
+  EXPECT_TRUE(selector.py_z_.col(0).isApprox(py_0, 1e-9))
       << "p(y|z=0): " << selector.py_z_.col(0).format(fmt);
-  Eigen::VectorXd py_1(2);
-  py_1 << 0.0, 0.0;
+  Eigen::VectorXd py_1(4);
+  py_1 << 0.0, 0.0, 0.0, 0.0;
   EXPECT_TRUE(selector.py_z_.col(1).isApprox(py_1))
       << "p(y|z=1): " << selector.py_z_.col(1).format(fmt);
 }

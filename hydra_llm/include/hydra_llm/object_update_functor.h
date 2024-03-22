@@ -55,9 +55,11 @@ struct ComponentInfo {
   using Ptr = std::unique_ptr<ComponentInfo>;
 
   ComponentInfo(const IBEdgeSelector::Config& config,
-                const EdgeSelector::ScoreFunc& f_score,
+                const EmbeddingGroup& tasks,
+                const EmbeddingDistance& metric,
                 const SceneGraphLayer& segments,
-                const std::vector<NodeId>& nodes);
+                const std::vector<NodeId>& nodes,
+                double I_xy_full);
 
   IBEdgeSelector edge_selector;
   ClusteringWorkspace ws;

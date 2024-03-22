@@ -21,14 +21,22 @@ void declare_config(AgglomerativeClustering::Config& config) {
 }
 
 void clusterAgglomerative(ClusteringWorkspace& ws,
+                          const EmbeddingGroup& tasks,
                           EdgeSelector& edge_selector,
-                          const EdgeSelector::ScoreFunc& f_score) {
+                          const EmbeddingDistance& metric,
+                          bool reweight,
+                          double I_xy,
+                          double delta_weight) {
   LOG(INFO) << "[IB] starting clustering with " << ws.edges.size() << " edges";
 
-  edge_selector.setup(ws, f_score);
+  edge_selector.setup(ws, tasks, metric);
+
+  if (reweight) {
+    edge_selector.onlineReweighting(I_xy, delta_weight);
+  }
 
   for (auto& [edge, weight] : ws.edges) {
-    weight = edge_selector.scoreEdge(ws, f_score, edge);
+    weight = edge_selector.scoreEdge(edge);
   }
 
   for (size_t i = 0; i < ws.size(); ++i) {
@@ -45,14 +53,14 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
     CHECK(best_edge_ptr != ws.edges.end());
 
     const EdgeKey best_edge = best_edge_ptr->first;
-    if (!edge_selector.updateFromEdge(ws, f_score, best_edge)) {
+    if (!edge_selector.updateFromEdge(best_edge)) {
       // we've hit a stop criteria
       break;
     }
 
     const auto changed_edges = ws.addMerge(best_edge);
     for (const auto edge : changed_edges) {
-      ws.edges[edge] = edge_selector.scoreEdge(ws, f_score, edge);
+      ws.edges[edge] = edge_selector.scoreEdge(edge);
     }
   }
 
@@ -72,12 +80,8 @@ Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
     return {};
   }
 
-  const auto f_score = [this](const Eigen::VectorXd& x) {
-    return tasks_->getBestScore(*metric_, x).score;
-  };
-
   ClusteringWorkspace ws(layer, features);
-  clusterAgglomerative(ws, *edge_selector_, f_score);
+  clusterAgglomerative(ws, *tasks_, *edge_selector_, *metric_);
 
   const auto to_return = getClusters(ws, features);
   LOG(INFO) << "[IB] finished clustering with " << to_return.size() << " clusters";

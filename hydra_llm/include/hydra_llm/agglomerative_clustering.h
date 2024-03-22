@@ -9,8 +9,12 @@ namespace hydra::llm {
 using Clusters = std::vector<Cluster::Ptr>;
 
 void clusterAgglomerative(ClusteringWorkspace& ws,
+                          const EmbeddingGroup& tasks,
                           EdgeSelector& edge_selector,
-                          const EdgeSelector::ScoreFunc& f_score);
+                          const EmbeddingDistance& metric,
+                          bool reweight = false,
+                          double I_xy = -1,
+                          double delta_weight = 1);
 
 class AgglomerativeClustering : public Clustering {
  public:

@@ -9,6 +9,7 @@
 #include <khronos/common/utils/khronos_attribute_utils.h>
 
 #include "hydra_llm/agglomerative_clustering.h"
+#include "hydra_llm/probability_utilities.h"
 
 namespace hydra::llm {
 
@@ -73,11 +74,14 @@ void declare_config(OverlapIntersection::Config& config) {
 }
 
 ComponentInfo::ComponentInfo(const IBEdgeSelector::Config& config,
-                             const EdgeSelector::ScoreFunc& f_score,
+                             const EmbeddingGroup& tasks,
+                             const EmbeddingDistance& metric,
                              const SceneGraphLayer& layer,
-                             const std::vector<NodeId>& nodes)
+                             const std::vector<NodeId>& nodes,
+                             double I_xy_full)
     : edge_selector(config), ws(layer, nodes), segments(nodes) {
-  clusterAgglomerative(ws, edge_selector, f_score);
+  double delta_weight = computeDeltaWeight(layer, nodes);
+  clusterAgglomerative(ws, tasks, edge_selector, metric, true, I_xy_full, delta_weight);
 }
 
 ObjectUpdateFunctor::ObjectUpdateFunctor(const Config& config)
@@ -161,6 +165,12 @@ std::set<size_t> ObjectUpdateFunctor::addSegmentEdges(DynamicSceneGraph& graph) 
 void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
   const auto& segments = graph.getLayer(DsgLayers::SEGMENTS);
 
+  const auto py_all = computeIBpy(*tasks_);
+  const auto px_all = computeIBpx(ClusteringWorkspace(segments));
+  const auto py_x_all = computeIBpyGivenX(
+      ClusteringWorkspace(segments), *tasks_, *metric_, config.selector.py_x);
+  double I_xy_all = mutualInformation(py_all, px_all, py_x_all);
+
   // connected component search
   const auto new_components = graph_utilities::getConnectedComponents(
       segments,
@@ -173,15 +183,11 @@ void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
         return source_active && target_active;
       });
 
-  const auto f_score = [this](const Eigen::VectorXd& x) {
-    return tasks_->getBestScore(*metric_, x).score;
-  };
-
   // reassign components
   for (const auto& nodes : new_components) {
     size_t new_id = components_ids_.next();
-    auto new_component =
-        std::make_unique<ComponentInfo>(config.selector, f_score, segments, nodes);
+    auto new_component = std::make_unique<ComponentInfo>(
+        config.selector, *tasks_, *metric_, segments, nodes, I_xy_all);
 
     const auto clusters = new_component->ws.getClusters();
     for (const auto& cluster : clusters) {

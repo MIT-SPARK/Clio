@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 #include <hydra/utils/display_utilities.h>
+#include <spark_dsg/dynamic_scene_graph.h>
 
 #include <numeric>
 
@@ -10,6 +11,17 @@ namespace hydra::llm {
 bool keysIntersect(EdgeKey key1, EdgeKey key2) {
   return key1.k1 == key2.k1 || key1.k1 == key2.k2 || key1.k2 == key2.k1 ||
          key1.k2 == key2.k2;
+}
+
+NodeEmbeddingMap getEmbeddingMap(const std::map<NodeId, SceneGraphNode::Ptr>& nodes) {
+  NodeEmbeddingMap features;
+  for (const auto& id_node : nodes) {
+    const auto& attrs = id_node.second->attributes<SemanticNodeAttributes>();
+    // TODO(nathan) consider other pooling operations
+    features[id_node.first] = attrs.semantic_feature.rowwise().mean();
+  }
+
+  return features;
 }
 
 NodeEmbeddingMap getEmbeddingMap(const SceneGraphLayer& layer,
@@ -23,6 +35,9 @@ NodeEmbeddingMap getEmbeddingMap(const SceneGraphLayer& layer,
 
   return features;
 }
+
+ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer)
+    : ClusteringWorkspace(layer, getEmbeddingMap(layer.nodes())) {}
 
 ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer,
                                          const std::vector<NodeId>& nodes)

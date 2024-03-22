@@ -10,50 +10,46 @@
 
 namespace hydra::llm {
 
+using Indices = std::vector<std::pair<size_t, size_t>>;
+
 size_t numFeatures(const NodeEmbeddingMap& features) { return features.size(); }
 
 void declare_config(IBEdgeSelector::Config& config) {
   using namespace config;
   name("IBEdgeSelector::Config");
-  field(config.score_threshold, "score_threshold");
-  field(config.min_beta, "min_beta");
+  field(config.max_delta, "max_delta");
   field(config.tolerance, "tolerance");
-  check(config.min_beta, GE, 0.0, "min_beta");
+  field(config.py_x.score_threshold, "score_threshold");
+  field(config.py_x.top_k, "top_k");
+  field(config.py_x.cumulative, "cumulative");
+  field(config.py_x.null_task_preprune, "null_task_preprune");
+
+  check(config.max_delta, GE, 0.0, "max_delta");
   check(config.tolerance, LE, 0.0, "tolerance");
+  check(config.py_x.top_k, GT, 0, "top_k");
 }
 
 IBEdgeSelector::IBEdgeSelector(const Config& config)
     : config(config::checkValid(config)) {}
 
-void IBEdgeSelector::setup(const ClusteringWorkspace& ws, const ScoreFunc& score_func) {
+void IBEdgeSelector::setup(const ClusteringWorkspace& ws,
+                           const EmbeddingGroup& tasks,
+                           const EmbeddingDistance& metric) {
   const auto fmt = getDefaultFormat();
   size_t N = ws.size();
-  // p(x) is uniform, p(z) = p(x) initially
-  px_ = Eigen::VectorXd::Constant(N, 1.0 / static_cast<double>(N));
+
+  // p(z) = p(x) initially
+  px_ = computeIBpx(ws);
   pz_ = px_;
   // p(z|x) is identity
   pz_x_ = Eigen::MatrixXd::Identity(N, N);
 
-  // p(y=0|x) is approximated by min similarity
-  py_x_ = Eigen::MatrixXd(2, N);
-  py_x_.row(0).setConstant(config.score_threshold);
-  // p(y=1|x) is approximated by score (clipped to be positive)
-  for (auto&& [idx, feature] : ws.features) {
-    py_x_(1, idx) = std::max(0.0, score_func(*feature));
-  }
-  VLOG(10) << "raw: p(y|x): " << py_x_.format(fmt);
-  double min = py_x_.row(1).minCoeff();
-  double max = py_x_.row(1).maxCoeff();
-  double avg = py_x_.row(1).sum() / ws.features.size();
-  VLOG(10) << "score average: " << avg << " (range: [" << min << ", " << max << "]";
-
-  const auto norm_factor = py_x_.colwise().sum();
-  py_x_.array().rowwise() /= norm_factor.array();
+  py_x_ = computeIBpyGivenX(ws, tasks, metric, config.py_x);
 
   // p(y|z) = p(y|x) (as p(z) = p(x) and p(z|x) = I_n
   py_z_ = py_x_;
-  // p(y) = p(y|x) * p(x)
-  py_ = py_x_ * px_;
+  // p(y) is uniform
+  py_ = computeIBpy(tasks);
 
   VLOG(10) << "p(x): " << px_.format(fmt);
   VLOG(10) << "p(z): " << pz_.format(fmt);
@@ -63,15 +59,12 @@ void IBEdgeSelector::setup(const ClusteringWorkspace& ws, const ScoreFunc& score
   VLOG(10) << "p(z|x): " << pz_x_.format(fmt);
 
   // initialize mutual information to starting values;
-  I_xz_prev_ = mutualInformation(pz_, px_, pz_x_);
-  I_zy_prev_ = mutualInformation(py_, pz_, py_z_);
-  VLOG(10) << "start: I[z;x]=" << I_xz_prev_ << ", I[y;z]=" << I_zy_prev_;
-  betas_.clear();
+  I_xy_ = mutualInformation(py_, px_, py_x_);
+  I_zy_prev_ = I_xy_;
+  deltas_.clear();
 }
 
-double IBEdgeSelector::scoreEdge(const ClusteringWorkspace&,
-                                 const ScoreFunc&,
-                                 EdgeKey edge) {
+double IBEdgeSelector::scoreEdge(EdgeKey edge) {
   const auto p_s = pz_(edge.k1);
   const auto p_t = pz_(edge.k2);
   const auto total = p_s + p_t;
@@ -83,9 +76,7 @@ double IBEdgeSelector::scoreEdge(const ClusteringWorkspace&,
   return total * jensenShannonDivergence(py_z_local, prior);
 }
 
-bool IBEdgeSelector::updateFromEdge(const ClusteringWorkspace& /*ws*/,
-                                    const ScoreFunc& /*score_func*/,
-                                    EdgeKey edge) {
+bool IBEdgeSelector::updateFromEdge(EdgeKey edge) {
   // we merge target -> source
   const auto p_s = pz_(edge.k1);
   const auto p_t = pz_(edge.k2);
@@ -101,18 +92,15 @@ bool IBEdgeSelector::updateFromEdge(const ClusteringWorkspace& /*ws*/,
   pz_x_.col(edge.k2).setConstant(0.0);
 
   // for I[a; b] order is p(a), p(b), p(a|b)
-  const auto I_xz = mutualInformation(pz_, px_, pz_x_);
   const auto I_zy = mutualInformation(py_, pz_, py_z_);
+  const auto d_I_zy = I_zy_prev_ - I_zy;
 
   // avoid divide-by-zero and other weirdness with precision
-  const auto d_xz = I_xz - I_xz_prev_;
-  const auto d_yz = std::min(I_zy - I_zy_prev_, config.tolerance);
-  const auto beta = d_xz / d_yz;
+  const auto delta = delta_weight_ * d_I_zy / I_xy_;
 
-  I_xz_prev_ = I_xz;
   I_zy_prev_ = I_zy;
-  betas_.push_back(beta);
-  return beta >= config.min_beta;
+  deltas_.push_back(delta);
+  return delta >= config.max_delta;
 }
 
 bool IBEdgeSelector::compareEdges(const std::pair<EdgeKey, double>& lhs,
@@ -120,10 +108,15 @@ bool IBEdgeSelector::compareEdges(const std::pair<EdgeKey, double>& lhs,
   return lhs.second < rhs.second;
 }
 
+void IBEdgeSelector::onlineReweighting(double Ixy, double delta_weight) {
+  I_xy_ = Ixy;
+  delta_weight_ = delta_weight;
+}
+
 std::string IBEdgeSelector::summarize() const {
   std::stringstream ss;
-  ss << betas_.size() - 1 << " merges, "
-     << "β_0=" << betas_.front() << ", β_n=" << betas_.back();
+  ss << deltas_.size() - 1 << " merges, "
+     << "δ_0=" << deltas_.front() << ", δ_n=" << deltas_.back();
   return ss.str();
 }
 

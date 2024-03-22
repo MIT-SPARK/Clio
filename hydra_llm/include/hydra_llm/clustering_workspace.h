@@ -16,6 +16,8 @@ struct ClusteringWorkspace {
   ClusteringWorkspace(const SceneGraphLayer& layer,
                       const std::vector<NodeId>& nodes);
 
+  ClusteringWorkspace(const SceneGraphLayer& layer);
+
   size_t size() const;
 
   size_t featureDim() const;
