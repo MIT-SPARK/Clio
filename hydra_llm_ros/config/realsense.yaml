@@ -39,4 +39,10 @@ frontend:
 ########################
 backend:
   objects:
-    min_segment_score: 0.23
+    min_segment_score: 0.231
+    selector:
+      max_delta: 1.0e-3
+      score_threshold: 0.23
+      top_k: 2
+      cumulative: true
+      null_task_preprune: true
