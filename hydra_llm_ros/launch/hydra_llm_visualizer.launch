@@ -36,6 +36,7 @@
     <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
     <remap from="~llm_places/current_task" to="/current_task"/>
     <param name="llm_places/colormap_filepath" value="$(arg semantic_colormap)"/>
+    <param name="tasks_config/colormap_filepath" value="$(arg semantic_colormap)"/>
   </node>
 
   <node pkg="hydra_ros" type="mesh_publisher_node" name="mesh_publisher_node"

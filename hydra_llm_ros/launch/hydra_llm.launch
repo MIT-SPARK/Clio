@@ -12,18 +12,19 @@
     <arg name="object_topic" default="object/image_raw"/>
     <arg name="rgb_image_transport" default="raw"/>
     <arg name="object_label_file" default="''"/>
-    <arg name="run_openset_places" default="false"/>
 
-    <arg name="closed_set" default="true"/>
+    <arg name="closed_set" default="false"/>
     <arg name="object_label_file" default="" if="$(arg closed_set)"/>
     <arg name="object_detection_type" default="$(eval 'connected_semantics' if arg('closed_set') else 'instance_forwarding')"/>
     <arg name="subscriber_type" default="$(eval 'semantic' if arg('closed_set') else 'openset')"/>
 
     <!-- parameter files -->
     <arg name="dataset_name"/>
+    <arg name="ablation_name" default="$(arg dataset_name)"/>
     <arg name="semantic_map_path" default="''"/>
-    <arg name="config_path" default="$(find hydra_llm_ros)/config/$(arg dataset_name).yaml"/>
+    <arg name="config_path" default="$(find hydra_llm_ros)/config/$(arg dataset_name)_pipeline.yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
+    <arg name="ablation_config_path" default="$(find hydra_llm_ros)/config/$(arg ablation_name).yaml"/>
     <!-- labelspace configuration -->
     <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
     <arg name="labelspace_name" default=""/>
@@ -32,7 +33,6 @@
     <!-- sensor configuration -->
     <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
     <arg name="sensor_max_range" default="5.0" doc="maximum sensor range in meters"/>
-    <arg name="temporal_window_size_s" default="3.0" doc="size of active window in seconds"/>
     <arg name="sensor_frame" default="" doc="robot sensor frame (for looking up extrinsics)"/>
     <arg name="kimera_sensor_filepath" default="" doc="optional path to kimera camera file (for extrinsics)"/>
     <!-- pipeline configuration -->
@@ -42,6 +42,7 @@
     <arg name="enable_merge_undos" default="false"/>
     <arg name="enable_frontend_output" default="true"/>
     <arg name="validate_vertices" default="false"/>
+    <arg name="temporal_window_size_s" default="3.0" doc="size of active window in seconds"/>
     <!-- LCD pipeline configuration -->
     <arg name="enable_graph_lcd" default="false"/>
     <arg name="enable_visual_lcd" default="false"/>
@@ -88,9 +89,6 @@
     <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
     <arg name="launch_prefix" value="" unless="$(arg debug)"/>
 
-    <arg name="places_clustering_type" default="PassthroughClustering" if="$(arg run_openset_places)"/>
-    <arg name="places_clustering_type" default="NoClustering" unless="$(arg run_openset_places)"/>
-
     <node pkg="hydra_llm_ros"
           type="hydra_llm_node"
           name="hydra_llm_node"
@@ -106,22 +104,17 @@
         <remap from="~input/depth/image_rect" to="$(arg depth_topic)"/>
         <remap from="~input/semantic/image_raw" to="$(arg label_topic)"/>
         <remap from="~input/object_image" to="$(arg object_topic)"/>
-        <remap from="/get_tasks" to="/clip_publisher_node/get_tasks"/>
+        <remap from="/get_tasks" to="/task_server/get_tasks"/>
         <!-- image transport -->
         <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
-
         <!-- parameter files -->
         <rosparam file="$(arg labelspace_path)" if="$(arg closed_set)"/>
         <rosparam file="$(arg config_path)" subst_value="true"/>
+        <rosparam file="$(arg ablation_config_path)" subst_value="true"/>
         <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
         <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)" subst_value="true"/>
         <rosparam file="$(arg ros_params_file)" subst_value="true"/>
     </node>
-
-    <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true"
-             if="$(arg run_openset_places)">
-        <arg name="clip_topic" default="hydra_llm_node/input/clip_vector"/>
-    </include>
 
     <group if="$(arg start_visualizer)">
         <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"
@@ -132,19 +125,18 @@
               output="screen"
               required="true"
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
-          <param name="~visualizer_frame" value="$(arg map_frame)"/>
+          <!-- topic and service remappings -->
           <remap from="~dsg" to="hydra_llm_node/backend/dsg" unless="$(arg show_frontend)"/>
 o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/backend/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
-          <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
           <remap from="~tasks_visualizer/current_task" to="/llm_frontend/object_detector_node/current_task"/>
-          <param name="tasks_visualizer/task_service_name" value="/llm_frontend/object_detector_node/get_tasks"/>
-          <param name="tasks_visualizer/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
-          <param name="color_places_by_task" value="true"/>
-          <param name="color_rooms_by_task" value="true" if="$(arg run_openset_places)"/>
-          <param name="room_tasks_visualizer/task_service_name" value="/clip_publisher_node/get_tasks"/>
-          <param name="room_tasks_visualizer/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
+          <remap from="/get_tasks" to="/task_server/get_tasks"/>
+          <!-- main configuration -->
+          <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
+          <!-- various parameters -->
+          <param name="~visualizer_frame" value="$(arg map_frame)"/>
+          <param name="tasks_config/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
           <param name="load_graph" value="false"/>
           <param name="use_zmq" value="$(arg viz_use_zmq)"/>
           <param name="zmq_url" value="$(arg viz_zmq_url)"/>

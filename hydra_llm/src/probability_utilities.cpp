@@ -1,19 +1,25 @@
 #include "hydra_llm/probability_utilities.h"
+
 #include <glog/logging.h>
+
+#include "hydra_llm/common.h"
 
 namespace hydra::llm {
 
 // -sum(p(x)log(p(x))) over all x
-double shannonEntropy(const Eigen::VectorXd& p, double tolerance) {
+double shannonEntropy(const Eigen::Ref<const Eigen::VectorXd>& p, double tolerance) {
+  const auto fmt = getDefaultFormat();
   double entropy = 0.0;
   for (int i = 0; i < p.rows(); ++i) {
-    if (p(i) < tolerance) {
+    const double p_i = p(i, 0);
+    if (p_i < tolerance) {
       continue;
     }
 
-    const auto p_i = p(i);
     entropy += p_i * std::log2(p_i);
   }
+
+  VLOG(30) << "p: " << p.format(fmt) << ", H: " << -entropy;
   return -entropy;
 }
 
@@ -21,13 +27,26 @@ double shannonEntropy(const Eigen::VectorXd& p, double tolerance) {
 double jensenShannonDivergence(const Eigen::MatrixXd& pa_b,
                                const Eigen::VectorXd& p_b,
                                double tolerance) {
-  const Eigen::MatrixXd p_joint = pa_b * p_b;
-  double total_entropy = 0.0;
-  for (int i = 0; i < pa_b.rows(); ++i) {
-    total_entropy += p_b(i) * shannonEntropy(pa_b.row(i), tolerance);
-  }
+  const auto fmt = getDefaultFormat();
+  VLOG(30) << "=========================";
+  VLOG(30) << "p(a|b): " << pa_b.format(fmt) << ", p(b): " << p_b.format(fmt);
 
-  return shannonEntropy(p_joint, tolerance) - total_entropy;
+  // M = sum_i=0^|{1, 2, ... m}| p_i(x) p(y|x=i)
+  // p(a|b) * p(b) = \sum_i=0^|a| p(a|b=i)p(b=i)
+  const Eigen::VectorXd M = pa_b * p_b;
+  VLOG(30) << "M: " << M.format(fmt);
+
+  VLOG(30) << "-------------------------";
+  VLOG(30) << "Entropies";
+  VLOG(30) << "-------------------------";
+
+  double total_entropy = 0.0;
+  for (int i = 0; i < pa_b.cols(); ++i) {
+    total_entropy += p_b(i) * shannonEntropy(pa_b.col(i), tolerance);
+  }
+  VLOG(30) << "-------------------------";
+  VLOG(30) << "=========================";
+  return shannonEntropy(M, tolerance) - total_entropy;
 }
 
 // compute the mutual information between two distributions

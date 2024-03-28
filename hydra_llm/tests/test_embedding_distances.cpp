@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <hydra_llm/embedding_distances.h>
 
+#include "hydra_llm_tests/utilities.h"
+
 namespace hydra::llm {
 
 TEST(EmbeddingDistances, TestCosineCorrect) {
@@ -69,27 +71,9 @@ TEST(EmbeddingDistances, TestL2Norm) {
   EXPECT_NEAR(dist.dist(a, b), 0.0, 1.0e-9);
 }
 
-struct TestEmbeddingGroup : public EmbeddingGroup {
-  struct Config {};
-
-  explicit TestEmbeddingGroup(const Config&) {
-    embeddings.push_back(Eigen::VectorXd::Zero(10));
-    embeddings.push_back(Eigen::VectorXd::Zero(10));
-    embeddings[1](0) = 1.0;
-  }
-
- private:
-  inline static const auto registration_ =
-      config::RegistrationWithConfig<EmbeddingGroup, TestEmbeddingGroup, Config>(
-          "test_group");
-};
-
-void declare_config(TestEmbeddingGroup::Config&) {}
-
 TEST(EmbeddingDistances, TestLerf) {
   LerfScore::Config config;
-  config.cannonical_features =
-      config::VirtualConfig<EmbeddingGroup>(TestEmbeddingGroup::Config(), "test_group");
+  config.cannonical_features = test::TestEmbeddingGroup::getDefault();
   LerfScore dist(config);
 
   Eigen::VectorXd a = Eigen::VectorXd::Zero(10);

@@ -65,15 +65,19 @@ void IBEdgeSelector::setup(const ClusteringWorkspace& ws,
 }
 
 double IBEdgeSelector::scoreEdge(EdgeKey edge) {
+  const auto fmt = getDefaultFormat();
   const auto p_s = pz_(edge.k1);
   const auto p_t = pz_(edge.k2);
   const auto total = p_s + p_t;
   Eigen::VectorXd prior(2);
   prior << p_s / total, p_t / total;
-  Eigen::MatrixXd py_z_local(2, 2);
+  Eigen::MatrixXd py_z_local(py_z_.rows(), 2);
   py_z_local.col(0) = py_z_.col(edge.k1);
   py_z_local.col(1) = py_z_.col(edge.k2);
-  return total * jensenShannonDivergence(py_z_local, prior);
+  const auto divergence = jensenShannonDivergence(py_z_local, prior);
+  VLOG(20) << "Scoring edge (" << edge << "): prior: " << prior.format(fmt)
+           << ", p(y|z=z): " << py_z_local.format(fmt) << ", divergence: " << divergence;
+  return total * divergence;
 }
 
 bool IBEdgeSelector::updateFromEdge(EdgeKey edge) {
@@ -97,10 +101,11 @@ bool IBEdgeSelector::updateFromEdge(EdgeKey edge) {
 
   // avoid divide-by-zero and other weirdness with precision
   const auto delta = delta_weight_ * d_I_zy / I_xy_;
+  VLOG(10) << "delta for (" << edge << "): " << delta;
 
   I_zy_prev_ = I_zy;
   deltas_.push_back(delta);
-  return delta >= config.max_delta;
+  return delta <= config.max_delta;
 }
 
 bool IBEdgeSelector::compareEdges(const std::pair<EdgeKey, double>& lhs,
@@ -114,9 +119,18 @@ void IBEdgeSelector::onlineReweighting(double Ixy, double delta_weight) {
 }
 
 std::string IBEdgeSelector::summarize() const {
+  if (deltas_.empty()) {
+    return "0 merge(s), δ_0=N/A, δ_n=N/A";
+  }
+
+  const size_t num_merges =
+      deltas_.back() <= config.max_delta ? deltas_.size() : deltas_.size() - 1;
+  const std::string d0 = std::to_string(deltas_.front());
+  const std::string dn = std::to_string(deltas_.back());
+
   std::stringstream ss;
-  ss << deltas_.size() - 1 << " merges, "
-     << "δ_0=" << deltas_.front() << ", δ_n=" << deltas_.back();
+  ss << num_merges << " merge(s), "
+     << "δ_0=" << d0 << ", δ_n=" << dn;
   return ss.str();
 }
 

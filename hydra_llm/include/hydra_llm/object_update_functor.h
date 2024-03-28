@@ -5,6 +5,7 @@
 
 #include <map>
 
+#include "hydra_llm/embedding_distances.h"
 #include "hydra_llm/embedding_group.h"
 #include "hydra_llm/ib_edge_selector.h"
 
@@ -68,21 +69,24 @@ struct ComponentInfo {
   std::vector<NodeId> objects;
 };
 
-class ObjectUpdateFunctor : dsg_updates::UpdateFunctor {
+class ObjectUpdateFunctor : public dsg_updates::UpdateFunctor {
  public:
   struct Config {
     char prefix = 'O';
-    config::VirtualConfig<IntersectionPolicy> edge_checker;
+    config::VirtualConfig<IntersectionPolicy> edge_checker{
+        OverlapIntersection::Config(), "OverlapIntersection"};
     config::VirtualConfig<EmbeddingGroup> tasks;
-    config::VirtualConfig<EmbeddingDistance> metric;
+    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
     IBEdgeSelector::Config selector;
+    double min_segment_score = 0.2;
+    double min_object_score = 0.2;
+    double neighbor_max_distance = 0.0;
   } const config;
 
   explicit ObjectUpdateFunctor(const Config& config);
 
   MergeMap call(SharedDsgInfo& dsg, const UpdateInfo& info) const override;
 
- protected:
   std::set<size_t> addSegmentEdges(DynamicSceneGraph& graph) const;
 
   void clearActiveComponents(DynamicSceneGraph& graph,
@@ -90,12 +94,16 @@ class ObjectUpdateFunctor : dsg_updates::UpdateFunctor {
 
   void detectObjects(DynamicSceneGraph& segments) const;
 
+  void updateActiveParents(DynamicSceneGraph& graph) const;
+
  protected:
   IntersectionPolicy::Ptr edge_checker_;
   EmbeddingGroup::Ptr tasks_;
   std::unique_ptr<EmbeddingDistance> metric_;
 
   IdTracker components_ids_;
+  mutable std::set<NodeId> ignored_;
+  mutable std::set<NodeId> active_;
   mutable NodeSymbol next_node_id_;
   mutable std::map<size_t, ComponentInfo::Ptr> components_;
   mutable std::map<NodeId, size_t> node_to_component_;

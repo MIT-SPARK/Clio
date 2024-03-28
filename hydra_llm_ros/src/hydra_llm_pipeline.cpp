@@ -16,6 +16,7 @@
 
 namespace hydra::llm {
 
+using ObjectConfig = ObjectUpdateFunctor::Config;
 using RegionConfig = RegionUpdateFunctor::Config;
 
 struct PipelineConfig {
@@ -59,7 +60,7 @@ void HydraLLMPipeline::init() {
     initLCD();
   }
 
-  configureRegions();
+  configureClustering();
 
   const auto module = getModule<ActiveWindowModule>("active_window");
   CHECK(module);
@@ -93,13 +94,18 @@ void HydraLLMPipeline::initReconstruction() {
   modules_["active_window"] = mod;
 }
 
-void HydraLLMPipeline::configureRegions() {
-  const ros::NodeHandle nh(nh_, "backend/regions");
-  const auto conf = config::checkValid(config::fromRos<RegionConfig>(nh));
-  region_clustering_ = std::make_unique<RegionUpdateFunctor>(conf);
-
+void HydraLLMPipeline::configureClustering() {
   auto backend = getModule<BackendModule>("backend");
   CHECK(backend);
+
+  const ros::NodeHandle onh(nh_, "backend/objects");
+  const auto oconf = config::checkValid(config::fromRos<ObjectConfig>(onh));
+  object_clustering_ = std::make_shared<ObjectUpdateFunctor>(oconf);
+  backend->setUpdateFunctor(DsgLayers::OBJECTS, object_clustering_);
+
+  const ros::NodeHandle rnh(nh_, "backend/regions");
+  const auto rconf = config::checkValid(config::fromRos<RegionConfig>(rnh));
+  region_clustering_ = std::make_shared<RegionUpdateFunctor>(rconf);
   backend->setUpdateFunctor(DsgLayers::ROOMS, region_clustering_);
 }
 

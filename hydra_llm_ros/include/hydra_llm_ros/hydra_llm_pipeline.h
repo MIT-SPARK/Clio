@@ -1,5 +1,6 @@
 #pragma once
 #include <hydra_llm/region_update_functor.h>
+#include <hydra_llm/object_update_functor.h>
 #include <hydra_ros/common/hydra_ros_pipeline.h>
 
 namespace hydra::llm {
@@ -17,8 +18,9 @@ class HydraLLMPipeline : public HydraRosPipeline {
  protected:
   void initReconstruction() override;
 
-  void configureRegions();
+  void configureClustering();
 
+  std::shared_ptr<ObjectUpdateFunctor> object_clustering_;
   std::shared_ptr<RegionUpdateFunctor> region_clustering_;
 };
 

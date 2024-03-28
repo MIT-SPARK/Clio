@@ -29,17 +29,39 @@ TEST(ProbabilityUtilities, TestShannonEntropy) {
 }
 
 TEST(ProbabilityUtilities, TestJSDivergence) {
-  {  // test case 1: no divergence
-    Eigen::MatrixXd pa_b = Eigen::MatrixXd::Identity(2, 2);
-    Eigen::MatrixXd p_b = getBinaryProbability(0.5);
-    EXPECT_NEAR(jensenShannonDivergence(pa_b, p_b), 1.0, 1.0e-9);
+  {  // test case 1: complete divergence
+    Eigen::MatrixXd dists = Eigen::MatrixXd::Identity(2, 2);
+    Eigen::VectorXd priors = getBinaryProbability(0.5);
+    EXPECT_NEAR(jensenShannonDivergence(dists, priors), 1.0, 1.0e-9);
   }
 
-  {  // test case 2: complete divergence
-    Eigen::MatrixXd pa_b(2, 2);
-    pa_b << 0.5, 0.5, 0.5, 0.5;
-    Eigen::MatrixXd p_b = getBinaryProbability(0.5);
-    EXPECT_NEAR(jensenShannonDivergence(pa_b, p_b), 0.0, 1.0e-9);
+  {  // test case 2: no divergence
+    Eigen::MatrixXd dists(2, 2);
+    dists << 0.5, 0.5, 0.5, 0.5;
+    Eigen::VectorXd priors = getBinaryProbability(0.5);
+    EXPECT_NEAR(jensenShannonDivergence(dists, priors), 0.0, 1.0e-9);
+  }
+
+  {  // test case 3: no divergence (deterministic prior)
+    Eigen::MatrixXd dists = Eigen::MatrixXd::Identity(5, 5);
+    Eigen::VectorXd priors = Eigen::VectorXd::Zero(5);
+    priors(3) = 1.0;
+    EXPECT_NEAR(jensenShannonDivergence(dists, priors), 0.0, 1.0e-9);
+  }
+
+  {  // test case 4: complete divergence (uniform prior)
+    Eigen::MatrixXd dists = Eigen::MatrixXd::Identity(5, 5);
+    Eigen::VectorXd priors = Eigen::VectorXd::Constant(5, 0.2);
+    EXPECT_NEAR(jensenShannonDivergence(dists, priors), std::log2(5), 1.0e-9);
+  }
+
+  {  // test case 5: interesting probabilities
+    Eigen::MatrixXd dists = Eigen::MatrixXd::Zero(3, 2);
+    dists << 3.0 / 8.0, 2.0 / 8.0, 4.0 / 8.0, 3.0 / 8.0, 1.0 / 8.0, 3.0 / 8.0;
+    Eigen::VectorXd priors = getBinaryProbability(0.5);
+    // D(p1||M) = 0.06996044115887057
+    // D(p2||M) = 0.055481756047425
+    EXPECT_NEAR(jensenShannonDivergence(dists, priors), 0.06272109860314778, 1.0e-9);
   }
 }
 

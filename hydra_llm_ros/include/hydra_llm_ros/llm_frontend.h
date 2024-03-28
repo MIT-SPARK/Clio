@@ -11,15 +11,9 @@
 namespace hydra::llm {
 
 struct LLMFrontendConfig : public FrontendModule::Config {
-  bool enable_object_clustering = false;
   double spatial_window_radius_m = 8.0;
   bool override_active_window = false;
-  double min_object_merge_similiarity = 0.3;
   ViewDatabase::Config view_database;
-  config::VirtualConfig<EmbeddingGroup> tasks{RosEmbeddingGroup::Config(),
-                                              "RosEmbeddingGroup"};
-  config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
-  double min_object_score = 0.0;
 };
 
 void declare_config(LLMFrontendConfig& config);
@@ -68,9 +62,6 @@ class LLMFrontend : public FrontendModule {
   std::set<NodeId> new_objects_;
   std::shared_ptr<VolumetricMap> map_;
   voxblox::BlockIndexList archived_blocks_;
-
-  EmbeddingGroup::Ptr tasks_;
-  std::unique_ptr<EmbeddingDistance> metric_;
 
  private:
   inline static const auto registration_ =

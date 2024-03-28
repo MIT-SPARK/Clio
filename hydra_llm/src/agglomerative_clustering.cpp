@@ -26,8 +26,9 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
                           const EmbeddingDistance& metric,
                           bool reweight,
                           double I_xy,
-                          double delta_weight) {
-  LOG(INFO) << "[IB] starting clustering with " << ws.edges.size() << " edges";
+                          double delta_weight,
+                          int verbosity) {
+  VLOG(verbosity) << "[IB] starting clustering with " << ws.edges.size() << " edges";
 
   edge_selector.setup(ws, tasks, metric);
 
@@ -35,9 +36,15 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
     edge_selector.onlineReweighting(I_xy, delta_weight);
   }
 
+  VLOG(10) << "-----------------------------------";
+  VLOG(10) << "Scoring edges";
+  VLOG(10) << "-----------------------------------";
   for (auto& [edge, weight] : ws.edges) {
-    weight = edge_selector.scoreEdge(edge);
+    const auto score = edge_selector.scoreEdge(edge);
+    VLOG(10) << "edge (" << edge << "): " << score;
+    weight = score;
   }
+  VLOG(10) << "-----------------------------------";
 
   for (size_t i = 0; i < ws.size(); ++i) {
     if (ws.edges.empty()) {
@@ -51,6 +58,15 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
           return edge_selector.compareEdges(lhs, rhs);
         });
     CHECK(best_edge_ptr != ws.edges.end());
+    if (VLOG_IS_ON(15)) {
+      VLOG(15) << "***********************************";
+      VLOG(15) << "Candidates";
+      VLOG(15) << "***********************************";
+      for (auto&& [edge, weight] : ws.edges) {
+        VLOG(15) << "edge (" << edge << "): " << weight;
+      }
+      VLOG(15) << "***********************************";
+    }
 
     const EdgeKey best_edge = best_edge_ptr->first;
     if (!edge_selector.updateFromEdge(best_edge)) {
@@ -59,12 +75,18 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
     }
 
     const auto changed_edges = ws.addMerge(best_edge);
+    VLOG(10) << "-----------------------------------";
+    VLOG(10) << "Scoring changed edges";
+    VLOG(10) << "-----------------------------------";
     for (const auto edge : changed_edges) {
-      ws.edges[edge] = edge_selector.scoreEdge(edge);
+      const auto score = edge_selector.scoreEdge(edge);
+      VLOG(10) << "edge " << edge << ": " << score;
+      ws.edges[edge] = score;
     }
+    VLOG(10) << "-----------------------------------";
   }
 
-  LOG(INFO) << "[IB] " << edge_selector.summarize();
+  VLOG(verbosity) << "[IB] " << edge_selector.summarize();
 }
 
 AgglomerativeClustering::AgglomerativeClustering(const Config& config)

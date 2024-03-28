@@ -13,7 +13,7 @@ void declare_config(ActiveWindowModule::Config& config) {
   field(config.active_window, "active_window");
   field(config.max_queue_size, "max_queue_size");
   field(config.use_visualizer, "use_visualizer");
-  field(config.active_window_visualizer_ns, "~active_window_viz");
+  field(config.active_window_visualizer_ns, "active_window_visualizer_ns");
   field(config.sinks, "sinks");
 }
 

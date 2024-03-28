@@ -21,16 +21,9 @@ void declare_config(LLMFrontendConfig& config) {
   using namespace config;
   name("LLMFrontendConfig");
   base<FrontendModule::Config>(config);
-  field(config.enable_object_clustering, "enable_object_clustering");
   field(config.spatial_window_radius_m, "spatial_window_radius_m");
   field(config.override_active_window, "override_active_window");
-  field(config.min_object_merge_similiarity, "min_object_merge_similiarity");
   field(config.view_database, "view_database");
-  config.tasks.setOptional();
-  field(config.tasks, "tasks");
-  config.metric.setOptional();
-  field(config.metric, "metric");
-  field(config.min_object_score, "min_object_score");
 }
 
 LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
@@ -43,10 +36,6 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
   views_database_ = std::make_shared<ViewDatabase>(config.view_database);
   clip_sub_ =
       nh_.subscribe("input/clip_vector", 10, &LLMFrontend::handleClipFeatures, this);
-  if (config.min_object_score > 0.0) {
-    tasks_ = config.tasks.create();
-    metric_ = config.metric.create();
-  }
 }
 
 LLMFrontend::~LLMFrontend() {}
@@ -102,22 +91,13 @@ void LLMFrontend::updateKhronosObjects(const ReconstructionOutput& base_msg) {
   std::lock_guard<std::mutex> lock(dsg_->mutex);
   ScopedTimer timer("frontend/update_objects", msg.timestamp_ns);
 
-  const auto layer_id =
-      config.enable_object_clustering ? DsgLayers::SEGMENTS : DsgLayers::OBJECTS;
+  const auto layer_id = DsgLayers::SEGMENTS;
 
   VLOG(VLEVEL_TRACE) << "Got " << msg.objects.size() << " new objects ("
                      << dsg_->graph->getLayer(layer_id).numNodes() << " total nodes)";
+  const auto prefix = dsg_->layer_prefix_map.at(DsgLayers::SEGMENTS);
   for (const auto& object : msg.objects) {
-    if (metric_ && tasks_ && !tasks_->empty() && object.semantic_feature.size() > 1) {
-      const Eigen::VectorXd feature = object.semantic_feature.rowwise().mean();
-      const auto result = tasks_->getBestScore(*metric_, feature);
-      if (result.score < config.min_object_score) {
-        LOG(ERROR) << "Skipping object with score: " << result.score;
-        continue;
-      }
-    }
-
-    const NodeSymbol node_id(config.object_config.prefix, object.id);
+    const NodeSymbol node_id(prefix, object.id);
     CHECK(!dsg_->graph->hasNode(node_id))
         << "Found duplicate node " << node_id.getLabel();
 

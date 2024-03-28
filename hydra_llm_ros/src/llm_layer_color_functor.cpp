@@ -21,7 +21,6 @@ using visualization_msgs::MarkerArray;
 void declare_config(LayerColorFunctor::Config& config) {
   using namespace config;
   name("ColorFunctorConfig");
-  field(config.layer_to_use, "layer_to_use");
   field(config.color_by_task, "color_by_task");
   field(config.min_score, "min_score");
   field(config.max_score, "max_score");
@@ -70,16 +69,17 @@ LayerColorFunctor::LayerColorFunctor(const ros::NodeHandle& nh)
   lsrv_ = nh_.advertiseService("label_by_task", &LayerColorFunctor::handleLabel, this);
 }
 
-void LayerColorFunctor::setGraph(const DynamicSceneGraph& graph) {
+void LayerColorFunctor::setGraph(const DynamicSceneGraph& graph, LayerId layer_to_use) {
   if (!tasks_) {
     return;
   }
 
-  const auto& layer = graph.getLayer(config.layer_to_use);
+  const auto& layer = graph.getLayer(layer_to_use);
   for (auto&& [node_id, node] : layer.nodes()) {
     auto& attrs = node->attributes<SemanticNodeAttributes>();
     if (label_by_task_) {
-      attrs.name = tasks_->getNearestTask(attrs.semantic_feature);
+      const auto nearest_task = tasks_->getNearestTask(attrs.semantic_feature);
+      attrs.name = nearest_task;
     } else {
       attrs.name = NodeSymbol(node_id).getLabel();
     }

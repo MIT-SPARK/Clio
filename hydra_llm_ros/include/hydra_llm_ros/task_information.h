@@ -52,7 +52,7 @@ class TaskInformation {
   struct Config {
     std::string ns = "~";
     std::filesystem::path colormap_filepath;
-    std::string task_service_name = "/get_embedding";
+    std::string task_service_ns = "";
     bool make_legend = true;
     config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
   } const config;
@@ -70,10 +70,10 @@ class TaskInformation {
   const EmbeddingGroup& embeddings() const;
 
  private:
-  SemanticColorMap::Ptr colormap_;
-  std::map<std::string, size_t> task_indices_;
-  CategoryLegend::Ptr legend_;
   EmbeddingGroup::Ptr tasks_;
+  std::map<std::string, size_t> task_indices_;
+  SemanticColorMap::Ptr colormap_;
+  CategoryLegend::Ptr legend_;
   std::unique_ptr<EmbeddingDistance> metric_;
 };
 

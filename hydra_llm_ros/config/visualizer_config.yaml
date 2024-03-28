@@ -31,9 +31,29 @@ config:
       interlayer_edge_insertion_skip: 10
       visualize_interlayer_edges: false
       z_offset_scale: 0.0
-  layer2:
+  layer1:
     # generic
     z_offset_scale: 2.0
+    visualize: true
+    # node
+    marker_scale: 0.01
+    marker_alpha: 0.6
+    use_sphere_marker: true
+    use_collapsed_label: false
+    use_bounding_box: true
+    collapse_bounding_box: false
+    bounding_box_alpha: 0.6
+    bbox_wireframe_scale: 0.02
+    bbox_wireframe_edge_scale: 0.02
+    # edge
+    use_edge_source: true
+    intralayer_edge_scale: 0.03
+    intralayer_edge_alpha: 0.6
+    intralayer_edge_use_color: false
+    intralayer_edge_insertion_skip: 0
+  layer2:
+    # generic
+    z_offset_scale: 1.0
     visualize: true
     # node
     marker_scale: 0.30
@@ -51,10 +71,6 @@ config:
     collapse_bounding_box: true
     # edge
     use_edge_source: true
-    interlayer_edge_scale: 0.05
-    interlayer_edge_alpha: 0.3
-    interlayer_edge_use_color: true
-    interlayer_edge_insertion_skip: 10
     intralayer_edge_scale: 0.03
     intralayer_edge_alpha: 0.6
     intralayer_edge_use_color: false
@@ -77,9 +93,9 @@ config:
     collapse_bounding_box: false
     # edges
     use_edge_source: false
-    interlayer_edge_scale: 0.08
-    interlayer_edge_alpha: 0.4
-    interlayer_edge_use_color: true
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.2
+    interlayer_edge_use_color: false
     interlayer_edge_insertion_skip: 0
     intralayer_edge_scale: 0.01
     intralayer_edge_alpha: 0.5
@@ -122,3 +138,4 @@ dsg_mesh:
 llm_places:
   min_score: 0.58
   max_score: 0.65
+color_objects_by_task: true

@@ -4,7 +4,7 @@
 namespace hydra::llm {
 
 struct ClusteringWorkspace {
-  std::map<size_t, const Eigen::VectorXd*> features;
+  std::map<size_t, Eigen::VectorXd> features;
   std::map<size_t, NodeId> node_lookup;
   std::map<NodeId, size_t> order;
   std::map<EdgeKey, double> edges;

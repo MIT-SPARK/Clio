@@ -1,0 +1,135 @@
+---
+#############################
+#  Input Module Parameters  #
+#############################
+inputs:
+  - ns: input
+    sensor:
+      type: camera
+      width: 640
+      height: 360
+      cx: 315.9902073557914
+      cy: 254.59437002701452
+      fx: 372.4634094238281
+      fy: 371.5072021484375
+      min_range: $(arg sensor_min_range)
+      max_range: $(arg sensor_max_range)
+      extrinsics:
+        type: identity
+input:
+  global_frame_name: $(arg odom_frame)
+  sensor_frame_name: $(arg sensor_frame)
+  subscriber:
+    type: $(arg subscriber_type)
+    input_images_are_const: false
+    color_image_topic: color/image_raw
+    depth_image_topic: depth/image_rect
+    semantic_image_topic: semantic/image_raw
+    queue_size: 1000
+#############################################
+#  Active-Window Reconstruction Parameters  #
+#############################################
+reconstruction:
+  use_visualizer: true
+  active_window_viz:
+    global_frame_name: $(arg odom_frame)
+    color_mode: color
+    slice_height: -0.5
+    slice_height_is_relative: true
+    activity_shading_intensity: 0.6
+    object_color_mode: 0
+    dynamic_point_scale: 0.1
+  active_window:  # taken from Khronos
+    verbosity: 1
+    volumetric_map:
+      voxel_size: 0.15  # m
+      truncation_distance: 0.35  # m (Usually 2-3x voxel size)
+      voxels_per_side: 16
+    object_detector:
+      type: $(arg object_detection_type)
+      max_range: $(arg sensor_max_range)
+    tracker:
+      type: max_iou   # 'max_iou'
+      track_by: voxels   # 'pixels', 'voxels', 'bounding_box'
+    projective_integrator:
+      max_weight: 100000
+      interpolation_method: adaptive   # "nearest", "bilinear", "adaptive"
+      verbosity: 1
+    tracking_integrator:
+      temporal_window: $(arg temporal_window_size_s)
+      verbosity: 1
+#########################
+#  Frontend Parameters  #
+#########################
+frontend:
+  type: LLMFrontend
+  pgmo:
+    horizon: 60.0
+    d_graph_resolution: 2.5
+    output_mesh_resolution: 0.02
+  min_object_vertices: 0
+  prune_mesh_indices: true
+  places:
+    type: gvd
+    gvd:
+      max_distance_m: 4.5
+      min_diff_m: 0.1
+      min_basis_for_extraction: 1
+      voronoi_config:
+        min_distance_m: 0.30
+        parent_l1_separation: 20
+        parent_cos_angle_separation: 0.2
+    graph:
+      type: CompressionGraphExtractor
+      compression_distance_m: 1.0
+      min_node_distance_m: 0.4
+      min_edge_distance_m: 0.25
+      node_merge_distance_m: 0.5
+      add_heuristic_edges: false
+########################
+#  Backend Parameters  #
+########################
+backend:
+  type: BackendModule
+  dsg:
+    places_merge_distance_tolerance_m: 0.4
+    enable_node_merging: true
+  pgmo:
+    run_mode: 0  # kimera_pgmo run mode FULL (required)
+    use_msg_time: true
+    embed_trajectory_delta_t: 5.0
+    num_interp_pts: 3
+    interp_horizon: 10.0
+    enable_sparsify: false
+    trans_node_dist: 1.0
+    rot_node_dist: 1.2
+    rpgo:
+      odom_trans_threshold: 0.05
+      odom_rot_threshold: 0.01
+      pcm_trans_threshold: -1
+      pcm_rot_threshold: -1
+      gnc_alpha: 0.9
+      gnc_mu_step: 1.6
+      gnc_fix_prev_inliers: true
+      verbosity: UPDATE
+      solver: LM
+    covariance:
+      odom: 1.0e-02
+      loop_close: 5.0e-02
+      sg_loop_close: 1.0e-01
+      prior: 1.0e-02
+      mesh_mesh: 1.0e-02
+      pose_mesh: 1.0e-02
+      place_mesh: 1.0e-02
+      place_edge: 10.0
+      place_merge: 10.0
+      object_merge: 10.0
+  enable_rooms: false
+  objects:
+    tasks:
+      type: RosEmbeddingGroup
+  regions:
+    extractor:
+      type: PlaceClustering
+      clustering:
+        type: NoClustering

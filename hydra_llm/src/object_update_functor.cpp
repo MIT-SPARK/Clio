@@ -5,6 +5,7 @@
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
 #include <hydra/common/dsg_types.h>
+#include <hydra/utils/nearest_neighbor_utilities.h>
 #include <hydra/utils/timing_utilities.h>
 #include <khronos/common/utils/khronos_attribute_utils.h>
 
@@ -17,12 +18,9 @@ using config::VirtualConfig;
 using timing::ScopedTimer;
 
 bool isNodeActive(const SceneGraphNode& node,
-                  const std::map<NodeId, size_t>& node_to_component) {
-  if (node.attributes().is_active) {
-    return true;
-  }
-
-  return !node_to_component.count(node.id);
+                  const std::map<NodeId, size_t>& node_to_component,
+                  const std::set<NodeId>& invalid) {
+  return !node_to_component.count(node.id) && !invalid.count(node.id);
 }
 
 IdTracker::IdTracker(size_t start) : idx_(start) {}
@@ -94,6 +92,9 @@ ObjectUpdateFunctor::ObjectUpdateFunctor(const Config& config)
 MergeMap ObjectUpdateFunctor::call(SharedDsgInfo& dsg, const UpdateInfo& info) const {
   ScopedTimer timer("backend/object_clustering", info.timestamp_ns);
   auto& graph = *dsg.graph;
+
+  // repair broken edges between objects and places
+  updateActiveParents(graph);
   // detect edges between segments (and active connected components)
   const auto active_components = addSegmentEdges(graph);
   // remove all previous components that are active
@@ -119,6 +120,7 @@ void ObjectUpdateFunctor::clearActiveComponents(DynamicSceneGraph& graph,
 
     for (const auto& node_id : iter->second->objects) {
       graph.removeNode(node_id);
+      active_.erase(node_id);
     }
 
     components_ids_.markFree(iter->first);
@@ -131,14 +133,22 @@ std::set<size_t> ObjectUpdateFunctor::addSegmentEdges(DynamicSceneGraph& graph) 
 
   std::set<size_t> active_components;
   for (auto&& [node_id, node] : segments.nodes()) {
-    const auto& attrs = node->attributes<KhronosObjectAttributes>();
-    if (!attrs.is_active) {
+    auto& attrs = node->attributes<KhronosObjectAttributes>();
+    if (ignored_.count(node_id)) {
       continue;
     }
 
-    const auto iter = node_to_component_.find(node_id);
-    if (iter != node_to_component_.end()) {
-      active_components.insert(iter->second);
+    if (node_to_component_.count(node_id)) {
+      // only examine new nodes
+      continue;
+    }
+
+    const Eigen::VectorXd feature = attrs.semantic_feature.rowwise().mean();
+    const auto result = tasks_->getBestScore(*metric_, feature);
+    if (result.score < config.min_segment_score) {
+      VLOG(1) << "Skipping segment with score: " << result.score;
+      ignored_.insert(node_id);
+      attrs.is_active = false;
       continue;
     }
 
@@ -151,9 +161,9 @@ std::set<size_t> ObjectUpdateFunctor::addSegmentEdges(DynamicSceneGraph& graph) 
       const auto& other_attrs = other_node->attributes<KhronosObjectAttributes>();
       if (edge_checker_->call(attrs, other_attrs)) {
         graph.insertEdge(node_id, other_id);
-        const auto oiter = node_to_component_.find(other_id);
-        if (oiter != node_to_component_.end()) {
-          active_components.insert(oiter->second);
+        const auto iter = node_to_component_.find(other_id);
+        if (iter != node_to_component_.end()) {
+          active_components.insert(iter->second);
         }
       }
     }
@@ -162,24 +172,85 @@ std::set<size_t> ObjectUpdateFunctor::addSegmentEdges(DynamicSceneGraph& graph) 
   return active_components;
 }
 
+NodeAttributes::Ptr getMergedAttributes(const DynamicSceneGraph& graph,
+                                        const std::vector<NodeId>& nodes) {
+  if (nodes.empty()) {
+    return nullptr;
+  }
+
+  auto iter = nodes.begin();
+  CHECK(graph.hasNode(*iter));
+  const auto& node = graph.getNode(*iter)->get();
+  ++iter;
+
+  auto attrs_ptr = node.attributes().clone();
+  auto& attrs = *CHECK_NOTNULL(dynamic_cast<KhronosObjectAttributes*>(attrs_ptr.get()));
+  attrs.semantic_feature = attrs.semantic_feature.rowwise().mean().eval();
+
+  while (iter != nodes.end()) {
+    const auto& other = graph.getNode(*iter)->get();
+    const auto& other_attrs = other.attributes<KhronosObjectAttributes>();
+    attrs.position += other_attrs.position;
+    attrs.semantic_feature += other_attrs.semantic_feature.rowwise().mean();
+    // TODO(nathan) this is likely not correct
+    khronos::mergeObjectAttributes(other_attrs, attrs);
+    ++iter;
+  }
+
+  attrs.position /= nodes.size();
+  attrs.semantic_feature /= nodes.size();
+  return attrs_ptr;
+}
+
+std::optional<std::pair<NodeId, bool>> getBestParent(const DynamicSceneGraph& graph,
+                                                     const std::vector<NodeId>& nodes) {
+  std::vector<NodeId> active;
+  std::vector<NodeId> archived;
+  for (const auto node_id : nodes) {
+    const SceneGraphNode& node = graph.getNode(node_id).value();
+    const auto parent = node.getParent();
+    if (!parent) {
+      continue;
+    }
+
+    const SceneGraphNode& parent_node = graph.getNode(*parent).value();
+    if (parent_node.attributes().is_active) {
+      active.push_back(*parent);
+    } else {
+      archived.push_back(*parent);
+    }
+  }
+
+  if (!archived.empty()) {
+    return std::make_pair(archived.front(), false);
+  }
+
+  if (!active.empty()) {
+    return std::make_pair(active.front(), true);
+  }
+
+  return std::nullopt;
+}
+
 void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
   const auto& segments = graph.getLayer(DsgLayers::SEGMENTS);
 
+  const ClusteringWorkspace total_ws(segments);
   const auto py_all = computeIBpy(*tasks_);
-  const auto px_all = computeIBpx(ClusteringWorkspace(segments));
-  const auto py_x_all = computeIBpyGivenX(
-      ClusteringWorkspace(segments), *tasks_, *metric_, config.selector.py_x);
+  const auto px_all = computeIBpx(total_ws);
+  const auto py_x_all =
+      computeIBpyGivenX(total_ws, *tasks_, *metric_, config.selector.py_x);
   double I_xy_all = mutualInformation(py_all, px_all, py_x_all);
 
   // connected component search
   const auto new_components = graph_utilities::getConnectedComponents(
       segments,
-      [&](const auto& n) { return isNodeActive(n, node_to_component_); },
+      [&](const auto& n) { return isNodeActive(n, node_to_component_, ignored_); },
       [&](const auto& edge) {
-        const auto source_active =
-            isNodeActive(segments.getNode(edge.source).value(), node_to_component_);
-        const auto target_active =
-            isNodeActive(segments.getNode(edge.target).value(), node_to_component_);
+        const auto source_active = isNodeActive(
+            segments.getNode(edge.source).value(), node_to_component_, ignored_);
+        const auto target_active = isNodeActive(
+            segments.getNode(edge.target).value(), node_to_component_, ignored_);
         return source_active && target_active;
       });
 
@@ -188,32 +259,42 @@ void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
     size_t new_id = components_ids_.next();
     auto new_component = std::make_unique<ComponentInfo>(
         config.selector, *tasks_, *metric_, segments, nodes, I_xy_all);
+    for (const auto node_id : nodes) {
+      node_to_component_[node_id] = new_id;
+    }
 
     const auto clusters = new_component->ws.getClusters();
     for (const auto& cluster : clusters) {
-      std::set<NodeId> parents;
-      auto iter = cluster.begin();
-      const auto& node = graph.getNode(*iter)->get();
-      const auto parent = node.getParent();
-      auto attrs_ptr = node.attributes().clone();
-      ++iter;
+      VLOG(5) << "Cluster: " << displayNodeSymbolContainer(cluster);
 
-      auto& attrs =
-          *CHECK_NOTNULL(dynamic_cast<KhronosObjectAttributes*>(attrs_ptr.get()));
-      while (iter != cluster.end()) {
-        const auto& other = graph.getNode(*iter)->get();
-        khronos::mergeObjectAttributes(other.attributes<KhronosObjectAttributes>(),
-                                       attrs);
+      auto attrs = getMergedAttributes(graph, cluster);
+      if (!attrs) {
+        LOG(ERROR) << "empty cluster!";
+        continue;
       }
 
-      graph.emplaceNode(DsgLayers::OBJECTS, next_node_id_, std::move(attrs_ptr));
+      const auto& feature =
+          CHECK_NOTNULL(dynamic_cast<SemanticNodeAttributes*>(attrs.get()))
+              ->semantic_feature;
+      const auto result = tasks_->getBestScore(*metric_, feature);
+      if (result.score < config.min_segment_score) {
+        VLOG(1) << "Skipping object with score: " << result.score;
+        continue;
+      }
+
+      graph.emplaceNode(DsgLayers::OBJECTS, next_node_id_, std::move(attrs));
       new_component->objects.push_back(next_node_id_);
 
-      if (parent) {
-        graph.insertEdge(next_node_id_, *parent);
+      const auto parent = getBestParent(graph, cluster);
+      if (!parent) {
+        LOG(WARNING) << "object '" << next_node_id_.getLabel() << "' without parent!";
+        active_.insert(next_node_id_);
       } else {
-        LOG(WARNING) << "Inserted clustered object '" << next_node_id_.getLabel()
-                     << "' without parent!";
+        auto&& [parent_id, parent_active] = *parent;
+        graph.insertEdge(next_node_id_, parent_id);
+        if (parent_active) {
+          active_.insert(next_node_id_);
+        }
       }
 
       ++next_node_id_;
@@ -223,14 +304,72 @@ void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
   }
 }
 
+void ObjectUpdateFunctor::updateActiveParents(DynamicSceneGraph& graph) const {
+  std::vector<NodeId> place_ids;
+  const auto& places = graph.getLayer(DsgLayers::PLACES);
+  for (const auto& id_node_pair : graph.getLayer(DsgLayers::PLACES).nodes()) {
+    place_ids.push_back(id_node_pair.first);
+  }
+
+  // TODO(nathan) drop this once edges start behaving
+  for (const auto& id_node_pair : graph.getLayer(DsgLayers::OBJECTS).nodes()) {
+    active_.insert(id_node_pair.first);
+  }
+
+  NearestNodeFinder places_finder(places, place_ids);
+  auto iter = active_.begin();
+  while (iter != active_.end()) {
+    const SceneGraphNode& node = graph.getNode(*iter).value();
+    const auto parent_id = node.getParent();
+    if (parent_id) {
+      const bool is_active = places.getNode(*parent_id)->get().attributes().is_active;
+      if (is_active) {
+        ++iter;
+      } else {
+        iter = active_.erase(iter);
+      }
+
+      continue;
+    }
+
+    bool found = false;
+    places_finder.find(node.attributes().position,
+                       1,
+                       false,
+                       [&](NodeId place_id, size_t, double distance) {
+                         if (config.neighbor_max_distance > 0.0 &&
+                             distance >= config.neighbor_max_distance) {
+                           LOG(WARNING)
+                               << "Discarding nearest neighbor '"
+                               << NodeSymbol(place_id).getLabel() << "' for node '"
+                               << NodeSymbol(node.id).getLabel() << "' with distance "
+                               << distance << " >= " << config.neighbor_max_distance;
+                         }
+
+                         graph.insertEdge(place_id, node.id);
+                         found = true;
+                       });
+    if (found) {
+      iter = active_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+}
+
 void declare_config(ObjectUpdateFunctor::Config& config) {
   using namespace config;
   name("ObjectUpdateFunctor::Config");
   field<CharConversion>(config.prefix, "prefix");
+  config.edge_checker.setOptional();
   field(config.edge_checker, "edge_checker");
   field(config.tasks, "tasks");
+  config.metric.setOptional();
   field(config.metric, "metric");
   field(config.selector, "selector");
+  field(config.min_segment_score, "min_segment_score");
+  field(config.min_object_score, "min_object_score");
+  field(config.neighbor_max_distance, "neighbor_max_distance");
 }
 
 }  // namespace hydra::llm

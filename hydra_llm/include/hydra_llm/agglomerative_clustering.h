@@ -14,7 +14,8 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
                           const EmbeddingDistance& metric,
                           bool reweight = false,
                           double I_xy = -1,
-                          double delta_weight = 1);
+                          double delta_weight = 1,
+                          int verbosity = 5);
 
 class AgglomerativeClustering : public Clustering {
  public:

@@ -50,7 +50,7 @@ input2:
 reconstruction:
   use_visualizer: true
   sinks:
-    - {type: TsdfOccupancyPublisher, extraction: {min_distance: 0.25}}
+    - {type: TsdfOccupancyPublisher, extraction: {min_distance: 0.25, slice_height: -0.2}}
   active_window_viz:
     color_mode: color
     global_frame_name: $(arg odom_frame)
@@ -87,7 +87,7 @@ reconstruction:
       min_cosine_sim: -1.0
       min_cross_iou: 0.1
       temporal_window: $(arg temporal_window_size_s)
-      min_num_observations: 30
+      min_num_observations: 15
     projective_integrator:
       max_weight: 100000
       interpolation_method: adaptive   # "nearest", "bilinear", "adaptive"
@@ -97,8 +97,8 @@ reconstruction:
       verbosity: 1
     robot_footprint:
       type: RobotFootprintIntegrator
-      bbox_min: [-0.5, -0.15, -0.1]
-      bbox_max: [0.5, 0.15, 0.1]
+      bbox_min: [-0.75, -0.3, -0.1]
+      bbox_max: [0.75, 0.3, 0.1]
       tsdf_weight: 1.0e-4
 #########################
 #  Frontend Parameters  #
@@ -110,7 +110,7 @@ frontend:
     d_graph_resolution: 2.5
     output_mesh_resolution: 0.005
   min_object_vertices: 0
-  min_object_score: 0.2
+  min_object_score: 0.23
   prune_mesh_indices: true
   places:
     type: gvd
@@ -130,7 +130,7 @@ frontend:
       node_merge_distance_m: 0.5
       add_heuristic_edges: true
     sinks:
-      - {type: GvdOccupancyPublisher, extraction: {min_distance: 0.25}}
+      - {type: GvdOccupancyPublisher, extraction: {min_distance: 0.25, slice_height: -0.2}}
 ########################
 #  Backend Parameters  #
 ########################
@@ -169,6 +169,10 @@ backend:
       place_merge: 10.0
       object_merge: 10.0
   enable_rooms: false
+  objects:
+    tasks:
+      type: RosEmbeddingGroup
+      min_segment_score: 0.22
   regions:
     extractor:
       type: PlaceClustering

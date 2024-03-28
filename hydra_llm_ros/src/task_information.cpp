@@ -16,7 +16,7 @@ void declare_config(TaskInformation::Config& config) {
   name("TaskInformation::Config");
   field(config.ns, "ns");
   field<Path>(config.colormap_filepath, "colormap_filepath");
-  field(config.task_service_name, "task_service_name");
+  field(config.task_service_ns, "task_service_ns");
   field(config.make_legend, "make_legend");
   config.metric.setOptional();
   field(config.metric, "metric");
@@ -57,11 +57,11 @@ EmbeddingGroup::Ptr getTasks(const std::string& service,
 TaskInformation::TaskInformation(const Config& config,
                                  const std::vector<std::string>& tasks)
     : config(config::checkValid(config)),
-      colormap_(getColormap(config.colormap_filepath, tasks.size())),
-      task_indices_(getIndices(tasks)),
+      tasks_(getTasks(config.task_service_ns, tasks)),
+      task_indices_(getIndices(tasks_->tasks)),
+      colormap_(getColormap(config.colormap_filepath, tasks_->tasks.size())),
       legend_(config.make_legend ? getLegend(config.ns, *colormap_, task_indices_)
                                  : nullptr),
-      tasks_(getTasks(config.task_service_name, tasks)),
       metric_(config.metric.create()) {
   VLOG(1) << std::endl << config::toString(config);
   DCHECK(colormap_);

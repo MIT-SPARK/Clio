@@ -6,6 +6,8 @@
 
 #include <numeric>
 
+#include "hydra_llm/common.h"
+
 namespace hydra::llm {
 
 bool keysIntersect(EdgeKey key1, EdgeKey key2) {
@@ -47,7 +49,7 @@ ClusteringWorkspace::ClusteringWorkspace(const SceneGraphLayer& layer,
                                          const NodeEmbeddingMap& node_embeddings) {
   size_t index = 0;
   for (auto&& [node_id, feature] : node_embeddings) {
-    features[index] = &feature;
+    features[index] = feature;
     node_lookup[index] = node_id;
     order[node_id] = index;
     ++index;
@@ -76,7 +78,7 @@ size_t ClusteringWorkspace::featureDim() const {
     return 0;
   }
 
-  return features.begin()->second->rows();
+  return features.begin()->second.rows();
 }
 
 std::list<EdgeKey> ClusteringWorkspace::addMerge(EdgeKey key) {

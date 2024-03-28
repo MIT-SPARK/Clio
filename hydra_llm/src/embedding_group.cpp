@@ -1,5 +1,8 @@
 #include "hydra_llm/embedding_group.h"
 
+#include <glog/logging.h>
+
+#include "hydra_llm/common.h"
 #include "hydra_llm/embedding_distances.h"
 
 namespace hydra::llm {
@@ -22,9 +25,14 @@ Eigen::VectorXd EmbeddingGroup::getDistances(const EmbeddingDistance& dist,
 
 Eigen::VectorXd EmbeddingGroup::getScores(const EmbeddingDistance& dist,
                                           const Eigen::VectorXd& embedding) const {
+  const auto fmt = getDefaultFormat();
+  VLOG(30) << "====================================================================";
+  VLOG(30) << "Embedding: " << embedding.format(fmt);
+  VLOG(30) << "====================================================================";
   Eigen::VectorXd scores(embeddings.size());
   for (size_t i = 0; i < embeddings.size(); ++i) {
     scores(i) = dist.score(embeddings[i], embedding);
+    VLOG(30) << "(i=" << i << "): " << scores(i) << " @ " << embeddings[i].format(fmt);
   }
 
   return scores;

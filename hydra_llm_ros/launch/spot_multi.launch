@@ -9,22 +9,22 @@
     <arg name="odom_frame" default="vision"/>
     <arg name="robot_frame" default="body"/>
     <!-- prompt/task arguments -->
-    <arg name="experiment_config" default="$(find llm)/dataconfigs/office_gt_grav_metric.yaml" doc="list of tasks"/>
+    <arg name="experiment_config" default="$(find spot_hydra)/configs/spot_classes.yaml"/>
     <arg name="model_name" default="ViT-L/14" doc="clip model to use"/>
     <arg name="use_cuda" default="True" doc="use cuda to encode tasks"/>
     <!-- input 1 arguments -->
     <arg name="input1_name" default="frontright"/>
-    <arg name="sensor1_frame" default="$(arg input1_name)"/>
-    <arg name="input1/rgb_topic" default="/spot/$(arg input1_name)/color/image_raw"/>
-    <arg name="input1/rgb_info_topic" default="/spot/$(arg input1_name)/color/camera_info"/>
-    <arg name="input1/depth_topic" default="/spot/$(arg input1_name)/depth/image_rect"/>
+    <arg name="sensor1_frame" default="$(arg input1_name)_rotated"/>
+    <arg name="input1/rgb_topic" default="/spot/$(arg input1_name)/color/rotated/image_raw"/>
+    <arg name="input1/rgb_info_topic" default="/spot/$(arg input1_name)/color/rotated/camera_info"/>
+    <arg name="input1/depth_topic" default="/spot/$(arg input1_name)/depth/registered/image_rect"/>
     <arg name="input1/label_topic" default="/spot/$(arg input1_name)/seg_cam/image_raw"/>
     <!-- input 2 arguments -->
     <arg name="input2_name" default="frontleft"/>
-    <arg name="sensor2_frame" default="$(arg input2_name)"/>
-    <arg name="input2/rgb_topic" default="/spot/$(arg input2_name)/color/image_raw"/>
-    <arg name="input2/rgb_info_topic" default="/spot/$(arg input2_name)/color/camera_info"/>
-    <arg name="input2/depth_topic" default="/spot/$(arg input2_name)/depth/image_rect"/>
+    <arg name="sensor2_frame" default="$(arg input2_name)_rotated"/>
+    <arg name="input2/rgb_topic" default="/spot/$(arg input2_name)/color/rotated/image_raw"/>
+    <arg name="input2/rgb_info_topic" default="/spot/$(arg input2_name)/color/rotated/camera_info"/>
+    <arg name="input2/depth_topic" default="/spot/$(arg input2_name)/depth/registered/image_rect"/>
     <arg name="input2/label_topic" default="/spot/$(arg input2_name)/seg_cam/image_raw"/>
     <!-- pipeline arguments -->
     <arg name="run_openset_places" default="false"/>
@@ -43,7 +43,7 @@
     <!-- sensor configuration -->
     <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
     <arg name="sensor_max_range" default="5.0" doc="maximum sensor range in meters"/>
-    <arg name="temporal_window_size_s" default="3.0" doc="size of active window in seconds"/>
+    <arg name="temporal_window_size_s" default="2.0" doc="size of active window in seconds"/>
     <!-- LCD pipeline configuration -->
     <arg name="enable_graph_lcd" default="false"/>
     <arg name="enable_visual_lcd" default="false"/>
@@ -71,23 +71,26 @@
     <!-- use clip-object detect -->
     <include file="$(find llm)/launch/spot_object_detect.launch" unless="$(arg closed_set)">
         <arg name="camera_name" value="frontright"/>
-        <arg name="visualize" value="false"/>
-        <arg name="verbose" value="false"/>
+        <arg name="visualize" value="true"/>
+        <arg name="verbose" value="true"/>
     </include>
 
     <include file="$(find llm)/launch/spot_object_detect.launch" unless="$(arg closed_set)">
         <arg name="camera_name" value="frontleft"/>
-        <arg name="visualize" value="false"/>
-        <arg name="verbose" value="false"/>
+        <arg name="visualize" value="true"/>
+        <arg name="verbose" value="true"/>
     </include>
 
     <include file="$(find grounded_sam_ros)/launch/spot_segmentation.launch" pass_all_args="true" if="$(arg closed_set)" />
 
-    <node pkg="llm" type="gt_task_server" name="gt_task_server" output="screen">
-        <param name="gt_path" value="$(arg experiment_config)"/>
-        <param name="model_name" value="$(arg model_name)"/>
-        <param name="use_cuda" value="$(arg use_cuda)"/>
-    </node>
+    <arg name="object_detector_config" default="$(find llm)/experiments/configs/cluster/rs_large_clip_averaging.yaml"/>
+    <arg name="run_task_server" default="true"/>
+    <arg name="tasks_file" default="$(find llm)/dataconfigs/spot_classes.yaml"/>
+
+    <include file="$(find llm)/launch/task_server.launch" if="$(arg run_task_server)">
+        <arg name="config_path" value="$(arg object_detector_config)"/>
+        <arg name="tasks_file" value="$(arg tasks_file)"/>
+    </include>
 
     <node pkg="hydra_llm_ros"
           type="hydra_llm_node"
@@ -112,7 +115,7 @@
         <remap from="~input2/semantic/image_raw" to="$(arg input2/label_topic)"/>
         <remap from="~input2/object_image" to="$(arg input2/label_topic)"/>
         <!-- task services -->
-        <remap from="/get_embedding" to="/gt_task_server/get_tasks"/>
+        <remap from="/get_tasks" to="/task_server/get_tasks"/>
         <!-- parameter files -->
         <rosparam file="$(find hydra_llm_ros)/config/spot_multi.yaml" subst_value="true"/>
         <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
@@ -135,7 +138,7 @@
           <param name="~visualizer_frame" value="$(arg map_frame)"/>
           <remap from="~dsg" to="hydra_llm_node/backend/dsg"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/backend/dsg_mesh"/>
-          <remap from="/get_embedding" to="/gt_task_server/get_tasks"/>
+          <remap from="/get_tasks" to="/task_server/get_tasks"/>
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
           <remap from="~llm_places/current_task" to="/current_task"/>
           <param name="load_graph" value="false"/>

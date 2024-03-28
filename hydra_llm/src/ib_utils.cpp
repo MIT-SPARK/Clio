@@ -46,9 +46,15 @@ Eigen::MatrixXd computeIBpyGivenX(const ClusteringWorkspace& ws,
   Eigen::MatrixXd py_x = Eigen::MatrixXd::Ones(M, N) * 1e-12;
   Eigen::MatrixXd py_x_temp = Eigen::MatrixXd::Zero(M, N);
   py_x_temp.row(0).setConstant(config.score_threshold);
+  VLOG(15) << "----------------------------------------";
+  VLOG(15) << "Computing workspace feature scores";
+  VLOG(15) << "----------------------------------------";
   for (auto&& [idx, feature] : ws.features) {
-    py_x_temp.block(1, idx, M - 1, 1) = tasks.getScores(metric, *feature);
+    const auto scores = tasks.getScores(metric, feature);
+    VLOG(15) << "scores @ " << idx << ": " << scores.format(fmt);
+    py_x_temp.block(1, idx, M - 1, 1) = scores;
   }
+  VLOG(15) << "----------------------------------------";
 
   size_t k = std::min(M, config.top_k);
   size_t l = k;
@@ -77,10 +83,12 @@ Eigen::MatrixXd computeIBpyGivenX(const ClusteringWorkspace& ws,
   }
 
   VLOG(10) << "raw: p(y|x): " << py_x.format(fmt);
-  double min = py_x.row(1).minCoeff();
-  double max = py_x.row(1).maxCoeff();
-  double avg = py_x.row(1).sum() / ws.features.size();
-  VLOG(10) << "score average: " << avg << " (range: [" << min << ", " << max << "]";
+  const auto scored = py_x.bottomRows(M - 1);
+  const auto min = scored.rowwise().minCoeff();
+  const auto max = scored.rowwise().maxCoeff();
+  const auto avg = scored.rowwise().mean();
+  VLOG(10) << "score average: " << avg.format(fmt) << ", range: " << min.format(fmt)
+           << " -> " << max.format(fmt);
 
   const auto norm_factor = py_x.colwise().sum();
   py_x.array().rowwise() /= norm_factor.array();

@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     object_colors->setTasks(object_task_info);
     viz.addUpdateCallback([&](const auto& graph) {
       if (graph) {
-        object_colors->setGraph(*graph);
+        object_colors->setGraph(*graph, spark_dsg::DsgLayers::OBJECTS);
       }
     });
     viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS,
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     room_colors->setTasks(room_task_info);
     viz.addUpdateCallback([&](const auto& graph) {
       if (graph) {
-        room_colors->setGraph(*graph);
+        room_colors->setGraph(*graph, spark_dsg::DsgLayers::PLACES);
       }
     });
     viz.setLayerColorFunction(spark_dsg::DsgLayers::ROOMS,

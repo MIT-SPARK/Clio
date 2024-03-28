@@ -135,7 +135,7 @@ NodeColor LLMLayerPlugin::getNodeColor(const DynamicSceneGraph&,
 void LLMLayerPlugin::draw(const ConfigManager& manager,
                           const std_msgs::Header& header,
                           const DynamicSceneGraph& graph) {
-  colors_->setGraph(graph);
+  colors_->setGraph(graph, config.layer);
   const auto& layer = graph.getLayer(config.layer);
   const auto& layer_config =
       *CHECK_NOTNULL(manager.getLayerConfig(config.visualization_layer));

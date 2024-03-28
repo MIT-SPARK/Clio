@@ -15,7 +15,6 @@ using NodeColor = SemanticNodeAttributes::ColorVector;
 class LayerColorFunctor {
  public:
   struct Config {
-    LayerId layer_to_use = DsgLayers::PLACES;
     bool color_by_task = true;
     bool label_by_task = true;
     double min_score = 0.0;
@@ -33,7 +32,7 @@ class LayerColorFunctor {
 
   virtual ~LayerColorFunctor() = default;
 
-  void setGraph(const DynamicSceneGraph& graph);
+  void setGraph(const DynamicSceneGraph& graph, LayerId layer_to_use);
 
   NodeColor getNodeColor(const SceneGraphNode& node) const;
 
