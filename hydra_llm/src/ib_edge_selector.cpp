@@ -105,7 +105,7 @@ bool IBEdgeSelector::updateFromEdge(EdgeKey edge) {
 
   I_zy_prev_ = I_zy;
   deltas_.push_back(delta);
-  return delta <= config.max_delta;
+  return delta < config.max_delta;
 }
 
 bool IBEdgeSelector::compareEdges(const std::pair<EdgeKey, double>& lhs,

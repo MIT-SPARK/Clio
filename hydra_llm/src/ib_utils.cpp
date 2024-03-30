@@ -111,6 +111,6 @@ Eigen::VectorXd computeIBpy(const EmbeddingGroup& tasks) {
 
 double computeDeltaWeight(const SceneGraphLayer& layer,
                           const std::vector<NodeId>& nodes) {
-  return nodes.size() / layer.numNodes();
+  return static_cast<double>(nodes.size()) / static_cast<double>(layer.numNodes());
 }
 }  // namespace hydra::llm
