@@ -14,7 +14,7 @@ reconstruction:
     min_object_reconstruction_confidence: 0.5
     scale_object_reconstruction_confidence_with_weight: true
     min_object_reconstruction_observations: 3
-    object_reconstruction_resolution: -0.05  # Positive: voxel size in meters. Negative: fraction of the extent. 0: Skip. (-0.02)
+    object_reconstruction_resolution: -0.03  # Positive: voxel size in meters. Negative: fraction of the extent. 0: Skip. (-0.02)
     object_detector:
       min_cluster_size: 20  # pixels
       max_cluster_size: 50000  # pixels
@@ -23,7 +23,7 @@ reconstruction:
       grid_size: 0.1  # m
     tracker:
       semantic_association: assign_track # 'assign_cluster', 'assign_track'
-      min_semantic_iou: 0.6
+      min_semantic_iou: 0.4
       min_cosine_sim: 0.7
       min_cross_iou: 0.1
       temporal_window: $(arg temporal_window_size_s)

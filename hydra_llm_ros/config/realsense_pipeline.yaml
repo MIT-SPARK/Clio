@@ -42,8 +42,8 @@ reconstruction:
   active_window:  # taken from Khronos
     verbosity: 1
     volumetric_map:
-      voxel_size: 0.15  # m
-      truncation_distance: 0.35  # m (Usually 2-3x voxel size)
+      voxel_size: 0.2  # m
+      truncation_distance: 0.4  # m (Usually 2-3x voxel size)
       voxels_per_side: 16
     object_detector:
       type: $(arg object_detection_type)
