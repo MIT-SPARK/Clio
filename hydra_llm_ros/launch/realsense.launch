@@ -6,6 +6,7 @@
     <!-- general configuration -->
     <arg name="robot_id" default="0" doc="Robot unique ID (typically 0)"/>
     <arg name="dataset_name" default="realsense" doc="Dataset name (for hydra config)"/>
+    <arg name="ablation_name" default="realsense" doc="Ablation name (for hydra config)"/>
     <!-- tf frames -->
     <arg name="map_frame" default="world"/>
     <arg name="odom_frame" default="world"/>
@@ -22,11 +23,12 @@
     <arg name="scene" default="office_gt_grav_metric"/>
     <arg name="tasks_file" default="$(find llm)/dataconfigs/$(arg scene).yaml"/>
 
-    <include file="$(find llm)/launch/object_detect.launch" if="$(arg run_object_detector)">
+    <include file="$(find llm)/launch/object_detect.launch" if="$(arg run_object_detector)" pass_all_args="true">
         <arg name="rgb_topic" value="$(arg rgb_topic)"/>
         <arg name="output_topic" value="$(arg object_topic)"/>
         <arg name="config_path" value="$(arg object_detector_config)"/>
         <arg name="tasks_file" value="$(arg tasks_file)"/>
+        <arg name="log_output" value="true"/>
     </include>
 
     <include file="$(find llm)/launch/task_server.launch" if="$(arg run_task_server)">
@@ -36,12 +38,13 @@
 
     <include file="$(find hydra_llm_ros)/launch/hydra_llm.launch" pass_all_args="true">
         <arg name="dataset_name" value="$(arg dataset_name)"/>
+        <arg name="ablation_name" value="$(arg ablation_name)"/>
         <arg name="rviz_file" value="realsense.rviz"/>
         <arg name="closed_set" value="false"/>
-        <arg name="temporal_window_size_s" value="3"/>
+        <arg name="temporal_window_size_s" value="5"/>
         <arg name="viz_config_file" default="visualizer_config.yaml"/>
-        <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
-        <arg name="sensor_max_range" default="3.0" doc="maximum sensor range in meters"/>
+        <arg name="sensor_min_range" default="0.3" doc="minimum sensor range in meters"/>
+        <arg name="sensor_max_range" default="4.0" doc="maximum sensor range in meters"/>
     </include>
 
 </launch>

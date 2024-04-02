@@ -2,6 +2,7 @@
 #include <hydra_llm/common.h>
 #include <hydra_llm/embedding_distances.h>
 #include <hydra_llm/ib_edge_selector.h>
+#include <hydra_llm/ib_utils.h>
 
 namespace hydra::llm {
 
@@ -297,6 +298,20 @@ TEST(IBEdgeSelector, CompareEdgesCorrect) {
   EXPECT_TRUE(selector.compareEdges(e1, e2));
   EXPECT_FALSE(selector.compareEdges(e1, e1));
   EXPECT_FALSE(selector.compareEdges(e2, e1));
+}
+
+TEST(IBEdgeSelector, ComputeDeltaWeightCorrect) {
+  IsolatedSceneGraphLayer layer(2);
+  std::vector<NodeId> nodes;
+  NodeEmbeddingMap x_segments;
+  for (size_t i = 0; i < 5; ++i) {
+    layer.emplaceNode(2 * i, std::make_unique<NodeAttributes>());
+    x_segments[2 * i] = getOneHot(i, 10);
+    nodes.push_back(2 * i);
+  }
+
+  EXPECT_EQ(computeDeltaWeight(layer, std::vector<NodeId>{}), 0.0);
+  EXPECT_EQ(computeDeltaWeight(layer, nodes), 1.0);
 }
 
 }  // namespace hydra::llm
