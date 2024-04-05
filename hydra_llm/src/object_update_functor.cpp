@@ -277,7 +277,7 @@ void ObjectUpdateFunctor::detectObjects(DynamicSceneGraph& graph) const {
           CHECK_NOTNULL(dynamic_cast<SemanticNodeAttributes*>(attrs.get()))
               ->semantic_feature;
       const auto result = tasks_->getBestScore(*metric_, feature);
-      if (result.score < config.min_segment_score) {
+      if (result.score < config.min_object_score) {
         VLOG(1) << "Skipping object with score: " << result.score;
         continue;
       }
