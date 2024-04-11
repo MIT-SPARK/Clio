@@ -110,7 +110,7 @@ config:
     marker_color_mode: 0  # default
     marker_alpha: 0.8
     use_sphere_marker: false
-    use_label: false
+    use_label: true
     use_collapsed_label: false
     label_height: 1.25
     label_scale: 0.3
@@ -139,3 +139,5 @@ llm_places:
   min_score: 0.58
   max_score: 0.65
 color_objects_by_task: true
+color_places_by_task: true
+color_rooms_by_task: true

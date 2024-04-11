@@ -14,7 +14,7 @@ namespace hydra::llm {
 
 void declare_config(AgglomerativeClustering::Config& config) {
   using namespace config;
-  name("Clustering::Config");
+  name("AgglomerativeClustering::Config");
   base<Clustering::Config>(config);
   field(config.metric, "metric");
   field(config.selector, "selector");
@@ -106,7 +106,7 @@ Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
   clusterAgglomerative(ws, *tasks_, *edge_selector_, *metric_);
 
   const auto to_return = getClusters(ws, features);
-  LOG(INFO) << "[IB] finished clustering with " << to_return.size() << " clusters";
+  LOG(INFO) << "[IB] finished clustering with " << to_return.size() << " cluster(s)";
   return to_return;
 }
 

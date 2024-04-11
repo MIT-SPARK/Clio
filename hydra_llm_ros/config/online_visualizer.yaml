@@ -1,0 +1,6 @@
+---
+graphs:
+  clustering:
+    graph:
+      type: GraphFromZmq
+      url: $(arg zmq_url)

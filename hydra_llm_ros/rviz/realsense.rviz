@@ -8,7 +8,7 @@ Panels:
         - /Scene Graph1
         - /Scene Graph1/Scene Graph (Static)1
       Splitter Ratio: 0.5
-    Tree Height: 485
+    Tree Height: 489
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -43,8 +43,6 @@ Visualization Manager:
         All Enabled: true
         dominic/forward_link:
           Value: true
-        map:
-          Value: true
         world:
           Value: true
       Marker Alpha: 1
@@ -54,10 +52,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          world:
-            dominic/forward_link:
-              {}
+        world:
+          dominic/forward_link:
+            {}
       Update Interval: 0
       Value: true
     - Class: rviz/Group
@@ -67,7 +64,21 @@ Visualization Manager:
           Marker Topic: /hydra_dsg_visualizer/dsg_markers
           Name: Scene Graph (Static)
           Namespaces:
-            {}
+            interlayer_edges_2_3: true
+            interlayer_edges_3_1: true
+            interlayer_edges_3_2: true
+            interlayer_edges_4_3: true
+            layer_bounding_boxes_1: true
+            layer_bounding_boxes_2: true
+            layer_bounding_boxes_edges_2: true
+            layer_edges_1: true
+            layer_edges_3: true
+            layer_labels_2: true
+            layer_labels_4: true
+            layer_nodes_1: true
+            layer_nodes_2: true
+            layer_nodes_3: true
+            layer_nodes_4: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -75,7 +86,9 @@ Visualization Manager:
           Marker Topic: /hydra_dsg_visualizer/dynamic_layers_viz
           Name: Scene Graph (Dynamic)
           Namespaces:
-            {}
+            "dynamic_edges_\x00": true
+            "dynamic_label_\x00": true
+            "dynamic_nodes_\x00": true
           Queue Size: 100
           Value: true
         - Class: rviz_mesh_plugin/TriangleMesh
@@ -306,13 +319,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /hydra_llm_node/reconstruction/active_window_viz/output_object_bounding_boxes
       Name: MarkerArray
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: voxblox_rviz_plugin/VoxbloxMultiMesh
       Enabled: true
       Name: VoxbloxMultiMesh
@@ -321,7 +334,423 @@ Visualization Manager:
       Topic: /hydra_llm_node/reconstruction/active_window_viz/output_objects
       Unreliable: false
       Value: true
-      Visible: true
+      Visible:
+        Value: true
+        object_0: true
+        object_10: true
+        object_100: true
+        object_101: true
+        object_102: true
+        object_104: true
+        object_105: true
+        object_107: true
+        object_108: true
+        object_109: true
+        object_11: true
+        object_110: true
+        object_111: true
+        object_112: true
+        object_113: true
+        object_114: true
+        object_115: true
+        object_116: true
+        object_117: true
+        object_118: true
+        object_119: true
+        object_12: true
+        object_120: true
+        object_121: true
+        object_122: true
+        object_123: true
+        object_124: true
+        object_125: true
+        object_126: true
+        object_127: true
+        object_128: true
+        object_129: true
+        object_13: true
+        object_130: true
+        object_131: true
+        object_132: true
+        object_133: true
+        object_134: true
+        object_135: true
+        object_136: true
+        object_137: true
+        object_138: true
+        object_139: true
+        object_14: true
+        object_141: true
+        object_142: true
+        object_144: true
+        object_145: true
+        object_147: true
+        object_148: true
+        object_149: true
+        object_150: true
+        object_151: true
+        object_152: true
+        object_154: true
+        object_155: true
+        object_156: true
+        object_157: true
+        object_158: true
+        object_159: true
+        object_160: true
+        object_161: true
+        object_162: true
+        object_163: true
+        object_164: true
+        object_165: true
+        object_166: true
+        object_167: true
+        object_168: true
+        object_169: true
+        object_170: true
+        object_171: true
+        object_172: true
+        object_173: true
+        object_174: true
+        object_175: true
+        object_176: true
+        object_178: true
+        object_18: true
+        object_180: true
+        object_182: true
+        object_183: true
+        object_184: true
+        object_185: true
+        object_187: true
+        object_188: true
+        object_189: true
+        object_190: true
+        object_193: true
+        object_194: true
+        object_195: true
+        object_196: true
+        object_197: true
+        object_198: true
+        object_199: true
+        object_2: true
+        object_200: true
+        object_202: true
+        object_203: true
+        object_204: true
+        object_205: true
+        object_207: true
+        object_208: true
+        object_209: true
+        object_21: true
+        object_210: true
+        object_211: true
+        object_213: true
+        object_214: true
+        object_217: true
+        object_218: true
+        object_219: true
+        object_220: true
+        object_221: true
+        object_222: true
+        object_223: true
+        object_224: true
+        object_225: true
+        object_226: true
+        object_227: true
+        object_228: true
+        object_229: true
+        object_23: true
+        object_230: true
+        object_231: true
+        object_232: true
+        object_233: true
+        object_234: true
+        object_236: true
+        object_237: true
+        object_239: true
+        object_24: true
+        object_240: true
+        object_241: true
+        object_242: true
+        object_243: true
+        object_244: true
+        object_245: true
+        object_246: true
+        object_247: true
+        object_248: true
+        object_249: true
+        object_25: true
+        object_250: true
+        object_251: true
+        object_252: true
+        object_254: true
+        object_257: true
+        object_258: true
+        object_259: true
+        object_26: true
+        object_260: true
+        object_261: true
+        object_262: true
+        object_263: true
+        object_264: true
+        object_265: true
+        object_266: true
+        object_269: true
+        object_27: true
+        object_270: true
+        object_271: true
+        object_272: true
+        object_273: true
+        object_274: true
+        object_275: true
+        object_276: true
+        object_278: true
+        object_279: true
+        object_280: true
+        object_281: true
+        object_282: true
+        object_284: true
+        object_285: true
+        object_286: true
+        object_287: true
+        object_288: true
+        object_289: true
+        object_29: true
+        object_290: true
+        object_291: true
+        object_292: true
+        object_293: true
+        object_294: true
+        object_295: true
+        object_296: true
+        object_297: true
+        object_298: true
+        object_299: true
+        object_3: true
+        object_30: true
+        object_300: true
+        object_301: true
+        object_302: true
+        object_303: true
+        object_304: true
+        object_305: true
+        object_306: true
+        object_307: true
+        object_308: true
+        object_309: true
+        object_311: true
+        object_312: true
+        object_313: true
+        object_314: true
+        object_315: true
+        object_316: true
+        object_317: true
+        object_318: true
+        object_319: true
+        object_32: true
+        object_320: true
+        object_321: true
+        object_323: true
+        object_324: true
+        object_326: true
+        object_327: true
+        object_328: true
+        object_329: true
+        object_33: true
+        object_332: true
+        object_333: true
+        object_334: true
+        object_335: true
+        object_336: true
+        object_338: true
+        object_34: true
+        object_340: true
+        object_342: true
+        object_344: true
+        object_345: true
+        object_348: true
+        object_349: true
+        object_35: true
+        object_350: true
+        object_351: true
+        object_352: true
+        object_353: true
+        object_355: true
+        object_356: true
+        object_357: true
+        object_358: true
+        object_359: true
+        object_36: true
+        object_360: true
+        object_361: true
+        object_363: true
+        object_364: true
+        object_365: true
+        object_367: true
+        object_368: true
+        object_369: true
+        object_37: true
+        object_370: true
+        object_371: true
+        object_372: true
+        object_373: true
+        object_374: true
+        object_375: true
+        object_376: true
+        object_377: true
+        object_378: true
+        object_379: true
+        object_38: true
+        object_382: true
+        object_384: true
+        object_386: true
+        object_389: true
+        object_39: true
+        object_391: true
+        object_392: true
+        object_393: true
+        object_394: true
+        object_395: true
+        object_397: true
+        object_398: true
+        object_399: true
+        object_4: true
+        object_40: true
+        object_401: true
+        object_403: true
+        object_404: true
+        object_406: true
+        object_407: true
+        object_409: true
+        object_41: true
+        object_411: true
+        object_414: true
+        object_415: true
+        object_417: true
+        object_418: true
+        object_42: true
+        object_422: true
+        object_424: true
+        object_426: true
+        object_428: true
+        object_429: true
+        object_43: true
+        object_431: true
+        object_432: true
+        object_434: true
+        object_435: true
+        object_44: true
+        object_441: true
+        object_442: true
+        object_444: true
+        object_446: true
+        object_448: true
+        object_45: true
+        object_451: true
+        object_453: true
+        object_454: true
+        object_455: true
+        object_457: true
+        object_458: true
+        object_46: true
+        object_461: true
+        object_462: true
+        object_464: true
+        object_466: true
+        object_468: true
+        object_469: true
+        object_47: true
+        object_471: true
+        object_473: true
+        object_476: true
+        object_477: true
+        object_479: true
+        object_48: true
+        object_480: true
+        object_481: true
+        object_483: true
+        object_484: true
+        object_485: true
+        object_486: true
+        object_487: true
+        object_488: true
+        object_489: true
+        object_49: true
+        object_490: true
+        object_492: true
+        object_493: true
+        object_495: true
+        object_496: true
+        object_497: true
+        object_498: true
+        object_499: true
+        object_5: true
+        object_50: true
+        object_500: true
+        object_502: true
+        object_503: true
+        object_504: true
+        object_505: true
+        object_506: true
+        object_508: true
+        object_509: true
+        object_51: true
+        object_511: true
+        object_513: true
+        object_515: true
+        object_517: true
+        object_518: true
+        object_52: true
+        object_520: true
+        object_521: true
+        object_523: true
+        object_526: true
+        object_527: true
+        object_53: true
+        object_530: true
+        object_531: true
+        object_55: true
+        object_56: true
+        object_57: true
+        object_58: true
+        object_59: true
+        object_6: true
+        object_60: true
+        object_63: true
+        object_64: true
+        object_65: true
+        object_66: true
+        object_67: true
+        object_68: true
+        object_69: true
+        object_7: true
+        object_70: true
+        object_72: true
+        object_73: true
+        object_74: true
+        object_75: true
+        object_76: true
+        object_77: true
+        object_78: true
+        object_79: true
+        object_80: true
+        object_81: true
+        object_82: true
+        object_83: true
+        object_84: true
+        object_85: true
+        object_86: true
+        object_87: true
+        object_88: true
+        object_89: true
+        object_9: true
+        object_90: true
+        object_91: true
+        object_92: true
+        object_93: true
+        object_95: true
+        object_96: true
+        object_97: true
+        object_98: true
     - Class: rviz/Image
       Enabled: true
       Image Topic: /llm_frontend/object_task_viz
@@ -362,7 +791,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 27.41244888305664
+      Distance: 24.839202880859375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -370,17 +799,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -2.414813995361328
+        Y: 3.3654699325561523
+        Z: 3.249821901321411
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8203981518745422
+      Pitch: 0.6453984975814819
       Target Frame: dominic/forward_link
-      Yaw: 5.218578815460205
+      Yaw: 5.518580436706543
     Saved: ~
 Window Geometry:
   Depth:
@@ -392,7 +821,7 @@ Window Geometry:
   Hide Right Dock: false
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000015600000391fc020000000dfb000000100044006900730070006c006100790073010000003d00000222000000c900fffffffb0000001200530065006c0065006300740069006f006e000000003b0000018f0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a00440065007000740068000000036d0000006e0000001600fffffffb0000001200530065006d0061006e00740069006300730000000382000000590000001600fffffffb00000006005200470042000000020a000001d10000001600fffffffb0000000a0049006d0061006700650100000265000000990000001600fffffffb0000000a0049006d0061006700650100000304000000ca0000001600ffffff000000010000010f0000039dfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007302000006710000009b0000010f0000039dfb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d006502000000000000025800000418000001e0fb0000000800540069006d006501000000000000045000000000000000000000061c0000039100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000015600000395fc020000000dfb000000100044006900730070006c006100790073010000003b00000224000000c700fffffffb0000001200530065006c0065006300740069006f006e000000003b0000018f0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a00440065007000740068000000036d0000006e0000001600fffffffb0000001200530065006d0061006e00740069006300730000000382000000590000001600fffffffb00000006005200470042000000020a000001d10000001600fffffffb0000000a0049006d00610067006501000002650000009a0000001600fffffffb0000000a0049006d0061006700650100000305000000cb0000001600ffffff000000010000010f0000039dfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a0056006900650077007302000006710000009b0000010f0000039dfb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003efc0100000002fb0000000800540069006d00650200000000000002580000035e000001e0fb0000000800540069006d006501000000000000045000000000000000000000061c0000039500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   RGB:
     collapsed: false
   Selection:

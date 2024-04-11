@@ -16,6 +16,7 @@
     <arg name="rgb_topic" default="/dominic/forward/color/image_raw"/>
     <arg name="depth_topic" default="/dominic/forward/depth/image_rect_raw"/>
     <arg name="object_topic" default="/dominic/forward/object_image"/>
+    <arg name="clip_topic" default="/dominic/forward/clip_vector"/>
     <!-- options -->
     <arg name="run_object_detector" default="false"/>
     <arg name="run_task_server" default="true"/>

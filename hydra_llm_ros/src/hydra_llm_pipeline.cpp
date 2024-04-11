@@ -103,10 +103,14 @@ void HydraLLMPipeline::configureClustering() {
   object_clustering_ = std::make_shared<ObjectUpdateFunctor>(oconf);
   backend->setUpdateFunctor(DsgLayers::OBJECTS, object_clustering_);
 
+  VLOG(1) << std::endl << config::toString(oconf);
+
   const ros::NodeHandle rnh(nh_, "backend/regions");
   const auto rconf = config::checkValid(config::fromRos<RegionConfig>(rnh));
   region_clustering_ = std::make_shared<RegionUpdateFunctor>(rconf);
   backend->setUpdateFunctor(DsgLayers::ROOMS, region_clustering_);
+
+  VLOG(1) << std::endl << config::toString(rconf);
 }
 
 }  // namespace hydra::llm

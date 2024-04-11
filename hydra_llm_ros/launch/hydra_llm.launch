@@ -10,12 +10,15 @@
     <arg name="depth_topic" default="depth_registered/image_rect"/>
     <arg name="label_topic" default="semantic/image_raw"/>
     <arg name="object_topic" default="object/image_raw"/>
+    <arg name="clip_topic" default="/clip_vector"/>
     <arg name="rgb_image_transport" default="raw"/>
     <arg name="object_label_file" default="''"/>
 
     <arg name="closed_set" default="false"/>
+    <arg name="geometric_places" default="true"/>
     <arg name="object_label_file" default="" if="$(arg closed_set)"/>
     <arg name="object_detection_type" default="$(eval 'connected_semantics' if arg('closed_set') else 'instance_forwarding')"/>
+    <arg name="places_clustering_type" default="$(eval 'GeometricClustering' if arg('geometric_places') else 'SemanticClustering')"/>
     <arg name="subscriber_type" default="$(eval 'semantic' if arg('closed_set') else 'openset')"/>
 
     <!-- parameter files -->
@@ -25,6 +28,7 @@
     <arg name="config_path" default="$(find hydra_llm_ros)/config/$(arg dataset_name)_pipeline.yaml"/>
     <arg name="ros_params_file" default="$(find hydra_llm_ros)/config/ros_argument_params.yaml"/>
     <arg name="ablation_config_path" default="$(find hydra_llm_ros)/config/$(arg ablation_name).yaml"/>
+    <arg name="places_task_prompts" default="[]"/>
     <!-- labelspace configuration -->
     <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
     <arg name="labelspace_name" default=""/>
@@ -52,7 +56,7 @@
     <arg name="graph_lcd_config_path" if="$(arg enable_graph_lcd)"/>
     <arg name="vocabulary_path" default="$(find hydra)/models/vocabulary/ORBvoc.yml"/>
     <!-- zmq interface -->
-    <arg name="use_zmq_interface" default="true"/>
+    <arg name="use_zmq_interface" default="false"/>
     <arg name="zmq_ip" default="127.0.0.1"/>
     <arg name="zmq_send_url" default="tcp://$(arg zmq_ip):8001"/>
     <arg name="zmq_recv_url" default="tcp://$(arg zmq_ip):8002"/>
@@ -84,6 +88,9 @@
     <!-- log message controls -->
     <arg name="min_glog_level" default="0"/>
     <arg name="verbosity" default="0"/>
+    <arg name="glog_to_file" default="false"/>
+    <arg name="glog_args" value="--logtostderr=0 --log_dir=$(arg log_path)" if="$(arg glog_to_file)"/>
+    <arg name="glog_args" value="" unless="$(arg glog_to_file)"/>
     <!-- development args -->
     <arg name="debug" default="false"/>
     <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
@@ -93,7 +100,7 @@
           type="hydra_llm_node"
           name="hydra_llm_node"
           launch-prefix="$(arg launch_prefix)"
-          args="--minloglevel=$(arg min_glog_level) -v=$(arg verbosity)"
+          args="--minloglevel=$(arg min_glog_level) -v=$(arg verbosity) $(arg glog_args)"
           required="true"
           output="screen">
         <env name="TERM" value="xterm-256color"/>
@@ -104,7 +111,9 @@
         <remap from="~input/depth/image_rect" to="$(arg depth_topic)"/>
         <remap from="~input/semantic/image_raw" to="$(arg label_topic)"/>
         <remap from="~input/object_image" to="$(arg object_topic)"/>
+        <remap from="~input/clip_vector" to="$(arg clip_topic)"/>
         <remap from="/get_tasks" to="/task_server/get_tasks"/>
+        <remap from="/get_embedding" to="/task_server/get_embedding"/>
         <!-- image transport -->
         <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
         <!-- parameter files -->
@@ -130,8 +139,10 @@
 o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/backend/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="hydra_llm_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
-          <remap from="~tasks_visualizer/current_task" to="/llm_frontend/object_detector_node/current_task"/>
+          <remap from="~object_task_visualizer/current_task" to="/task_server/current_task"/>
+          <remap from="~room_tasks_visualizer/current_task" to="/task_server/current_task"/>
           <remap from="/get_tasks" to="/task_server/get_tasks"/>
+          <remap from="/get_embedding" to="/task_server/get_embedding"/>
           <!-- main configuration -->
           <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
           <!-- various parameters -->
@@ -140,6 +151,7 @@ o         <remap from="~dsg" to="hydra_llm_node/frontend/dsg" if="$(arg show_fro
           <param name="load_graph" value="false"/>
           <param name="use_zmq" value="$(arg viz_use_zmq)"/>
           <param name="zmq_url" value="$(arg viz_zmq_url)"/>
+          <rosparam param="room_tasks" subst_value="true">$(arg places_task_prompts)</rosparam>
         </node>
     </group>
 

@@ -20,7 +20,7 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
 class AgglomerativeClustering : public Clustering {
  public:
   struct Config : Clustering::Config {
-    config::VirtualConfig<EmbeddingDistance> metric;
+    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
     config::VirtualConfig<EdgeSelector> selector;
   };
 
@@ -46,6 +46,6 @@ class AgglomerativeClustering : public Clustering {
           "AgglomerativeClustering");
 };
 
-void declare_config(Clustering::Config& config);
+void declare_config(AgglomerativeClustering::Config& config);
 
 }  // namespace hydra::llm

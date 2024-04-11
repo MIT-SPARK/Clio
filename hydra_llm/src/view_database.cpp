@@ -164,6 +164,7 @@ void ViewDatabase::updateAssignments(const DynamicSceneGraph& graph,
     ++iter;
   }
 
+  VLOG(2) << "Assigning features with " << views.size() << " active view(s)";
   for (const auto node_id : active_places) {
     auto& attrs = graph.getNode(node_id)->get().attributes<PlaceNodeAttributes>();
     view_selector_->selectFeature(views, attrs);

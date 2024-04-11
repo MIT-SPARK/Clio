@@ -9,7 +9,7 @@
     <arg name="odom_frame" default="vision"/>
     <arg name="robot_frame" default="body"/>
     <!-- prompt/task arguments -->
-    <arg name="experiment_config" default="$(find spot_hydra)/configs/spot_classes.yaml"/>
+    <arg name="experiment_config" default="$(find llm)/dataconfigs/spot_classes.yaml"/>
     <arg name="model_name" default="ViT-L/14" doc="clip model to use"/>
     <arg name="use_cuda" default="True" doc="use cuda to encode tasks"/>
     <!-- input 1 arguments -->

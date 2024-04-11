@@ -129,7 +129,38 @@ backend:
     tasks:
       type: RosEmbeddingGroup
   regions:
+    color_by_task: true
     extractor:
-      type: PlaceClustering
+      type: $(arg places_clustering_type)
       clustering:
-        type: NoClustering
+        type: AgglomerativeClustering  # unused if doing geometric rooms
+        tasks:
+          type: RosEmbeddingGroup
+          prompts: $(arg places_task_prompts)
+          silent_wait: false
+        metric:
+          type: cosine
+        selector:
+          type: IB
+          max_delta: 0.1
+          score_threshold: 0.0
+          top_k: 2
+          cumulative: true
+          null_task_preprune: false
+      rooms:
+        min_dilation_m: 0.5
+        max_dilation_m: 1.2
+        min_window_size: 0.2
+        clip_dilation_window_to_max: false
+        min_component_size: 10
+        min_room_size: 10
+        dilation_threshold_mode: PLATEAU
+        min_lifetime_length_m: 0.1
+        plateau_ratio: 0.25
+        clustering_mode: NEIGHBORS
+        max_modularity_iters: 5
+        modularity_gamma: 1.0
+        room_prefix: R
+        dilation_diff_threshold_m: -1.0
+        log_filtrations: false
+        log_place_graphs: false

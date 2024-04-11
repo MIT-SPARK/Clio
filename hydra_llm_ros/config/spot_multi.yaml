@@ -174,18 +174,17 @@ backend:
       type: RosEmbeddingGroup
       min_segment_score: 0.22
   regions:
+    color_by_task: true
     extractor:
-      type: PlaceClustering
-      min_assocation_iou: 0.8
+      type: GeometricClustering
       clustering:
-        type: $(arg places_clustering_type)
-        stop_value: 0.0
+        type: AgglomerativeClustering  # unused if doing geometric rooms
         tasks:
           type: RosEmbeddingGroup
         metric:
           type: cosine
-        merge:
-          type: weighted_mean
+        selector:
+          type: IB
 #############################
 #  ROS Argument Parameters  #
 #############################

@@ -1,48 +1,50 @@
 <launch>
-  <arg name="scene_graph_path" doc="scene graph filename to show"/>
-  <arg name="mesh_filepath" default=""/>
+    <arg name="scene_graph_path" doc="path to scene graph for visualization."/>
+    <arg name="map_frame" default="map" doc="backend scene graph frame"/>
+    <arg name="places_task_prompts" default="[]"/>
+    <arg name="visualizer_ns" default="hydra_dsg_visualizer" doc="visualizer namespace to use"/>
 
-  <arg name="visualizer_ns" value="hydra_visualizer" doc="visualizer namespace"/>
-  <arg name="visualizer_frame" default="map"/>
-  <arg name="start_rviz" default="true" doc="automatically start rviz"/>
-  <arg name="verbosity" default="0" doc="visualizer verbosity"/>
-  <arg name="start_mesh_publisher" value="$(eval 'false' if arg('mesh_filepath') == '' else 'true')"/>
-  <arg name="semantic_colormap" default="$(find hydra_llm_ros)/config/task_colors.csv"/>
-  <arg name="run_task_embeddings" default="true"/>
+    <arg name="verbosity" default="0"/>
+    <arg name="viz_debug" default="false"/>
+    <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
+    <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
+    <arg name="rviz_dir" default="$(find hydra_llm_ros)/rviz"/>
+    <arg name="rviz_file" default="hydra_visualizer.rviz"/>
+    <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+    <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
+    <arg name="viz_config_file" default="visualizer_config.yaml"/>
+    <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
 
-  <arg name="rviz_dir" default="$(find hydra_ros)/rviz"/>
-  <arg name="rviz_file" default="hydra_visualizer.rviz"/>
-  <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+    <arg name="run_task_server" default="true"/>
+    <arg name="object_detector_config" default="$(find llm)/experiments/configs/cluster/rs_large_clip_averaging.yaml"/>
+    <arg name="scene" default="office_gt_grav_metric"/>
+    <arg name="tasks_file" default="$(find llm)/dataconfigs/$(arg scene).yaml"/>
 
-  <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
-  <arg name="viz_config_file" default="task_visualizer_config.yaml"/>
-  <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
+    <include file="$(find llm)/launch/task_server.launch" if="$(arg run_task_server)">
+        <arg name="config_path" value="$(arg object_detector_config)"/>
+        <arg name="tasks_file" value="$(arg tasks_file)"/>
+    </include>
 
-  <arg name="viz_debug" default="false"/>
-  <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
-  <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
+    <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"/>
 
-  <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"/>
-
-  <include file="$(find llm)/launch/clip_publisher.launch" pass_all_args="true" if="$(arg run_task_embeddings)"/>
-
-  <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
-        launch-prefix="$(arg viz_launch_prefix)"
-        output="screen"
-        required="true"
-        args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
-    <param name="scene_graph_filepath" value="$(arg scene_graph_path)"/>
-    <param name="load_graph" value="true"/>
-    <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
-    <remap from="~llm_places/current_task" to="/current_task"/>
-    <param name="llm_places/colormap_filepath" value="$(arg semantic_colormap)"/>
-    <param name="tasks_config/colormap_filepath" value="$(arg semantic_colormap)"/>
-  </node>
-
-  <node pkg="hydra_ros" type="mesh_publisher_node" name="mesh_publisher_node"
-        if="$(arg start_mesh_publisher)">
-      <param name="mesh_filepath" value="$(arg mesh_filepath)"/>
-      <param name="mesh_frame" value="$(arg visualizer_frame)"/>
-  </node>
+    <node pkg="hydra_llm_ros" type="hydra_llm_visualizer_node" name="$(arg visualizer_ns)"
+          launch-prefix="$(arg viz_launch_prefix)"
+          output="screen"
+          required="true"
+          args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
+      <!-- topic and service remappings -->
+      <param name="scene_graph_filepath" value="$(arg scene_graph_path)"/>
+      <param name="load_graph" value="true"/>
+      <remap from="~tasks_visualizer/current_task" to="/llm_frontend/object_detector_node/current_task"/>
+      <remap from="/get_tasks" to="/task_server/get_tasks"/>
+      <remap from="/get_embedding" to="/task_server/get_embedding"/>
+      <!-- main configuration -->
+      <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
+      <!-- various parameters -->
+      <param name="~visualizer_frame" value="$(arg map_frame)"/>
+      <param name="tasks_config/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
+      <param name="load_graph" value="true"/>
+      <rosparam param="room_tasks" subst_value="true">$(arg places_task_prompts)</rosparam>
+    </node>
 
 </launch>
