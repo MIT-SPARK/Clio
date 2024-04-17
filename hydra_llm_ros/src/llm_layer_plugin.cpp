@@ -66,7 +66,7 @@ LLMLayerPlugin::LLMLayerPlugin(const ros::NodeHandle& nh, const std::string& nam
   bbox_edge_ns_ = marker_ns + "_bbox_edges";
 
   pub_ = nh_.advertise<visualization_msgs::MarkerArray>("", 1, true);
-  colors_ = std::make_shared<llm::LayerColorFunctor>(nh_);
+  colors_ = std::make_shared<llm::LayerColorFunctor>(nh_.getNamespace());
 }
 
 LLMLayerPlugin::~LLMLayerPlugin() {}
@@ -127,15 +127,16 @@ void LLMLayerPlugin::drawBoxes(const ConfigManager& manager,
   }
 }
 
-NodeColor LLMLayerPlugin::getNodeColor(const DynamicSceneGraph&,
+NodeColor LLMLayerPlugin::getNodeColor(const DynamicSceneGraph& graph,
                                        const SceneGraphNode& node) const {
-  return colors_->getNodeColor(node);
+  return colors_->getColor(graph, node);
 }
 
 void LLMLayerPlugin::draw(const ConfigManager& manager,
                           const std_msgs::Header& header,
                           const DynamicSceneGraph& graph) {
-  colors_->setGraph(graph, config.layer);
+  colors_->setLayer(config.layer);
+  colors_->setGraph(graph);
   const auto& layer = graph.getLayer(config.layer);
   const auto& layer_config =
       *CHECK_NOTNULL(manager.getLayerConfig(config.visualization_layer));

@@ -1,4 +1,5 @@
 #pragma once
+#include <hydra_ros/visualizer/color_adaptors.h>
 #include <hydra_ros/visualizer/visualizer_types.h>
 #include <llm/ClipVector.h>
 #include <ros/ros.h>
@@ -12,7 +13,7 @@ namespace hydra::llm {
 
 using NodeColor = SemanticNodeAttributes::ColorVector;
 
-class LayerColorFunctor {
+class LayerColorFunctor : public ColorAdaptor {
  public:
   struct Config {
     bool color_by_task = true;
@@ -28,19 +29,24 @@ class LayerColorFunctor {
     double max_luminance = 0.8;
   } const config;
 
-  LayerColorFunctor(const ros::NodeHandle& nh);
+  explicit LayerColorFunctor(const std::string& ns);
+
+  LayerColorFunctor(const Config& config, const std::string& ns);
 
   virtual ~LayerColorFunctor() = default;
 
-  void setGraph(const DynamicSceneGraph& graph, LayerId layer_to_use);
+  void setGraph(const DynamicSceneGraph& graph) override;
 
-  NodeColor getNodeColor(const SceneGraphNode& node) const;
+  NodeColor getColor(const DynamicSceneGraph& graph,
+                     const SceneGraphNode& node) const override;
 
   bool hasChange() const { return has_change_; }
 
   void clearChangeFlag() { has_change_ = false; }
 
   void setTasks(const llm::TaskInformation::Ptr& tasks) { tasks_ = tasks; }
+
+  void setLayer(LayerId layer_to_use);
 
  private:
   NodeColor getTaskColor(const SemanticNodeAttributes& attrs) const;
@@ -56,6 +62,7 @@ class LayerColorFunctor {
   ros::NodeHandle nh_;
   bool has_change_;
 
+  std::optional<LayerId> layer_to_use_;
   bool color_by_task_;
   bool label_by_task_;
   bool has_current_task_feature_;
@@ -69,6 +76,12 @@ class LayerColorFunctor {
   ros::Subscriber sub_;
   ros::ServiceServer srv_;
   ros::ServiceServer lsrv_;
+
+  inline static const auto registration_ = config::
+      RegistrationWithConfig<ColorAdaptor, LayerColorFunctor, Config, std::string>(
+          "LayerColorFunctor");
 };
+
+void declare_config(LayerColorFunctor::Config& config);
 
 }  // namespace hydra::llm

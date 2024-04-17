@@ -37,6 +37,7 @@
 #include <glog/logging.h>
 #include <hydra_ros/visualizer/dsg_visualizer_plugin.h>
 #include <hydra_ros/visualizer/hydra_visualizer.h>
+#include <hydra_ros/visualizer/footprint_plugin.h>
 #include <khronos_ros/visualization/dsg_visualizer_plugins/dsg_visualizer_plugin.h>
 
 #include "hydra_llm_ros/llm_layer_color_functor.h"
@@ -52,6 +53,7 @@ struct LLMPluginConfig {
   bool color_objects_by_task = false;
   bool color_rooms_by_task = false;
   bool color_places_by_task = false;
+  bool footprint_use_functor = false;
   std::string object_ns = "object_task_visualizer";
   std::string room_ns = "room_tasks_visualizer";
   std::vector<std::string> tasks;
@@ -67,6 +69,7 @@ void declare_config(LLMPluginConfig& config) {
   field(config.color_objects_by_task, "color_objects_by_task");
   field(config.color_rooms_by_task, "color_rooms_by_task");
   field(config.color_places_by_task, "color_places_by_task");
+  field(config.footprint_use_functor, "footprint_use_functor");
   field(config.object_ns, "object_ns");
   field(config.room_ns, "room_ns");
   field(config.tasks, "tasks");
@@ -90,14 +93,6 @@ int main(int argc, char** argv) {
   node.clearPlugins();
 
   const auto config = config::fromRos<LLMPluginConfig>(nh);
-  for (auto&& [name, plugin_type] : config.plugins) {
-    node.addPlugin(config::create<hydra::DsgVisualizerPlugin>(plugin_type, nh, name));
-  }
-
-  for (const auto& conf : config.khronos_plugins) {
-    node.addPlugin(conf.create(nh, node.visualizer_));
-  }
-
   std::shared_ptr<hydra::llm::LayerColorFunctor> room_colors;
   std::shared_ptr<hydra::llm::LayerColorFunctor> object_colors;
 
@@ -114,40 +109,38 @@ int main(int argc, char** argv) {
   }
 
   if (config.color_objects_by_task) {
-    const ros::NodeHandle onh(nh, config.object_ns);
-    object_colors = std::make_shared<hydra::llm::LayerColorFunctor>(onh);
+    object_colors = std::make_shared<hydra::llm::LayerColorFunctor>(
+        nh.resolveName(config.object_ns));
     object_colors->setTasks(object_task_info);
-    viz.addUpdateCallback([&](const auto& graph) {
-      if (graph) {
-        object_colors->setGraph(*graph, spark_dsg::DsgLayers::OBJECTS);
-      }
-    });
-    viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS,
-                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
-                                return object_colors->getNodeColor(node);
-                              });
+    object_colors->setLayer(spark_dsg::DsgLayers::OBJECTS);
+    viz.setLayerColorFunction(spark_dsg::DsgLayers::OBJECTS, object_colors);
   }
 
   if (config.color_rooms_by_task) {
-    const ros::NodeHandle rnh(nh, config.room_ns);
-    room_colors = std::make_shared<hydra::llm::LayerColorFunctor>(rnh);
+    room_colors =
+        std::make_shared<hydra::llm::LayerColorFunctor>(nh.resolveName(config.room_ns));
     room_colors->setTasks(room_task_info);
-    viz.addUpdateCallback([&](const auto& graph) {
-      if (graph) {
-        room_colors->setGraph(*graph, spark_dsg::DsgLayers::PLACES);
-      }
-    });
-    viz.setLayerColorFunction(spark_dsg::DsgLayers::ROOMS,
-                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
-                                return room_colors->getNodeColor(node);
-                              });
+    room_colors->setLayer(spark_dsg::DsgLayers::PLACES);
+    viz.setLayerColorFunction(spark_dsg::DsgLayers::ROOMS, room_colors);
   }
 
   if (config.color_rooms_by_task && config.color_places_by_task) {
-    viz.setLayerColorFunction(spark_dsg::DsgLayers::PLACES,
-                              [&](const spark_dsg::SceneGraphNode& node) -> NodeColor {
-                                return room_colors->getNodeColor(node);
-                              });
+    viz.setLayerColorFunction(spark_dsg::DsgLayers::PLACES, room_colors);
+  }
+
+  for (auto&& [name, plugin_type] : config.plugins) {
+    std::shared_ptr<hydra::DsgVisualizerPlugin> plugin =
+        config::create<hydra::DsgVisualizerPlugin>(plugin_type, nh, name);
+    const auto footprint_plugin = dynamic_cast<hydra::FootprintPlugin*>(plugin.get());
+    if (footprint_plugin && config.footprint_use_functor) {
+      footprint_plugin->setColorAdaptor(room_colors);
+    }
+
+    node.addPlugin(plugin);
+  }
+
+  for (const auto& conf : config.khronos_plugins) {
+    node.addPlugin(conf.create(nh, node.visualizer_));
   }
 
   node.spin();

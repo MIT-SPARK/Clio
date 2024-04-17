@@ -1,5 +1,6 @@
 <launch>
     <arg name="scene_graph_path" doc="path to scene graph for visualization."/>
+    <arg name="mesh_path" default="" doc="optional mesh"/>
     <arg name="map_frame" default="map" doc="backend scene graph frame"/>
     <arg name="places_task_prompts" default="[]"/>
     <arg name="visualizer_ns" default="hydra_dsg_visualizer" doc="visualizer namespace to use"/>
@@ -9,10 +10,10 @@
     <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
     <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
     <arg name="rviz_dir" default="$(find hydra_llm_ros)/rviz"/>
-    <arg name="rviz_file" default="hydra_visualizer.rviz"/>
+    <arg name="rviz_file" default="llm_static_visualizer.rviz"/>
     <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
     <arg name="viz_config_dir" default="$(find hydra_llm_ros)/config"/>
-    <arg name="viz_config_file" default="visualizer_config.yaml"/>
+    <arg name="viz_config_file" default="static_visualizer_config.yaml"/>
     <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
 
     <arg name="run_task_server" default="true"/>
@@ -45,6 +46,11 @@
       <param name="tasks_config/colormap_filepath" value="$(find hydra_llm_ros)/config/task_colors.csv"/>
       <param name="load_graph" value="true"/>
       <rosparam param="room_tasks" subst_value="true">$(arg places_task_prompts)</rosparam>
+    </node>
+
+    <node pkg="hydra_ros" type="mesh_publisher_node" name="mesh_publisher_node" if="$(eval arg('mesh_path') != '')">
+        <param name="mesh_frame" value="$(arg map_frame)"/>
+        <param name="mesh_filepath" value="$(arg mesh_path)"/>
     </node>
 
 </launch>

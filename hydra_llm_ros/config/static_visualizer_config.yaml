@@ -1,0 +1,151 @@
+---
+config:
+  layer_z_step: 2.0  # unit separation between layers
+  mesh_edge_break_ratio: 0.5
+  mesh_layer_offset: 0.0
+  collapse_layers: false
+  places_colormap_min_distance: 0.0
+  places_colormap_max_distance: 3.0
+  places_colormap:
+    min_hue: 0.0
+    max_hue: 0.5
+    min_saturation: 0.9
+    max_saturation: 0.8
+    min_luminance: 0.6
+    max_luminance: 0.85
+  dynamic_layers:
+    '2':
+      visualize: true
+      num_colors: 5
+      saturation: 0.9
+      luminance: 0.7
+      edge_sl_ratio: 0.6
+      node_scale: 0.1
+      node_alpha: 0.65
+      node_use_sphere: true
+      edge_scale: 0.05
+      edge_alpha: 0.8
+      label_height: 0.5
+      label_scale: 0.4
+      color_offset: 3
+      interlayer_edge_insertion_skip: 10
+      visualize_interlayer_edges: false
+      z_offset_scale: 0.0
+  layer1:
+    # generic
+    z_offset_scale: 2.0
+    visualize: false
+    # node
+    marker_scale: 0.01
+    marker_alpha: 0.6
+    use_sphere_marker: true
+    use_collapsed_label: false
+    use_bounding_box: true
+    collapse_bounding_box: false
+    bounding_box_alpha: 0.6
+    bbox_wireframe_scale: 0.02
+    bbox_wireframe_edge_scale: 0.02
+    # edge
+    use_edge_source: true
+    intralayer_edge_scale: 0.03
+    intralayer_edge_alpha: 0.6
+    intralayer_edge_use_color: false
+    intralayer_edge_insertion_skip: 0
+  layer2:
+    # generic
+    z_offset_scale: 1.0
+    visualize: true
+    # node
+    marker_scale: 0.20
+    marker_color_mode: 0  # default
+    marker_alpha: 0.6
+    use_sphere_marker: false
+    use_label: false
+    use_collapsed_label: false
+    label_height: 0.5
+    label_scale: 0.45
+    use_bounding_box: true
+    bounding_box_alpha: 0.6
+    bbox_wireframe_scale: 0.05
+    bbox_wireframe_edge_scale: 0.05
+    collapse_bounding_box: false
+    # edge
+    use_edge_source: true
+    intralayer_edge_scale: 0.03
+    intralayer_edge_alpha: 0.6
+    intralayer_edge_use_color: false
+    intralayer_edge_insertion_skip: 0
+  layer3:
+    # general
+    z_offset_scale: 3.0
+    visualize: true
+    # nodes
+    marker_scale: 0.1
+    marker_color_mode: 2  # parent
+    marker_alpha: 0.9
+    use_sphere_marker: true
+    use_label: false
+    use_collapsed_label: false
+    label_height: 1.0
+    label_scale: 0.5
+    use_bounding_box: false
+    bounding_box_alpha: 0.5
+    collapse_bounding_box: false
+    # edges
+    use_edge_source: false
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.2
+    interlayer_edge_use_color: false
+    interlayer_edge_insertion_skip: 0
+    intralayer_edge_scale: 0.01
+    intralayer_edge_alpha: 0.5
+    intralayer_edge_use_color: false
+    intralayer_edge_insertion_skip: 0
+  layer4:
+    # general
+    z_offset_scale: 4.5
+    visualize: true
+    # nodes
+    marker_scale: 0.3
+    marker_color_mode: 0  # default
+    marker_alpha: 0.8
+    use_sphere_marker: false
+    use_label: true
+    use_collapsed_label: false
+    label_height: 1.25
+    label_scale: 0.3
+    use_bounding_box: false
+    bounding_box_alpha: 0.5
+    collapse_bounding_box: false
+    # edges
+    use_edge_source: true
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.4
+    interlayer_edge_use_color: false
+    interlayer_edge_insertion_skip: 0
+    intralayer_edge_scale: 0.01
+    intralayer_edge_alpha: 0.5
+    intralayer_edge_use_color: false
+    intralayer_edge_insertion_skip: 0
+  layer5:
+    visualize: false
+llm_plugins:
+  dsg_mesh: MeshPlugin
+  places_footprints: FootprintPlugin
+dsg_mesh:
+  label_colormap: ''
+  color_by_label: false
+llm_places:
+  min_score: 0.58
+  max_score: 0.65
+color_objects_by_task: true
+color_places_by_task: false
+color_rooms_by_task: false
+places_footprints:
+  use_place_radius: false
+  num_samples: 50
+  draw_boundary_vertices: true
+  line_width: 0.02
+  z_offset: -0.8
+  color:
+    type: ParentColorAdaptor

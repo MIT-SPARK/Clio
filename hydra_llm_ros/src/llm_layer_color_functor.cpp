@@ -52,9 +52,12 @@ inline double getRatio(double value, double lo, double hi) {
 
 }  // namespace
 
-LayerColorFunctor::LayerColorFunctor(const ros::NodeHandle& nh)
-    : config(config::fromRos<Config>(nh)),
-      nh_(nh),
+LayerColorFunctor::LayerColorFunctor(const std::string& ns)
+    : LayerColorFunctor(config::fromRos<Config>(ros::NodeHandle(ns)), ns) {}
+
+LayerColorFunctor::LayerColorFunctor(const Config& config, const std::string& ns)
+    : config(config),
+      nh_(ns),
       has_change_(false),
       color_by_task_(config.color_by_task),
       label_by_task_(config.label_by_task),
@@ -69,12 +72,22 @@ LayerColorFunctor::LayerColorFunctor(const ros::NodeHandle& nh)
   lsrv_ = nh_.advertiseService("label_by_task", &LayerColorFunctor::handleLabel, this);
 }
 
-void LayerColorFunctor::setGraph(const DynamicSceneGraph& graph, LayerId layer_to_use) {
+void LayerColorFunctor::setLayer(LayerId layer_to_use) {
+  layer_to_use_ = layer_to_use;
+  has_change_ = true;
+}
+
+void LayerColorFunctor::setGraph(const DynamicSceneGraph& graph) {
   if (!tasks_) {
     return;
   }
 
-  const auto& layer = graph.getLayer(layer_to_use);
+  if (!layer_to_use_) {
+    LOG(WARNING) << "Layer not set for color functor!";
+    return;
+  }
+
+  const auto& layer = graph.getLayer(layer_to_use_.value());
   for (auto&& [node_id, node] : layer.nodes()) {
     auto& attrs = node->attributes<SemanticNodeAttributes>();
     if (label_by_task_) {
@@ -115,7 +128,8 @@ void LayerColorFunctor::setGraph(const DynamicSceneGraph& graph, LayerId layer_t
   legend_ = ColormapLegend::fromEndpoints(nh_, cmap_start, cmap_end);
 }
 
-NodeColor LayerColorFunctor::getNodeColor(const SceneGraphNode& node) const {
+NodeColor LayerColorFunctor::getColor(const DynamicSceneGraph&,
+                                      const SceneGraphNode& node) const {
   if (!tasks_) {
     LOG_FIRST_N(WARNING, 1) << "No tasks set!";
     return NodeColor::Zero();

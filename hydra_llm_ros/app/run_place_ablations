@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """Run ablation trials for places."""
 from dataclasses import dataclass
+from matplotlib.patches import Rectangle
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.figure import Figure
 
 import copy
 import click
+import csv
 import dataclasses
+import signal
 import subprocess
 import pickle
 import shutil
@@ -42,6 +48,21 @@ TASK_LIST = {
         "an image of a stairway",
         "an image of a workshop or machine shop",
         "an image of an aircraft hangar or garage",
+    ],
+}
+
+QUAL_TASKS = {
+    "option_1": [
+        "somewhere with computers and desks",
+        "a hallway or corridor",
+        "somewhere with a sink",
+        "somewhere to have a meeting",
+    ],
+    "option_2": [
+        "somewhere to sit down",
+        "somewhere to clean dishes",
+        "a doorway or entrance way",
+        "",
     ],
 }
 
@@ -137,10 +158,14 @@ def build_args(config, is_hydra=True, selection_method=None, visualize=False):
     return args
 
 
+def _format_tasks(prompts):
+    return "[" + ", ".join([f'"{x}"' for x in prompts]) + "]"
+
+
 def _get_tasks(bag_ablation):
     for scene, prompts in TASK_LIST.items():
         if scene in bag_ablation:
-            return "[" + ", ".join([f'"{x}"' for x in prompts]) + "]"
+            return _format_tasks(prompts)
 
     click.secho(f"Could not find matching tasks for '{bag_ablation}'", fg="yellow")
     return "[]"
@@ -155,7 +180,7 @@ def _split_bag_name(bag_name):
     return bag_name[: ret.start()], ret.group(1)
 
 
-def run_pipeline(config, bag_path, path_out, name, args, dry_run):
+def run_pipeline(config, bag_path, path_out, name, args, dry_run, tasks=None):
     """Run hydra pipeline."""
     log_path = path_out / name
     if log_path.exists() and config.skip_existing:
@@ -187,7 +212,9 @@ def run_pipeline(config, bag_path, path_out, name, args, dry_run):
     # mostly just sets the task server clip model
     args.append(f"object_detector_config:={conf_path}")
 
-    tasks = _get_tasks(bag_path.stem)
+    if tasks is None:
+        tasks = _get_tasks(bag_path.stem)
+
     args.append(f"places_task_prompts:={tasks}")
 
     if dry_run:
@@ -210,7 +237,7 @@ def run_pipeline(config, bag_path, path_out, name, args, dry_run):
                 f"'{config.node_name}' did not shutdown after {timeout_fmt}, killing!",
                 fg="red",
             )
-            proc.kill()
+            proc.send_signal(signal.SIGINT)
             click.secho("Waiting for '/hydra_llm_node' to exit...", fg="red")
             proc.wait()
 
@@ -249,6 +276,61 @@ def run_bag(
 def main():
     """Run or prepare place ablations."""
     pass
+
+
+@main.command()
+@click.argument("output_path")
+@click.argument("bags", nargs=-1, type=click.Path(exists=True))
+@click.option("--prerecorded/--no-prerecorded", default=True)
+@click.option("--yes", "-y", is_flag=True, help="default to overwriting")
+@click.option("--ablation", "-a", default="fusion", help="ablation to use")
+@click.option("--visualize", "-v", is_flag=True, help="run visualizer")
+@click.option(
+    "--task-names",
+    "-n",
+    multiple=True,
+    default=["option_1", "option_2"],
+    help="names for tasks",
+)
+def run_qual(output_path, bags, prerecorded, yes, ablation, visualize, task_names):
+    """
+    Run single instance of clio with custom tasks.
+
+    Usage:
+        run_place_ablations OUTPUT_PATH BAG1 [BAG2...]
+
+    Args:
+        OUTPUT_PATH: directory to store results in
+        BAGS: path to bags to run against
+    """
+    output_path = _normalized_path(output_path)
+    if output_path.exists() and not yes:
+        click.secho(f"Output at '{output_path}' already exists!", fg="red")
+        click.confirm("Overwrite?", default=False, abort=True)
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    config = RunConfig(prerecorded=prerecorded, skip_existing=False)
+
+    for bag in bags:
+        bag_path = _normalized_path(bag)
+        scene_name = bag_path.stem
+        scene_path = output_path / scene_name
+
+        for task_name in task_names:
+            qual_tasks = _format_tasks(QUAL_TASKS[task_name])
+            args = build_args(
+                config, is_hydra=False, selection_method=ablation, visualize=visualize
+            )
+            run_pipeline(
+                config,
+                bag_path,
+                scene_path,
+                f"clio_{task_name}",
+                args,
+                False,
+                tasks=qual_tasks,
+            )
 
 
 @main.command()
@@ -767,6 +849,138 @@ def table(result_path, model, underline, output):
                 fout.write(" " * 8 + row + r" \\" + "\n")
 
         fout.write(TABLE_FOOTER)
+
+
+def _line_length(x):
+    return len(x) + sum([len(w) for w in x])
+
+
+def _wrap(label, width=15):
+    words = label.split(" ")
+    lines = []
+
+    line = []
+    for word in words:
+        if len(line) == 0:
+            line.append(word)
+            continue
+
+        curr_length = len(word) + _line_length(line)
+        if curr_length > width:
+            lines.append(" ".join(line))
+            line = [word]
+        else:
+            line.append(word)
+
+    if len(line) > 0:
+        lines.append(" ".join(line))
+
+    return "\n".join(lines)
+
+
+# adapted from https://matplotlib.org/stable/gallery/color/named_colors.html
+def _make_grid_legend(
+    color_dict,
+    nrows=4,
+    cell_width=60,
+    cell_height=22,
+    swatch_width=10,
+    swatch_height=18,
+    margin=12,
+    text_margin=4,
+    width_inches=30,
+    dpi=300,
+    fontsize=8,
+    wrapsize=15,
+):
+    """Plot a color table."""
+    N = len(color_dict)
+    ncols = N // nrows + int(N % nrows > 0)
+    width = cell_width * ncols + 2 * margin
+    height = cell_height * nrows + 2 * margin
+    # ratio = height / width
+
+    fig = Figure(dpi=dpi, figsize=(width / dpi, height / dpi))
+    ax = fig.subplots()
+    ax.set_axis_off()
+
+    fig.subplots_adjust(
+        margin / width,
+        margin / height,
+        (width - margin) / width,
+        (height - margin) / height,
+    )
+    ax.set_xlim(0, cell_width * ncols)
+    ax.set_ylim(cell_height * (nrows - 0.5), -cell_height / 2.0)
+
+    labels = sorted([x for x in color_dict])
+    for i, label in enumerate(labels):
+        row = i % nrows
+        col = i // nrows
+        y = row * cell_height
+
+        swatch_start_x = cell_width * col
+        text_pos_x = cell_width * col + swatch_width + text_margin
+
+        ax.text(
+            text_pos_x,
+            y,
+            _wrap(label, width=wrapsize),
+            fontsize=fontsize,
+            horizontalalignment="left",
+            verticalalignment="center",
+        )
+
+        ax.add_patch(
+            Rectangle(
+                xy=(swatch_start_x, y - swatch_height / 2),
+                width=swatch_width,
+                height=swatch_height,
+                facecolor=color_dict[label],
+                edgecolor="0.7",
+            )
+        )
+
+    return fig
+
+
+@main.command()
+@click.argument("task_name")
+@click.option("--colormap", "-c", default=None, type=click.Path(exists=True))
+@click.option("-r", "--num-rows", type=int, default=1)
+@click.option("-d", "--dpi", type=float, default=300.0)
+@click.option("-o", "--output", default=None)
+@click.option("-a", "--alpha", type=float, default=0.8)
+def make_color_legend(task_name, colormap, num_rows, dpi, output, alpha):
+    """Plot labels and colors."""
+    # sns.set()
+    # sns.set_style("white")
+    # sns.set_context("paper", font_scale=1.0)
+
+    if colormap is None:
+        colormap = (
+            pathlib.Path(__file__).absolute().parent.parent
+            / "config"
+            / "task_colors.csv"
+        )
+    else:
+        colormap = _normalized_path(colormap)
+
+    colors = []
+    with colormap.open("r") as fin:
+        reader = csv.reader(fin)
+        next(reader)
+
+        for line in reader:
+            colors.append(np.squeeze(np.array([float(x) for x in line[1:4]]) / 255))
+
+    color_dict = {x: colors[i] for i, x in enumerate(QUAL_TASKS[task_name])}
+    fig = _make_grid_legend(color_dict, nrows=num_rows, dpi=dpi)
+    fig.set_size_inches([10, 2])
+    if output is None:
+        output = f"{task_name}.png"
+
+    fig.savefig(output, dpi=dpi)
 
 
 if __name__ == "__main__":
