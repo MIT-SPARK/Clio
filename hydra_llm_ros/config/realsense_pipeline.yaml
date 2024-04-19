@@ -42,8 +42,8 @@ reconstruction:
   active_window:  # taken from Khronos
     verbosity: 1
     volumetric_map:
-      voxel_size: 0.2  # m
-      truncation_distance: 0.4  # m (Usually 2-3x voxel size)
+      voxel_size: 0.15  # m
+      truncation_distance: 0.35  # m (Usually 2-3x voxel size)
       voxels_per_side: 16
     object_detector:
       type: $(arg object_detection_type)
@@ -72,20 +72,31 @@ frontend:
   places:
     type: gvd
     gvd:
-      max_distance_m: 4.5
+      max_distance_m: 3.0
       min_diff_m: 0.1
       min_basis_for_extraction: 1
       voronoi_config:
-        min_distance_m: 0.30
-        parent_l1_separation: 20
-        parent_cos_angle_separation: 0.2
+        min_distance_m: 0.4
+        parent_l1_separation: 25
+        parent_cos_angle_separation: 0.1
     graph:
       type: CompressionGraphExtractor
       compression_distance_m: 1.0
       min_node_distance_m: 0.4
       min_edge_distance_m: 0.25
       node_merge_distance_m: 0.5
-      add_heuristic_edges: false
+      add_heuristic_edges: true
+      add_overlap_edges: false
+      add_freespace_edges: true
+      freespace_edges:
+        min_clearance_m: 0.3
+        num_nodes_to_check: 10
+        num_neighbors_to_find: 3
+#    sinks:
+      #- type: PlacesVisualizer
+        # ns: ~sink_configs/places
+  view_database:
+    view_selection_method: $(arg place_view_selection_type)
 ########################
 #  Backend Parameters  #
 ########################
@@ -142,11 +153,11 @@ backend:
           type: cosine
         selector:
           type: IB
-          max_delta: 0.1
-          score_threshold: 0.0
+          max_delta: 0.010
+          score_threshold: 0.21
           top_k: 2
           cumulative: true
-          null_task_preprune: false
+          null_task_preprune: true
       rooms:
         min_dilation_m: 0.5
         max_dilation_m: 1.2
@@ -164,3 +175,46 @@ backend:
         dilation_diff_threshold_m: -1.0
         log_filtrations: false
         log_place_graphs: false
+sink_configs:
+  places:
+    gvd_visualizer:
+      visualization_type: 2  # 0 -> NONE, 1 -> ESDF_SLICE, 2 -> GVD
+      color_nearest_vertices: false
+      gvd_alpha: 0.6
+      gvd_min_distance: 0.0
+      gvd_max_distance: 1.0
+      basis_threshold: 2
+      min_num_basis: 1
+      max_num_basis: 10
+      gvd_mode: 0  # 0 -> DEFAULT, 1 -> DISTANCE, 2 -> BASIS_POINTs
+      esdf_alpha: 0.6
+      slice_height: 2.0
+      esdf_min_distance: 0.0
+      esdf_max_distance: 2.5
+    graph_visualizer:
+      z_offset_scale: 0.0
+      visualize: true
+      marker_scale: 0.2
+      marker_alpha: 0.9
+      use_sphere_marker: true
+      use_label: true
+      label_height: 0.7
+      label_scale: 0.3
+      use_bounding_box: false
+      bounding_box_alpha: 0.5
+      use_edge_source: false
+      interlayer_edge_scale: 0.1
+      interlayer_edge_alpha: 0.4
+      interlayer_edge_use_color: true
+      interlayer_edge_insertion_skip: 0
+      intralayer_edge_scale: 0.02
+      intralayer_edge_alpha: 0.4
+      intralayer_edge_use_color: false
+      intralayer_edge_insertion_skip: 0
+    visualizer_colormap:
+      min_hue: 0.0
+      max_hue: 0.5
+      min_saturation: 0.9
+      max_saturation: 0.8
+      min_luminance: 0.6
+      max_luminance: 0.85

@@ -29,6 +29,8 @@ class LLMFrontend : public FrontendModule {
 
   const LLMFrontendConfig config;
 
+  std::string printInfo() const override;
+
  protected:
   void initCallbacks() override;
 

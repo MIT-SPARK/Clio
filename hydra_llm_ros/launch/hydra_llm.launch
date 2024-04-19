@@ -20,6 +20,7 @@
     <arg name="object_detection_type" default="$(eval 'connected_semantics' if arg('closed_set') else 'instance_forwarding')"/>
     <arg name="places_clustering_type" default="$(eval 'GeometricClustering' if arg('geometric_places') else 'SemanticClustering')"/>
     <arg name="subscriber_type" default="$(eval 'semantic' if arg('closed_set') else 'openset')"/>
+    <arg name="place_view_selection_type" default="fusion"/>
 
     <!-- parameter files -->
     <arg name="dataset_name"/>

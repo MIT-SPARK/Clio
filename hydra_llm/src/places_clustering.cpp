@@ -64,10 +64,15 @@ void PlaceClustering::updateGraphBatch(DynamicSceneGraph& graph,
     attrs->semantic_label = 0;
     attrs->name = clusters[i]->best_task_name;
     attrs->semantic_feature = clusters[i]->feature;
-    const auto color_idx =
-        config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
-    const auto color = HydraConfig::instance().getRoomColor(color_idx);
-    attrs->color = Eigen::Map<const SemanticNodeAttributes::ColorVector>(color.data());
+    if (!attrs->name.empty()) {
+      const auto color_idx =
+          config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
+      const auto color = HydraConfig::instance().getRoomColor(color_idx);
+      attrs->color =
+          Eigen::Map<const SemanticNodeAttributes::ColorVector>(color.data());
+    } else {
+      attrs->color = SemanticNodeAttributes::ColorVector::Zero();
+    }
     graph.emplaceNode(DsgLayers::ROOMS, new_node_id, std::move(attrs));
 
     for (const auto node_id : clusters[i]->nodes) {
@@ -121,7 +126,6 @@ void declare_config(GeometricClustering::Config& config) {
   name("GeometricClustering::Config");
   base<PlaceClustering::Config>(config);
   field(config.rooms, "rooms");
-  config.clustering.selector.setOptional();
   field(config.clustering, "clustering");
 }
 

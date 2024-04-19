@@ -5,13 +5,11 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib.figure import Figure
 
 import copy
 import click
-import csv
+import functools
 import dataclasses
 import signal
 import subprocess
@@ -37,8 +35,7 @@ TASK_LIST = {
     "apartment": [
         "an image of a kitchen",
         "an image of a bedroom",
-        "an image of a living room",
-        "an image of an entryway",
+        "an image of a doorway",
     ],
     "building33": [
         "an image of a student lounge",
@@ -53,16 +50,20 @@ TASK_LIST = {
 
 QUAL_TASKS = {
     "option_1": [
-        "somewhere with computers and desks",
+        "a workspace",
         "a hallway or corridor",
-        "somewhere with a sink",
-        "somewhere to have a meeting",
+        "a conference room",
+        "an entry way or landing",
+        "a kitchenette",
     ],
     "option_2": [
-        "somewhere to sit down",
-        "somewhere to clean dishes",
-        "a doorway or entrance way",
-        "",
+        "desks and shelves",
+        "a hallway or corridor",
+        "a storage area",
+        "a printer or copier",
+        "a kitchenette",
+        "blue and black backpacks and a table",
+        "coats and a coat-rack",
     ],
 }
 
@@ -76,6 +77,7 @@ class RunConfig:
     wait_time_s: float = 20.0
     bag_rate: float = 1.0
     shutdown_timeout_s: float = 60.0
+    post_wait_time_s: float = 3.0
     node_name: str = "/hydra_llm_node"
 
 
@@ -223,25 +225,32 @@ def run_pipeline(config, bag_path, path_out, name, args, dry_run, tasks=None):
         return
 
     with (log_path / "clio_output.txt").open("w") as fout:
-        proc = subprocess.Popen(args, stdout=fout, stderr=fout)
-        time.sleep(config.wait_time_s)
-
-        subprocess.run(["rosbag", "play", "-r", str(config.bag_rate), str(bag_path)])
-        subprocess.call(["rosservice", "call", f"{config.node_name}/shutdown", "{}"])
         try:
-            click.secho(f"Waiting for '{config.node_name}' to shutdown...", fg="green")
-            proc.wait(timeout=config.shutdown_timeout_s)
-        except subprocess.TimeoutExpired:
-            timeout_fmt = f"{config.shutdown_timeout_s} [s]"
-            click.secho(
-                f"'{config.node_name}' did not shutdown after {timeout_fmt}, killing!",
-                fg="red",
+            proc = subprocess.Popen(args, stdout=fout, stderr=fout)
+            time.sleep(config.wait_time_s)
+
+            subprocess.run(
+                ["rosbag", "play", "-r", str(config.bag_rate), str(bag_path), "--clock"]
             )
-            proc.send_signal(signal.SIGINT)
-            click.secho("Waiting for '/hydra_llm_node' to exit...", fg="red")
-            proc.wait()
+            try:
+                click.secho(
+                    f"Waiting for '{config.node_name}' to shutdown...", fg="green"
+                )
+                proc.wait(timeout=config.shutdown_timeout_s)
+            except subprocess.TimeoutExpired:
+                timeout_fmt = f"{config.shutdown_timeout_s} [s]"
+                click.secho(
+                    f"'{config.node_name}' did not finish after {timeout_fmt}!",
+                    fg="red",
+                )
+                proc.send_signal(signal.SIGINT)
+                click.secho("Waiting for '/hydra_llm_node' to exit...", fg="red")
+                proc.wait()
+        finally:
+            proc.kill()
 
     click.secho(f"Finished running {name}", fg="green")
+    time.sleep(config.post_wait_time_s)
 
 
 def run_bag(
@@ -558,22 +567,23 @@ def gt(
 
 
 def _run_eval(args):
-    path, gt_path, data_path = args
+    path, gt_path, data_path, min_room_nodes = args
     info = _get_info(path)
     tsdf_path = gt_path / info.scene_name / "tsdf.vxblx"
     bbox_path = data_path / f"{info.scene_name}_rooms.yaml"
     dsg_path = path / "backend" / "dsg.json"
 
-    args = [
+    proc_args = [
         "rosrun",
         "hydra",
         "evaluate_rooms",
         f"-tsdf_file={tsdf_path}",
         f"-bbox_file={bbox_path}",
         f"-dsg_file={dsg_path}",
+        f"-min_room_nodes={min_room_nodes}",
         "-minloglevel=1",
     ]
-    ret = subprocess.run(args, capture_output=True)
+    ret = subprocess.run(proc_args, capture_output=True)
     if len(ret.stdout) == 0:
         err_msg = ret.stderr.decode("utf-8").strip("\n")
         # from https://stackoverflow.com/questions/14693701
@@ -593,8 +603,9 @@ def _run_eval(args):
 @main.command()
 @click.argument("result_path", type=click.Path(exists=True))
 @click.argument("gt_path", type=click.Path(exists=True))
+@click.option("--min-room-nodes", "-m", type=int, default=0, help="min room nodes")
 @click.option("--threads", "-t", type=int, default=8)
-def eval(result_path, gt_path, threads):
+def eval(result_path, gt_path, min_room_nodes, threads):
     """Compute results."""
     result_path = _normalized_path(result_path)
     gt_path = _normalized_path(gt_path)
@@ -608,7 +619,7 @@ def eval(result_path, gt_path, threads):
             all_paths += [x for x in scene.iterdir() if x.is_dir()]
 
     all_paths = sorted(all_paths)
-    all_args = [(x, gt_path, data_path) for x in all_paths]
+    all_args = [(x, gt_path, data_path, min_room_nodes) for x in all_paths]
 
     all_results = {}
     mp.set_start_method("forkserver")
@@ -626,7 +637,39 @@ def eval(result_path, gt_path, threads):
         pickle.dump(all_results, fout)
 
 
-def _convert_results_to_df(results, filters=None):
+@main.command()
+@click.argument("result_path", type=click.Path(exists=True))
+def check(result_path):
+    """Compute results."""
+    result_path = _normalized_path(result_path)
+
+    all_paths = []
+    trials = [x for x in result_path.iterdir() if x.is_dir()]
+    for trial in trials:
+        scenes = [x for x in trial.iterdir() if x.is_dir()]
+        for scene in scenes:
+            all_paths += [x for x in scene.iterdir() if x.is_dir()]
+
+    all_paths = sorted(all_paths)
+    for path in all_paths:
+        message = ""
+
+        log_path = path / "clio_output.txt"
+        if not log_path.exists():
+            message = "Missing output log!"
+
+        with log_path.open("r") as fin:
+            contents = fin.read()
+            if "new node registered" in contents:
+                message = "Improper shutdown!"
+
+        if message == "":
+            click.secho(f"{path}: good!", fg="green")
+        else:
+            click.secho(f"{path}: fail! (reason: {message})", fg="red")
+
+
+def _convert_results_to_df(results, filters=None, use_total=False):
     columns = {}
     columns["scene"] = []
     columns["clip"] = []
@@ -634,6 +677,7 @@ def _convert_results_to_df(results, filters=None):
     columns["precision"] = []
     columns["recall"] = []
     columns["f1"] = []
+    columns["trial"] = []
 
     for path, data in results.items():
         info = _get_info(path)
@@ -644,9 +688,15 @@ def _convert_results_to_df(results, filters=None):
         columns["scene"].append(info.scene_name)
         columns["clip"].append(info.clip_name)
         columns["ablation"].append(info.ablation)
+        columns["trial"].append(info.trial)
 
-        precision = data["total_precision"]
-        recall = data["total_recall"]
+        if use_total:
+            precision = data["total_precision"]
+            recall = data["total_recall"]
+        else:
+            precision = np.mean(data["precisions"])
+            recall = np.mean(data["recalls"])
+
         columns["precision"].append(precision)
         columns["recall"].append(recall)
         columns["f1"].append(scipy.stats.hmean([precision, recall]))
@@ -696,12 +746,25 @@ def _get_scene_table(df):
     return ablations, means, stds
 
 
+def _get_ablation_values(df, ablation):
+    ablation_df = df[df["ablation"] == ablation]
+    # column ordering: precision, recall, f1
+    values = np.zeros((len(ablation_df), 3))
+    order = ["precision", "recall", "f1"]
+    for row_values in ablation_df.itertuples(index=False):
+        for col, metric in enumerate(order):
+            values[row_values.trial - 1, col] = getattr(row_values, metric)
+
+    return values
+
+
 @main.command()
 @click.argument("result_path", type=click.Path(exists=True))
 @click.option(
     "--clip-models", default=["rs_large_clip_averaging"], help="models to show"
 )
-def show(result_path, clip_models):
+@click.option("--use-total", "-t", is_flag=True, help="use total precision and recall")
+def show(result_path, clip_models, use_total):
     """Show results in table form."""
     result_path = _normalized_path(result_path)
     pickle_path = result_path / "metrics.pickle"
@@ -718,7 +781,7 @@ def show(result_path, clip_models):
 
         return info.clip_name not in clip_models
 
-    df = _convert_results_to_df(results, filters=[model_filter])
+    df = _convert_results_to_df(results, filters=[model_filter], use_total=use_total)
     for clip_model in df["clip"].unique():
         print(_underline(clip_model))
 
@@ -733,6 +796,12 @@ def show(result_path, clip_models):
             name = f"{{: >{max_len + 1}}}".format(ablation)
             print(f"  - {name}: precision={row[0]}, recall={row[1]}, f1={row[2]}")
 
+            trial_results = _get_ablation_values(scene_df, ablation)
+            for idx in range(trial_results.shape[0]):
+                row = [_format(trial_results[idx, c], np.nan) for c in range(3)]
+                trial_name = f"{{: >{max_len + 11}}}".format(f"  - trial {idx + 1}")
+                print(f"{trial_name}: p={row[0]}, r={row[1]}, f1={row[2]}")
+
         print("")
 
 
@@ -746,7 +815,7 @@ NAME_MAP = {
 SCENE_MAP = {
     "apartment_grav_processed": "Apartment",
     "office_test_processed": "Office",
-    "building33_processed": "Building 33",
+    "building33_processed": "Building",
 }
 
 TABLE_HEADER = r"""\begin{table}[t!]
@@ -759,8 +828,9 @@ TABLE_HEADER = r"""\begin{table}[t!]
 
 TABLE_FOOTER = r"""        \bottomrule
     \end{tabularx}
-    \caption{TBD}
-\end{table}"""
+    \caption{Comparison of Geometric Room Segmentation Accuracy}\label{table:places}
+\end{table}
+"""
 
 
 def _get_multirow_column(scene, N):
@@ -789,8 +859,9 @@ def _get_rankings(values, tolerance=1.0e-3):
     "-m", "--model", default="rs_large_clip_averaging", help="clip model to use"
 )
 @click.option("-u", "--underline", is_flag=True, help="underline second best method")
+@click.option("-p", "--precision", default=2, help="floating point precision to use")
 @click.option("-o", "--output", default=None, help="file to save to")
-def table(result_path, model, underline, output):
+def table(result_path, model, underline, precision, output):
     """Show results in table form."""
     result_path = _normalized_path(result_path)
     pickle_path = result_path / "metrics.pickle"
@@ -837,11 +908,12 @@ def table(result_path, model, underline, output):
                     raw_str = _format(
                         means[idx, i],
                         stds[idx, i],
+                        prec=precision,
                         latex=True,
                         bold=should_bold,
                         underline=should_underline,
                     )
-                    metrics.append(f"{raw_str: >20}")
+                    metrics.append(f"{raw_str: >30}")
 
                 scene_to_use = " " if idx != 0 else scene_column_map[scene]
                 scol = f"{{: <{max_scene_length}}}".format(scene_to_use)
@@ -882,62 +954,69 @@ def _wrap(label, width=15):
 def _make_grid_legend(
     color_dict,
     nrows=4,
+    ncols=None,
     cell_width=60,
     cell_height=22,
-    swatch_width=10,
-    swatch_height=18,
-    margin=12,
-    text_margin=4,
-    width_inches=30,
     dpi=300,
     fontsize=8,
-    wrapsize=15,
+    wrapsize=14,
+    offset=1,
+    alpha=1.0,
+    sort=False,
 ):
     """Plot a color table."""
     N = len(color_dict)
-    ncols = N // nrows + int(N % nrows > 0)
-    width = cell_width * ncols + 2 * margin
-    height = cell_height * nrows + 2 * margin
-    # ratio = height / width
+    if ncols is None or nrows * ncols < N:
+        ncols = N // nrows + int(N % nrows > 0)
 
-    fig = Figure(dpi=dpi, figsize=(width / dpi, height / dpi))
+    width = cell_width * ncols
+    height = cell_height * nrows
+    figsize = (width / dpi, height / dpi)
+
+    fig = Figure(dpi=dpi, figsize=figsize)
     ax = fig.subplots()
     ax.set_axis_off()
 
-    fig.subplots_adjust(
-        margin / width,
-        margin / height,
-        (width - margin) / width,
-        (height - margin) / height,
-    )
+    fig.subplots_adjust(0.0, 0.0, 1.0, 1.0)
     ax.set_xlim(0, cell_width * ncols)
     ax.set_ylim(cell_height * (nrows - 0.5), -cell_height / 2.0)
 
-    labels = sorted([x for x in color_dict])
+    labels = sorted([x for x in color_dict]) if sort else [x for x in color_dict]
     for i, label in enumerate(labels):
-        row = i % nrows
-        col = i // nrows
+        col = i % ncols
+        row = i // ncols
         y = row * cell_height
 
-        swatch_start_x = cell_width * col
-        text_pos_x = cell_width * col + swatch_width + text_margin
+        start_x = cell_width * col
+
+        prod = (1 / alpha) * functools.reduce(
+            lambda x, y: x * y, color_dict[label][:3], 1
+        )
+        print(color_dict[label], prod)
+        if prod > 0.1:
+            textcolor = (0.3, 0.3, 0.3)
+            # textcolor = (0.0, 0.0, 0.0)
+        else:
+            textcolor = (1.0, 1.0, 1.0)
+            # textcolor = (0.0, 0.0, 0.0)
 
         ax.text(
-            text_pos_x,
+            start_x + offset,
             y,
             _wrap(label, width=wrapsize),
             fontsize=fontsize,
             horizontalalignment="left",
             verticalalignment="center",
+            color=textcolor,
         )
 
         ax.add_patch(
             Rectangle(
-                xy=(swatch_start_x, y - swatch_height / 2),
-                width=swatch_width,
-                height=swatch_height,
+                xy=(start_x, y - cell_height / 2),
+                width=cell_width,
+                height=cell_height,
                 facecolor=color_dict[label],
-                edgecolor="0.7",
+                alpha=alpha,
             )
         )
 
@@ -946,41 +1025,116 @@ def _make_grid_legend(
 
 @main.command()
 @click.argument("task_name")
-@click.option("--colormap", "-c", default=None, type=click.Path(exists=True))
-@click.option("-r", "--num-rows", type=int, default=1)
-@click.option("-d", "--dpi", type=float, default=300.0)
+@click.option("-r", "--num-rows", type=int, default=2)
+@click.option("--num-cols", type=int, default=None)
+@click.option("-d", "--dpi", type=float, default=600.0)
 @click.option("-o", "--output", default=None)
-@click.option("-a", "--alpha", type=float, default=0.8)
-def make_color_legend(task_name, colormap, num_rows, dpi, output, alpha):
+@click.option("-a", "--alpha", type=float, default=0.6)
+@click.option("-w", "--cell-width", type=float, default=1900)
+@click.option("-h", "--cell-height", type=float, default=850)
+@click.option("-f", "--fontsize", type=int, default=28)
+@click.option("-t", "--wrap", type=int, default=14)
+@click.option("--offset", type=float, default=50)
+def make_color_legend(
+    task_name,
+    num_rows,
+    num_cols,
+    dpi,
+    output,
+    alpha,
+    cell_width,
+    cell_height,
+    fontsize,
+    offset,
+    wrap,
+):
     """Plot labels and colors."""
-    # sns.set()
-    # sns.set_style("white")
-    # sns.set_context("paper", font_scale=1.0)
-
-    if colormap is None:
-        colormap = (
-            pathlib.Path(__file__).absolute().parent.parent
-            / "config"
-            / "task_colors.csv"
-        )
-    else:
-        colormap = _normalized_path(colormap)
-
-    colors = []
-    with colormap.open("r") as fin:
-        reader = csv.reader(fin)
-        next(reader)
-
-        for line in reader:
-            colors.append(np.squeeze(np.array([float(x) for x in line[1:4]]) / 255))
-
+    colors = np.array(
+        [
+            [166, 206, 227],
+            [31, 120, 180],
+            [178, 223, 138],
+            [51, 160, 44],
+            [251, 154, 153],
+            [227, 26, 28],
+            [253, 191, 111],
+            [255, 127, 0],
+            [202, 178, 214],
+            [106, 61, 154],
+            [255, 255, 153],
+            [177, 89, 40],
+        ]
+    ).astype(np.float64)
+    colors /= 255.0
     color_dict = {x: colors[i] for i, x in enumerate(QUAL_TASKS[task_name])}
-    fig = _make_grid_legend(color_dict, nrows=num_rows, dpi=dpi)
-    fig.set_size_inches([10, 2])
+    color_dict["null task"] = (0.0, 0.0, 0.0)
+
+    fig = _make_grid_legend(
+        color_dict,
+        nrows=num_rows,
+        ncols=num_cols,
+        dpi=dpi,
+        alpha=alpha,
+        cell_width=cell_width,
+        cell_height=cell_height,
+        fontsize=fontsize,
+        offset=offset,
+        wrapsize=wrap,
+    )
     if output is None:
         output = f"{task_name}.png"
 
     fig.savefig(output, dpi=dpi)
+
+
+SCENE_PATH_NAME_MAP = {
+    "office": "office_test_processed_rs_large_clip_averaging",
+    "apartment": "apartment_grav_processed_rs_large_clip_averaging",
+    "building33": "building33_processed_rs_large_clip_averaging",
+}
+
+
+@main.command()
+@click.argument("result_path", type=click.Path(exists=True))
+@click.argument("scene")
+@click.argument("ablation")
+@click.argument("trial", type=int)
+def visualize(result_path, scene, ablation, trial):
+    """Show scene graph."""
+    result_path = _normalized_path(result_path)
+    scene_name = SCENE_PATH_NAME_MAP[scene]
+    dsg_path = (
+        result_path
+        / f"trial_{trial:03d}"
+        / scene_name
+        / ablation
+        / "backend"
+        / "dsg_with_mesh.json"
+    )
+
+    args = [
+        "roslaunch",
+        "hydra_llm_ros",
+        "hydra_llm_visualizer.launch",
+        f"scene_graph_path:={dsg_path}",
+        "viz_config_file:=region_visualizer_config.yaml",
+    ]
+    subprocess.run(args)
+
+
+@main.command()
+@click.argument("dsg_path", type=click.Path(exists=True))
+def visualize_path(dsg_path):
+    """Show scene graph."""
+    dsg_path = _normalized_path(dsg_path)
+    args = [
+        "roslaunch",
+        "hydra_llm_ros",
+        "hydra_llm_visualizer.launch",
+        f"scene_graph_path:={dsg_path}",
+        "viz_config_file:=region_visualizer_config.yaml",
+    ]
+    subprocess.run(args)
 
 
 if __name__ == "__main__":

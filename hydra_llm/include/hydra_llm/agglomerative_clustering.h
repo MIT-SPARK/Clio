@@ -1,7 +1,7 @@
 #pragma once
 #include "hydra_llm/clustering.h"
 #include "hydra_llm/clustering_workspace.h"
-#include "hydra_llm/edge_selector.h"
+#include "hydra_llm/ib_edge_selector.h"
 #include "hydra_llm/embedding_distances.h"
 
 namespace hydra::llm {
@@ -21,7 +21,8 @@ class AgglomerativeClustering : public Clustering {
  public:
   struct Config : Clustering::Config {
     config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
-    config::VirtualConfig<EdgeSelector> selector;
+    IBEdgeSelector::Config selector;
+    bool filter_regions = false;
   };
 
   AgglomerativeClustering(const Config& config);

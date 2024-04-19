@@ -40,6 +40,12 @@ LLMFrontend::LLMFrontend(const LLMFrontendConfig& config,
 
 LLMFrontend::~LLMFrontend() {}
 
+std::string LLMFrontend::printInfo() const {
+  std::stringstream ss;
+  ss << config::toString(config);
+  return ss.str();
+}
+
 void LLMFrontend::initCallbacks() {
   initialized_ = true;
   input_callbacks_.clear();

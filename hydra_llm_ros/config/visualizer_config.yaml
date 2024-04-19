@@ -34,7 +34,7 @@ config:
   layer1:
     # generic
     z_offset_scale: 2.0
-    visualize: true
+    visualize: false
     # node
     marker_scale: 0.01
     marker_alpha: 0.6
@@ -54,7 +54,7 @@ config:
   layer2:
     # generic
     z_offset_scale: 1.0
-    visualize: true
+    visualize: false
     # node
     marker_scale: 0.30
     marker_color_mode: 0  # default

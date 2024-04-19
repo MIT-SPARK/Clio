@@ -18,6 +18,7 @@ void declare_config(AgglomerativeClustering::Config& config) {
   base<Clustering::Config>(config);
   field(config.metric, "metric");
   field(config.selector, "selector");
+  field(config.filter_regions, "filter_regions");
 }
 
 void clusterAgglomerative(ClusteringWorkspace& ws,
@@ -93,7 +94,7 @@ AgglomerativeClustering::AgglomerativeClustering(const Config& config)
     : Clustering(config),
       config(config::checkValid(config)),
       metric_(config.metric.create()),
-      edge_selector_(config.selector.create()) {}
+      edge_selector_(new IBEdgeSelector(config.selector)) {}
 
 Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
                                           const NodeEmbeddingMap& features) const {
@@ -116,7 +117,7 @@ Clusters AgglomerativeClustering::getClusters(const ClusteringWorkspace& ws,
 
   Clusters to_return;
   for (const auto& nodes : cluster_nodes) {
-    auto& cluster = to_return.emplace_back(std::make_shared<Cluster>());
+    auto cluster = std::make_shared<Cluster>();
     cluster->nodes.insert(nodes.begin(), nodes.end());
 
     auto iter = cluster->nodes.begin();
@@ -130,12 +131,21 @@ Clusters AgglomerativeClustering::getClusters(const ClusteringWorkspace& ws,
     cluster->feature /= cluster->nodes.size();
 
     const auto info = tasks_->getBestScore(*metric_, cluster->feature);
+    if (config.filter_regions && info.score < config.selector.py_x.score_threshold) {
+      continue;
+    }
+
     cluster->score = info.score;
-    cluster->best_task_index = info.index;
-    cluster->best_task_name = tasks_->tasks.at(info.index);
+    if (info.score >= config.selector.py_x.score_threshold) {
+      cluster->best_task_index = info.index;
+      cluster->best_task_name = tasks_->tasks.at(info.index);
+    } else {
+      cluster->best_task_name = "";
+    }
+
+    to_return.push_back(cluster);
   }
 
-  // TODO(nathan) filter by min score
   return to_return;
 }
 
