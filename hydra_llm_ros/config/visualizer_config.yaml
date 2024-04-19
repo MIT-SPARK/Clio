@@ -54,14 +54,14 @@ config:
   layer2:
     # generic
     z_offset_scale: 1.0
-    visualize: false
+    visualize: true
     # node
     marker_scale: 0.30
     marker_color_mode: 0  # default
     marker_alpha: 0.6
     use_sphere_marker: false
-    use_label: false
-    use_collapsed_label: true
+    use_label: true
+    use_collapsed_label: false
     label_height: 0.5
     label_scale: 0.45
     use_bounding_box: true
@@ -81,7 +81,7 @@ config:
     visualize: true
     # nodes
     marker_scale: 0.2
-    marker_color_mode: 1  # parent
+    marker_color_mode: 2  # parent
     marker_alpha: 0.9
     use_sphere_marker: true
     use_label: false
@@ -131,7 +131,7 @@ config:
     visualize: false
 llm_plugins:
   dsg_mesh: MeshPlugin
-  # llm_places: LLMPlacesVisualizer
+  places_footprints: FootprintPlugin
 dsg_mesh:
   label_colormap: ''
   color_by_label: false
@@ -139,5 +139,14 @@ llm_places:
   min_score: 0.58
   max_score: 0.65
 color_objects_by_task: true
-color_places_by_task: true
-color_rooms_by_task: true
+color_places_by_task: false
+color_rooms_by_task: false
+places_footprints:
+  use_place_radius: false
+  num_samples: 20
+  footprint_radius: 0.3
+  draw_boundary_vertices: true
+  line_width: 0.02
+  z_offset: -0.8
+  color:
+    type: ParentColorAdaptor

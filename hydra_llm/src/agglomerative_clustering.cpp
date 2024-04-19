@@ -107,7 +107,7 @@ Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
   clusterAgglomerative(ws, *tasks_, *edge_selector_, *metric_);
 
   const auto to_return = getClusters(ws, features);
-  LOG(INFO) << "[IB] finished clustering with " << to_return.size() << " cluster(s)";
+  VLOG(1) << "[IB] finished clustering with " << to_return.size() << " cluster(s)";
   return to_return;
 }
 

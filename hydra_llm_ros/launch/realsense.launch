@@ -6,7 +6,7 @@
     <!-- general configuration -->
     <arg name="robot_id" default="0" doc="Robot unique ID (typically 0)"/>
     <arg name="dataset_name" default="realsense" doc="Dataset name (for hydra config)"/>
-    <arg name="ablation_name" default="realsense" doc="Ablation name (for hydra config)"/>
+    <arg name="ablation_name" default="realsense_fine" doc="Ablation name (for hydra config)"/>
     <!-- tf frames -->
     <arg name="map_frame" default="world"/>
     <arg name="odom_frame" default="world"/>
