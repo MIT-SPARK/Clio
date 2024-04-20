@@ -40,6 +40,7 @@ frontend:
 backend:
   objects:
     min_segment_score: 0.0
+    min_object_score: 0.23
     selector:
       max_delta: 1.0e-5
       score_threshold: 0.23

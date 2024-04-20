@@ -48,6 +48,23 @@ TASK_LIST = {
     ],
 }
 
+SCENE_TASK_LIST = {
+    "office": [
+        "a workspace",
+        "a hallway or corridor",
+        "a kitchenette",
+        "a conference room",
+    ],
+    "apartment": [
+        "a kitchen",
+        "a bedroom",
+        "a dresser and mirror",
+        "a desk and shelves",
+    ],
+    "cubicle": ["a desk and shelves", "open space with chairs"],
+}
+
+
 QUAL_TASKS = {
     "option_1": [
         "a workspace",
@@ -164,8 +181,8 @@ def _format_tasks(prompts):
     return "[" + ", ".join([f'"{x}"' for x in prompts]) + "]"
 
 
-def _get_tasks(bag_ablation):
-    for scene, prompts in TASK_LIST.items():
+def _get_tasks(bag_ablation, tasks):
+    for scene, prompts in tasks.items():
         if scene in bag_ablation:
             return _format_tasks(prompts)
 
@@ -215,7 +232,7 @@ def run_pipeline(config, bag_path, path_out, name, args, dry_run, tasks=None):
     args.append(f"object_detector_config:={conf_path}")
 
     if tasks is None:
-        tasks = _get_tasks(bag_path.stem)
+        tasks = _get_tasks(bag_path.stem, TASK_LIST)
 
     args.append(f"places_task_prompts:={tasks}")
 
@@ -340,6 +357,51 @@ def run_qual(output_path, bags, prerecorded, yes, ablation, visualize, task_name
                 False,
                 tasks=qual_tasks,
             )
+
+
+@main.command()
+@click.argument("output_path")
+@click.argument("bags", nargs=-1, type=click.Path(exists=True))
+@click.option("--prerecorded/--no-prerecorded", default=True)
+@click.option("--yes", "-y", is_flag=True, help="default to overwriting")
+@click.option("--visualize", "-v", is_flag=True, help="run visualizer")
+def run_scenes(output_path, bags, prerecorded, yes, visualize):
+    """
+    Run single instance of clio with custom tasks.
+
+    Usage:
+        run_place_ablations OUTPUT_PATH BAG1 [BAG2...]
+
+    Args:
+        OUTPUT_PATH: directory to store results in
+        BAGS: path to bags to run against
+    """
+    output_path = _normalized_path(output_path)
+    if output_path.exists() and not yes:
+        click.secho(f"Output at '{output_path}' already exists!", fg="red")
+        click.confirm("Overwrite?", default=False, abort=True)
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    config = RunConfig(prerecorded=prerecorded, skip_existing=False)
+
+    for bag in bags:
+        bag_path = _normalized_path(bag)
+        scene_name = bag_path.stem
+
+        tasks = _get_tasks(bag_path.stem, SCENE_TASK_LIST)
+        args = build_args(
+            config, is_hydra=False, selection_method="boundary", visualize=visualize
+        )
+        run_pipeline(
+            config,
+            bag_path,
+            output_path,
+            scene_name,
+            args,
+            False,
+            tasks=tasks,
+        )
 
 
 @main.command()
@@ -1124,7 +1186,9 @@ def visualize(result_path, scene, ablation, trial):
 
 @main.command()
 @click.argument("dsg_path", type=click.Path(exists=True))
-def visualize_path(dsg_path):
+@click.option("--default/--no-default", default=False, help="use default visualizer")
+@click.option("--rviz-file", "-r", default="llm_static_visualizer.yaml")
+def visualize_path(dsg_path, default, rviz_file):
     """Show scene graph."""
     dsg_path = _normalized_path(dsg_path)
     args = [
@@ -1132,8 +1196,14 @@ def visualize_path(dsg_path):
         "hydra_llm_ros",
         "hydra_llm_visualizer.launch",
         f"scene_graph_path:={dsg_path}",
-        "viz_config_file:=region_visualizer_config.yaml",
     ]
+
+    if not default:
+        args.append("viz_config_file:=region_visualizer_config.yaml")
+        args.append("rviz_file:=region_visualizer.rviz")
+    else:
+        args.append(f"rviz_file:={rviz_file}")
+
     subprocess.run(args)
 
 

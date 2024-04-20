@@ -1,6 +1,6 @@
 ---
 config:
-  layer_z_step: 2.0  # unit separation between layers
+  layer_z_step: 1.0  # unit separation between layers
   mesh_edge_break_ratio: 0.5
   mesh_layer_offset: 0.0
   collapse_layers: false
@@ -53,7 +53,7 @@ config:
     intralayer_edge_insertion_skip: 0
   layer2:
     # generic
-    z_offset_scale: 1.0
+    z_offset_scale: 1.5
     visualize: true
     # node
     marker_scale: 0.20
@@ -68,21 +68,23 @@ config:
     bounding_box_alpha: 0.6
     bbox_wireframe_scale: 0.05
     bbox_wireframe_edge_scale: 0.05
-    collapse_bounding_box: false
+    collapse_bounding_box: true
     # edge
     use_edge_source: true
+    interlayer_edge_scale: 0.01
+    interlayer_edge_use_color : true
     intralayer_edge_scale: 0.03
     intralayer_edge_alpha: 0.6
     intralayer_edge_use_color: false
     intralayer_edge_insertion_skip: 0
   layer3:
     # general
-    z_offset_scale: 3.0
+    z_offset_scale: 4.5
     visualize: true
     # nodes
     marker_scale: 0.1
     marker_color_mode: 2  # parent
-    marker_alpha: 0.9
+    marker_alpha: 0.5
     use_sphere_marker: true
     use_label: false
     use_collapsed_label: false
@@ -92,18 +94,18 @@ config:
     bounding_box_alpha: 0.5
     collapse_bounding_box: false
     # edges
-    use_edge_source: false
-    interlayer_edge_scale: 0.01
-    interlayer_edge_alpha: 0.2
-    interlayer_edge_use_color: false
+    use_edge_source: true
+    interlayer_edge_scale: 0.05
+    interlayer_edge_alpha: 0.8
+    interlayer_edge_use_color: true
     interlayer_edge_insertion_skip: 0
     intralayer_edge_scale: 0.01
-    intralayer_edge_alpha: 0.5
+    intralayer_edge_alpha: 0.2
     intralayer_edge_use_color: false
     intralayer_edge_insertion_skip: 0
   layer4:
     # general
-    z_offset_scale: 4.5
+    z_offset_scale: 6.0
     visualize: true
     # nodes
     marker_scale: 0.3
@@ -119,12 +121,12 @@ config:
     collapse_bounding_box: false
     # edges
     use_edge_source: true
-    interlayer_edge_scale: 0.01
-    interlayer_edge_alpha: 0.4
-    interlayer_edge_use_color: false
+    interlayer_edge_scale: 0.015
+    interlayer_edge_alpha: 0.5
+    interlayer_edge_use_color: true
     interlayer_edge_insertion_skip: 0
-    intralayer_edge_scale: 0.01
-    intralayer_edge_alpha: 0.5
+    intralayer_edge_scale: 0.05
+    intralayer_edge_alpha: 0.7
     intralayer_edge_use_color: false
     intralayer_edge_insertion_skip: 0
   layer5:
