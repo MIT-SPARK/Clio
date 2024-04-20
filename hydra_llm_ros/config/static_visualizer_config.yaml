@@ -42,9 +42,9 @@ config:
     use_collapsed_label: false
     use_bounding_box: true
     collapse_bounding_box: false
-    bounding_box_alpha: 0.6
-    bbox_wireframe_scale: 0.02
-    bbox_wireframe_edge_scale: 0.02
+    bounding_box_alpha: 0.9
+    bbox_wireframe_scale: 0.01
+    bbox_wireframe_edge_scale: 0.01
     # edge
     use_edge_source: true
     intralayer_edge_scale: 0.03
@@ -53,7 +53,7 @@ config:
     intralayer_edge_insertion_skip: 0
   layer2:
     # generic
-    z_offset_scale: 1.5
+    z_offset_scale: 2.5
     visualize: true
     # node
     marker_scale: 0.20
@@ -65,9 +65,9 @@ config:
     label_height: 0.5
     label_scale: 0.45
     use_bounding_box: true
-    bounding_box_alpha: 0.6
-    bbox_wireframe_scale: 0.05
-    bbox_wireframe_edge_scale: 0.05
+    bounding_box_alpha: 1.0
+    bbox_wireframe_scale: 0.02
+    bbox_wireframe_edge_scale: 0.02
     collapse_bounding_box: true
     # edge
     use_edge_source: true
@@ -79,7 +79,7 @@ config:
     intralayer_edge_insertion_skip: 0
   layer3:
     # general
-    z_offset_scale: 4.5
+    z_offset_scale: 4.0
     visualize: true
     # nodes
     marker_scale: 0.1
@@ -112,10 +112,10 @@ config:
     marker_color_mode: 0  # default
     marker_alpha: 0.8
     use_sphere_marker: false
-    use_label: true
+    use_label: false
     use_collapsed_label: false
-    label_height: 1.25
-    label_scale: 0.3
+    label_height: 1.0
+    label_scale: 0.5
     use_bounding_box: false
     bounding_box_alpha: 0.5
     collapse_bounding_box: false
@@ -147,7 +147,10 @@ places_footprints:
   use_place_radius: false
   num_samples: 50
   draw_boundary_vertices: true
-  line_width: 0.02
+  line_width: 0.01
+  footprint_radius: 0.2
+  mesh_alpha: 0.45
+  line_alpha: 0.5
   z_offset: -0.8
   color:
     type: ParentColorAdaptor

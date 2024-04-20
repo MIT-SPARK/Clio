@@ -5,6 +5,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import multiprocessing as mp
 import pandas as pd
+import spark_dsg as dsg
 from matplotlib.figure import Figure
 
 import copy
@@ -24,6 +25,12 @@ import json
 import re
 import os
 
+OBJECT_NAMES = {
+    "office": "tasks_office_new_scaled",
+    "apartment": "apartment_gt_grav_metric",
+    "building33": "building33_tasks",
+    "cubicle": "tasks_cubicle_scaled",
+}
 
 TASK_LIST = {
     "office": [
@@ -61,7 +68,7 @@ SCENE_TASK_LIST = {
         "a dresser and mirror",
         "a desk and shelves",
     ],
-    "cubicle": ["a desk and shelves", "open space with chairs"],
+    "cubicle": ["a desk and shelves", "floorspace with chairs"],
 }
 
 
@@ -194,7 +201,7 @@ def _split_bag_name(bag_name):
     ret = re.search(r"_(rs_.*$)", bag_name)
     if ret is None:
         click.secho(f"Could not parse clip ablation from bag '{bag_name}'", fg="red")
-        return None
+        return bag_name, "rs_large_clip_averaging"
 
     return bag_name[: ret.start()], ret.group(1)
 
@@ -233,6 +240,15 @@ def run_pipeline(config, bag_path, path_out, name, args, dry_run, tasks=None):
 
     if tasks is None:
         tasks = _get_tasks(bag_path.stem, TASK_LIST)
+
+    object_tasks = None
+    for scene, filename in OBJECT_NAMES.items():
+        if scene in str(bag_path):
+            object_tasks = filename
+            break
+
+    if object_tasks is not None:
+        args.append(f"scene:={object_tasks}")
 
     args.append(f"places_task_prompts:={tasks}")
 
@@ -1087,6 +1103,7 @@ def _make_grid_legend(
 
 @main.command()
 @click.argument("task_name")
+@click.option("--qual/--no-qual", default=True)
 @click.option("-r", "--num-rows", type=int, default=2)
 @click.option("--num-cols", type=int, default=None)
 @click.option("-d", "--dpi", type=float, default=600.0)
@@ -1099,6 +1116,7 @@ def _make_grid_legend(
 @click.option("--offset", type=float, default=50)
 def make_color_legend(
     task_name,
+    qual,
     num_rows,
     num_cols,
     dpi,
@@ -1128,7 +1146,13 @@ def make_color_legend(
         ]
     ).astype(np.float64)
     colors /= 255.0
-    color_dict = {x: colors[i] for i, x in enumerate(QUAL_TASKS[task_name])}
+
+    if qual:
+        tasks = QUAL_TASKS[task_name]
+    else:
+        tasks = SCENE_TASK_LIST[task_name]
+
+    color_dict = {x: colors[i] for i, x in enumerate(tasks)}
     color_dict["null task"] = (0.0, 0.0, 0.0)
 
     fig = _make_grid_legend(
@@ -1198,6 +1222,15 @@ def visualize_path(dsg_path, default, rviz_file):
         f"scene_graph_path:={dsg_path}",
     ]
 
+    object_tasks = None
+    for scene, filename in OBJECT_NAMES.items():
+        if scene in str(dsg_path):
+            object_tasks = filename
+            break
+
+    if object_tasks is not None:
+        args.append(f"scene:={object_tasks}")
+
     if not default:
         args.append("viz_config_file:=region_visualizer_config.yaml")
         args.append("rviz_file:=region_visualizer.rviz")
@@ -1205,6 +1238,33 @@ def visualize_path(dsg_path, default, rviz_file):
         args.append(f"rviz_file:={rviz_file}")
 
     subprocess.run(args)
+
+
+@main.command()
+@click.argument("dsg_path", type=click.Path(exists=True))
+def remap_labels(dsg_path):
+    """Remap labels."""
+    dsg_path = str(_normalized_path(dsg_path))
+    scene = None
+    if "office" in dsg_path:
+        scene = "office"
+    elif "cubicle" in dsg_path:
+        scene = "cubicle"
+    elif "apartment" in dsg_path:
+        scene = "apartment"
+
+    tasks = SCENE_TASK_LIST[scene]
+
+    G = dsg.DynamicSceneGraph.load(dsg_path)
+    regions = G.get_layer(dsg.DsgLayers.ROOMS)
+    for node in regions.nodes:
+        if node.attributes.name == "":
+            continue
+
+        task_idx = tasks.index(node.attributes.name)
+        node.attributes.name = f"({task_idx + 1})"
+
+    G.save(dsg_path, include_mesh=True)
 
 
 if __name__ == "__main__":
