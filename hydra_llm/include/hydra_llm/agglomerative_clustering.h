@@ -20,7 +20,7 @@ void clusterAgglomerative(ClusteringWorkspace& ws,
 class AgglomerativeClustering : public Clustering {
  public:
   struct Config : Clustering::Config {
-    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
+    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config()};
     IBEdgeSelector::Config selector;
     bool filter_regions = false;
   };

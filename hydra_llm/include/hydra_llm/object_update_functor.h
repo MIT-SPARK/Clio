@@ -73,10 +73,9 @@ class ObjectUpdateFunctor : public dsg_updates::UpdateFunctor {
  public:
   struct Config {
     char prefix = 'O';
-    config::VirtualConfig<IntersectionPolicy> edge_checker{
-        OverlapIntersection::Config(), "OverlapIntersection"};
+    config::VirtualConfig<IntersectionPolicy> edge_checker{OverlapIntersection::Config()};
     config::VirtualConfig<EmbeddingGroup> tasks;
-    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
+    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config()};
     IBEdgeSelector::Config selector;
     double min_segment_score = 0.2;
     double min_object_score = 0.2;

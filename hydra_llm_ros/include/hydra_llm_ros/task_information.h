@@ -54,7 +54,7 @@ class TaskInformation {
     std::filesystem::path colormap_filepath;
     std::string task_service_ns = "";
     bool make_legend = true;
-    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config(), "cosine"};
+    config::VirtualConfig<EmbeddingDistance> metric{CosineDistance::Config()};
   } const config;
 
   TaskInformation(const Config& config, const std::vector<std::string>& tasks);
