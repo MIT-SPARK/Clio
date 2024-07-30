@@ -17,10 +17,6 @@
     local-name: glog_catkin
     uri: git@github.com:ethz-asl/glog_catkin.git
 - git:
-    local-name: gtsam
-    uri: git@github.com:borglab/gtsam.git
-    version: 4.2
-- git:
     local-name: hydra
     uri: git@github.mit.edu:SPARK/Hydra.git
     version: llm/main
@@ -31,15 +27,14 @@
 - git:
     local-name: khronos
     uri: git@github.mit.edu:SPARK/Khronos.git
-    version: llm/feature/robot_aware_places
+    version: llm/main
 - git:
     local-name: kimera_pgmo
     uri: git@github.mit.edu:SPARK/Kimera-PGMO.git
-    version: llm/main
+    version: develop
 - git:
     local-name: kimera_rpgo
     uri: git@github.com:MIT-SPARK/Kimera-RPGO.git
-    version: master
 - git:
     local-name: llm_graphs
     uri: git@github.mit.edu:drmaggio/LLM-Graphs.git
@@ -58,12 +53,11 @@
     uri: git@github.com:ethz-asl/minkindr_ros.git
 - git:
     local-name: pose_graph_tools
-    uri: git@github.mit.edu:SPARK/pose_graph_tools.git
-    version: develop
+    uri: git@github.com:MIT-SPARK/pose_graph_tools.git
 - git:
     local-name: teaser_plusplus
     uri: git@github.com:MIT-SPARK/TEASER-plusplus.git
 - git:
     local-name: voxblox
     uri: git@github.com:MIT-SPARK/voxblox.git
-    version: khronos/main
+    version: feature/hydra
