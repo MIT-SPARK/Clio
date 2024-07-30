@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>clio</name>
+  <version>0.0.1</version>
+  <description>Clio paper code and integration</description>
+
+  <author email="na26933@mit.edu">Nathan Hughes</author>
+  <maintainer email="na26933@mit.edu">Nathan Hughes</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+  <depend>hydra</depend>
+  <depend>khronos</depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+
+</package>

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>clio_ros</name>
+  <version>0.0.1</version>
+  <description>Clio paper ros code and integration</description>
+
+  <author email="na26933@mit.edu">Nathan Hughes</author>
+  <maintainer email="na26933@mit.edu">Nathan Hughes</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>clio</depend>
+  <depend>hydra_ros</depend>
+  <depend>khronos_ros</depend>
+  <depend>roscpp</depend>
+
+  <export>
+  </export>
+
+</package>

@@ -1,0 +1,51 @@
+<launch>
+  <arg name="scene_graph_path" doc="scene graph filename to show"/>
+  <arg name="scene_name" default="office" doc="name of scene for GT file"/>
+  <arg name="model_config" default="$(find llm)/experiments/configs/cluster/rs_large_clip_averaging.yaml"/>
+  <arg name="use_cuda" default="true"/>
+  <arg name="online" default="true" doc="show graph from zmq"/>
+
+  <arg name="zmq_url" default="tcp://127.0.0.1:8001"/>
+  <arg name="start_rviz" default="true" doc="automatically start rviz"/>
+  <arg name="min_log_level" default="0" doc="glog min log level"/>
+  <arg name="verbosity" default="0" doc="glog verbosity"/>
+
+  <arg name="gt_directory" default="$(find llm)/dataconfigs" doc="directory to GT files"/>
+  <arg name="gt_name" default="$(arg scene_name)_gt_grav_metric.yaml"/>
+  <arg name="gt_path" default="$(arg gt_directory)/$(arg gt_name)"/>
+
+  <arg name="semantic_colormap"
+      default="$(find clio_ros)/config/task_colors.csv"
+      doc="colormap to use for visualization"/>
+  <arg name="config_path"
+      default="$(find clio_ros)/config/clustering_visualizer.yaml"
+      doc="configuration for visualizer"/>
+
+  <arg name="rviz_dir" default="$(find clio_ros)/rviz"/>
+  <arg name="rviz_file" default="clustering_visualizer.rviz"/>
+  <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+
+  <arg name="input_config_name" value="$(eval 'online_visualizer.yaml' if arg('online') else 'offline_visualizer.yaml')"/>
+
+  <node pkg="rviz" type="rviz" name="rviz" output="log" args="-d $(arg rviz_path)" if="$(arg start_rviz)"/>
+
+  <node pkg="llm" type="task_server" name="task_server" output="screen">
+      <rosparam command="load" file="$(arg model_config)"/>
+      <param name="~tasks_filepath" value="$(arg gt_path)"/>
+      <param name="use_cuda" value="$(arg use_cuda)"/>
+  </node>
+
+  <node pkg="clio_ros" type="legend_publisher" name="legend_publisher" output="screen"/>
+
+  <node pkg="clio_ros" type="clustering_visualizer" name="clustering_visualizer"
+        output="screen"
+        required="true"
+        args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity) --minloglevel=$(arg min_log_level)">
+    <rosparam command="load" file="$(arg config_path)" subst_value="true"/>
+    <rosparam command="load" file="$(find clio_ros)/config/$(arg input_config_name)" subst_value="true"/>
+    <remap from="~clustering/objects/current_task" to="/task_server/current_task"/>
+    <remap from="~clustering/segments/current_task" to="/task_server/current_task"/>
+    <remap from="/get_embedding" to="/task_server/get_embedding"/>
+  </node>
+
+</launch>

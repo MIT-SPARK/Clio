@@ -1,0 +1,159 @@
+<launch>
+    <!-- frame arguments -->
+    <arg name="robot_id" default="0" doc="unique robot identifier"/>
+    <arg name="robot_frame" doc="robot base frame (i.e., robot pose)"/>
+    <arg name="odom_frame" default="odom" doc="robot map frame"/>
+    <arg name="map_frame" default="map" doc="backend scene graph frame"/>
+    <!-- topic arguments -->
+    <arg name="rgb_info_topic" default="rgb/camera_info"/>
+    <arg name="rgb_topic" default="rgb/image_raw"/>
+    <arg name="depth_topic" default="depth_registered/image_rect"/>
+    <arg name="label_topic" default="semantic/image_raw"/>
+    <arg name="object_topic" default="object/image_raw"/>
+    <arg name="clip_topic" default="/clip_vector"/>
+    <arg name="rgb_image_transport" default="raw"/>
+    <arg name="object_label_file" default="''"/>
+
+    <arg name="closed_set" default="false"/>
+    <arg name="geometric_places" default="false"/>
+    <arg name="object_label_file" default="" if="$(arg closed_set)"/>
+    <arg name="object_detection_type" default="$(eval 'connected_semantics' if arg('closed_set') else 'instance_forwarding')"/>
+    <arg name="places_clustering_type" default="$(eval 'GeometricClustering' if arg('geometric_places') else 'SemanticClustering')"/>
+    <arg name="subscriber_type" default="$(eval 'semantic' if arg('closed_set') else 'openset')"/>
+    <arg name="place_view_selection_type" default="fusion"/>
+
+    <!-- parameter files -->
+    <arg name="dataset_name"/>
+    <arg name="ablation_name" default="$(arg dataset_name)"/>
+    <arg name="semantic_map_path" default="''"/>
+    <arg name="config_path" default="$(find clio_ros)/config/$(arg dataset_name)_pipeline.yaml"/>
+    <arg name="ros_params_file" default="$(find clio_ros)/config/ros_argument_params.yaml"/>
+    <arg name="ablation_config_path" default="$(find clio_ros)/config/$(arg ablation_name).yaml"/>
+    <arg name="places_task_prompts" default="[]"/>
+    <!-- labelspace configuration -->
+    <arg name="labelspace_dir" default="$(find hydra)/config/label_spaces"/>
+    <arg name="labelspace_name" default=""/>
+    <arg name="labelspace_path" default="$(arg labelspace_dir)/$(arg labelspace_name)_label_space.yaml"/>
+
+    <!-- sensor configuration -->
+    <arg name="sensor_min_range" default="0.1" doc="minimum sensor range in meters"/>
+    <arg name="sensor_max_range" default="5.0" doc="maximum sensor range in meters"/>
+    <arg name="sensor_frame" default="" doc="robot sensor frame (for looking up extrinsics)"/>
+    <arg name="kimera_sensor_filepath" default="" doc="optional path to kimera camera file (for extrinsics)"/>
+    <!-- pipeline configuration -->
+    <arg name="bounding_box_type" default="AABB"/>
+    <arg name="exit_after_clock" default="false"/>
+    <arg name="optimize_on_lc" default="true"/>
+    <arg name="enable_merge_undos" default="false"/>
+    <arg name="enable_frontend_output" default="true"/>
+    <arg name="validate_vertices" default="false"/>
+    <arg name="temporal_window_size_s" default="3.0" doc="size of active window in seconds"/>
+    <!-- LCD pipeline configuration -->
+    <arg name="enable_graph_lcd" default="false"/>
+    <arg name="enable_visual_lcd" default="false"/>
+    <arg name="enable_lcd" value="$(eval arg('enable_graph_lcd') or arg('enable_visual_lcd'))"/>
+    <arg name="use_gnn_descriptors" default="false"/>
+    <arg name="visual_lcd_config_path" if="$(arg enable_visual_lcd)"/>
+    <arg name="graph_lcd_config_path" if="$(arg enable_graph_lcd)"/>
+    <arg name="vocabulary_path" default="$(find hydra)/models/vocabulary/ORBvoc.yml"/>
+    <!-- zmq interface -->
+    <arg name="use_zmq_interface" default="false"/>
+    <arg name="zmq_ip" default="127.0.0.1"/>
+    <arg name="zmq_send_url" default="tcp://$(arg zmq_ip):8001"/>
+    <arg name="zmq_recv_url" default="tcp://$(arg zmq_ip):8002"/>
+    <!-- misc visualization -->
+    <arg name="start_visualizer" default="true"/>
+    <arg name="visualizer_frame" default="$(arg map_frame)"/>
+    <arg name="visualizer_ns" default="hydra_dsg_visualizer" doc="visualizer namespace to use"/>
+    <arg name="start_rviz" default="true" doc="automatically start rviz"/>
+    <arg name="viz_use_zmq" default="false" doc="use zmq to receive scene graphs"/>
+    <arg name="viz_zmq_ip" default="127.0.0.1" doc="zmq IP to listen on"/>
+    <arg name="viz_zmq_port" default="8001" doc="zmq port to listen on"/>
+    <arg name="viz_zmq_url" default="tcp://$(arg viz_zmq_ip):$(arg viz_zmq_port)"
+         doc="full zmq url to listen on, including protocol"/>
+    <arg name="viz_debug" default="false"/>
+    <arg name="viz_launch_prefix" value="gdb -ex run --args" if="$(arg viz_debug)"/>
+    <arg name="viz_launch_prefix" value="" unless="$(arg viz_debug)"/>
+    <arg name="show_frontend" default="false" doc="show frontend scene graph"/>
+    <arg name="rviz_dir" default="$(find clio_ros)/rviz"/>
+    <arg name="rviz_file" if="$(arg start_visualizer)"/>
+    <arg name="rviz_path" default="$(arg rviz_dir)/$(arg rviz_file)"/>
+    <arg name="viz_config_dir" default="$(find clio_ros)/config"/>
+    <arg name="viz_config_file" default="visualizer_config.yaml"/>
+    <arg name="viz_config_path" default="$(arg viz_config_dir)/$(arg viz_config_file)"/>
+
+    <!-- logging output for hydra -->
+    <arg name="log_output_dir" default="$(find hydra)/output/"/>
+    <arg name="log_output_prefix" default="$(arg dataset_name)"/>
+    <arg name="log_path" default="$(arg log_output_dir)/$(arg log_output_prefix)"/>
+    <!-- log message controls -->
+    <arg name="min_glog_level" default="0"/>
+    <arg name="verbosity" default="0"/>
+    <arg name="glog_to_file" default="false"/>
+    <arg name="glog_args" value="--logtostderr=0 --log_dir=$(arg log_path)" if="$(arg glog_to_file)"/>
+    <arg name="glog_args" value="" unless="$(arg glog_to_file)"/>
+    <!-- development args -->
+    <arg name="debug" default="false"/>
+    <arg name="launch_prefix" value="gdb -ex run --args" if="$(arg debug)"/>
+    <arg name="launch_prefix" value="" unless="$(arg debug)"/>
+
+    <node pkg="clio_ros"
+          type="clio_node"
+          name="clio_node"
+          launch-prefix="$(arg launch_prefix)"
+          args="--minloglevel=$(arg min_glog_level) -v=$(arg verbosity) $(arg glog_args)"
+          required="true"
+          output="screen">
+        <env name="TERM" value="xterm-256color"/>
+        <!-- sensor topic remappings -->
+        <remap from="~input/color/image_raw" to="$(arg rgb_topic)"/>
+        <remap from="~input/color/image_raw/compressed" to="$(arg rgb_topic)/compressed"/>
+        <remap from="~input/color/camera_info" to="$(arg rgb_info_topic)"/>
+        <remap from="~input/depth/image_rect" to="$(arg depth_topic)"/>
+        <remap from="~input/semantic/image_raw" to="$(arg label_topic)"/>
+        <remap from="~input/object_image" to="$(arg object_topic)"/>
+        <remap from="~input/clip_vector" to="$(arg clip_topic)"/>
+        <remap from="/get_tasks" to="/task_server/get_tasks"/>
+        <remap from="/get_embedding" to="/task_server/get_embedding"/>
+        <!-- image transport -->
+        <param name="rgb/image_transport" value="$(arg rgb_image_transport)"/>
+        <!-- parameter files -->
+        <rosparam file="$(arg labelspace_path)" if="$(arg closed_set)"/>
+        <rosparam file="$(arg config_path)" subst_value="true"/>
+        <rosparam file="$(arg ablation_config_path)" subst_value="true"/>
+        <rosparam file="$(arg graph_lcd_config_path)" ns="loop_closure" if="$(arg enable_graph_lcd)" subst_value="true"/>
+        <rosparam file="$(arg visual_lcd_config_path)" ns="loop_closure" if="$(arg enable_visual_lcd)" subst_value="true"/>
+        <rosparam file="$(arg ros_params_file)" subst_value="true"/>
+    </node>
+
+    <group if="$(arg start_visualizer)">
+        <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(arg rviz_path)"
+              if="$(arg start_rviz)"/>
+
+        <node pkg="clio_ros" type="clio_visualizer_node" name="$(arg visualizer_ns)"
+              launch-prefix="$(arg viz_launch_prefix)"
+              output="screen"
+              required="true"
+              args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
+          <!-- topic and service remappings -->
+          <remap from="~dsg" to="clio_node/backend/dsg" unless="$(arg show_frontend)"/>
+o         <remap from="~dsg" to="clio_node/frontend/dsg" if="$(arg show_frontend)"/>
+          <remap from="~dsg_mesh_updates" to="clio_node/backend/dsg_mesh" unless="$(arg show_frontend)"/>
+          <remap from="~dsg_mesh_updates" to="clio_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
+          <remap from="~object_task_visualizer/current_task" to="/task_server/current_task"/>
+          <remap from="~room_tasks_visualizer/current_task" to="/task_server/current_task"/>
+          <remap from="/get_tasks" to="/task_server/get_tasks"/>
+          <remap from="/get_embedding" to="/task_server/get_embedding"/>
+          <!-- main configuration -->
+          <rosparam command="load" file="$(arg viz_config_path)" subst_value="true"/>
+          <!-- various parameters -->
+          <param name="~visualizer_frame" value="$(arg map_frame)"/>
+          <param name="tasks_config/colormap_filepath" value="$(find clio_ros)/config/task_colors.csv"/>
+          <param name="load_graph" value="false"/>
+          <param name="use_zmq" value="$(arg viz_use_zmq)"/>
+          <param name="zmq_url" value="$(arg viz_zmq_url)"/>
+          <rosparam param="room_tasks" subst_value="true">$(arg places_task_prompts)</rosparam>
+        </node>
+    </group>
+
+</launch>

@@ -1,6 +1,0 @@
----
-graphs:
-  clustering:
-    graph:
-      type: GraphFromFile
-      filepath: $(arg scene_graph_path)

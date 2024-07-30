@@ -1,0 +1,38 @@
+# public
+- git:
+    local-name: catkin_simple
+    uri: git@github.com:catkin/catkin_simple.git
+- git:
+    local-name: config_utilities
+    uri: git@github.com:MIT-SPARK/config_utilities.git
+- git:
+    local-name: kimera_rpgo
+    uri: git@github.com:MIT-SPARK/Kimera-RPGO.git
+    version: master
+- git:
+    local-name: kimera_pgmo
+    uri: git@github.com:MIT-SPARK/Kimera-PGMO.git
+    version: future
+- git:
+    local-name: pose_graph_tools
+    uri: git@github.com:MIT-SPARK/pose_graph_tools.git
+- git:
+    local-name: spark_dsg
+    uri: git@github.com:MIT-SPARK/Spark-DSG.git
+    version: develop
+- git:
+    local-name: teaser_plusplus
+    uri: git@github.com:MIT-SPARK/TEASER-plusplus.git
+# private
+- git:
+    local-name: hydra
+    uri: git@github.mit.edu:SPARK/Hydra.git
+    version: develop
+- git:
+    local-name: hydra_ros
+    uri: git@github.mit.edu:SPARK/Hydra-ROS.git
+    version: develop
+- git:
+    local-name: khronos
+    uri: git@github.mit.edu:SPARK/Khronos.git
+    version: develop

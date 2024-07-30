@@ -1,0 +1,14 @@
+@PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+
+get_filename_component(clio_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
+find_dependency(hydra REQUIRED)
+find_dependency(khronos REQUIRED)
+
+if(NOT TARGET clio::clio)
+  include("${clio_CMAKE_DIR}/clioTargets.cmake")
+endif()
+
+set(clio_LIBRARIES clio::clio)
+check_required_components(clio)
