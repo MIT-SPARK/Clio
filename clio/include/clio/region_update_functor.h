@@ -1,5 +1,5 @@
 #pragma once
-#include <config_utilities/virtual_config.h>
+#include <config_utilities/factory.h>
 #include <hydra/backend/update_functions.h>
 
 #include "clio/agglomerative_clustering.h"
@@ -8,7 +8,6 @@ namespace clio {
 
 struct RegionUpdateFunctor : public hydra::UpdateFunctor {
   struct Config {
-    bool color_by_task = true;
     AgglomerativeClustering::Config clustering;
   } const config;
 

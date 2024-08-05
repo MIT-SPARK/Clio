@@ -8,10 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(gflags REQUIRED)
 find_package(clio REQUIRED)
-find_package(catkin REQUIRED COMPONENTS hydra_ros khronos_ros roscpp)
+find_package(catkin REQUIRED COMPONENTS hydra_ros hydra_visualizer khronos_ros roscpp)
 
 catkin_package(
-  CATKIN_DEPENDS hydra_ros khronos_ros roscpp
+  CATKIN_DEPENDS hydra_ros hydra_visualizer khronos_ros roscpp
   DEPENDS clio
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}

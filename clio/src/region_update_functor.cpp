@@ -3,7 +3,6 @@
 #include <config_utilities/config.h>
 #include <config_utilities/validation.h>
 #include <glog/logging.h>
-#include <hydra/common/global_info.h>
 #include <hydra/rooms/room_utilities.h>
 #include <hydra/utils/display_utilities.h>
 #include <hydra/utils/timing_utilities.h>
@@ -19,7 +18,6 @@ using Clusters = std::vector<Cluster::Ptr>;
 void declare_config(RegionUpdateFunctor::Config& config) {
   using namespace config;
   name("RegionUpdateFunctorConfig::Config");
-  field(config.color_by_task, "color_by_task");
   field(config.clustering, "clustering");
 }
 
@@ -75,11 +73,7 @@ void RegionUpdateFunctor::updateGraphBatch(DynamicSceneGraph& graph,
     attrs->semantic_label = 0;
     attrs->name = clusters[i]->best_task_name;
     attrs->semantic_feature = clusters[i]->feature;
-    if (!attrs->name.empty()) {
-      const auto color_idx =
-          config.color_by_task ? clusters[i]->best_task_index : region_id_.categoryId();
-      attrs->color = hydra::GlobalInfo::instance().getRoomColor(color_idx);
-    }
+    attrs->semantic_label = clusters[i]->best_task_index;
     graph.emplaceNode(DsgLayers::ROOMS, new_node_id, std::move(attrs));
 
     for (const auto node_id : clusters[i]->nodes) {

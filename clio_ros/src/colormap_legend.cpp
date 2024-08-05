@@ -37,7 +37,7 @@
 #include <config_utilities/config.h>
 #include <config_utilities/parsing/ros.h>
 #include <config_utilities/parsing/yaml.h>
-#include <hydra/common/config_utilities.h>
+#include <hydra_visualizer/color/color_parsing.h>
 
 namespace clio {
 

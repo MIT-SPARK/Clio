@@ -12,6 +12,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>clio</depend>
   <depend>hydra_ros</depend>
+  <depend>hydra_visualizer</depend>
   <depend>khronos_ros</depend>
   <depend>roscpp</depend>
 
