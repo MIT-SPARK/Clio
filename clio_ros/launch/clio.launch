@@ -137,7 +137,7 @@
               args="-alsologtostderr -colorlogtostderr -v=$(arg verbosity)">
           <!-- topic and service remappings -->
           <remap from="~dsg" to="clio_node/backend/dsg" unless="$(arg show_frontend)"/>
-o         <remap from="~dsg" to="clio_node/frontend/dsg" if="$(arg show_frontend)"/>
+          <remap from="~dsg" to="clio_node/frontend/dsg" if="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="clio_node/backend/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~dsg_mesh_updates" to="clio_node/frontend/dsg_mesh" unless="$(arg show_frontend)"/>
           <remap from="~object_task_visualizer/current_task" to="/task_server/current_task"/>

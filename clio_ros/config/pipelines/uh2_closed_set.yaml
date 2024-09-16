@@ -1,0 +1,37 @@
+---
+allow_plugins: true
+trace_plugin_allocations: true
+verbose_plugins: true
+paths: [khronos]
+semantic_colormap_file: $(arg semantic_map_path)
+exit_after_clock: $(arg exit_after_clock)
+log_path: $(arg log_path)
+log_timing_incrementally: $(arg log_timing_incrementally)
+disable_timer_output: $(arg disable_timer_output)
+timing_disabled: $(arg timing_disabled)
+enable_frontend_output: $(arg enable_frontend_output)
+frontend:
+  objects:
+    bounding_box_type: $(arg bounding_box_type)
+  pose_graph_tracker:
+    type: $(arg pose_graph_tracker_type)
+backend:
+  optimize_on_lc: $(arg optimize_on_lc)
+  zmq_sink:
+    url: $(arg zmq_send_url)
+    send_mesh: $(arg zmq_send_mesh)
+  pgmo:
+    add_initial_prior: $(arg add_initial_prior)
+  update_functors:
+    zmq_labels:
+      url: $(arg zmq_recv_url)
+enable_lcd: $(arg enable_dsg_lcd)
+lcd_use_bow_vectors: $(arg lcd_use_bow_vectors)
+lcd:
+  use_gnn_descriptors: $(arg use_gnn_descriptors)
+  gnn_lcd:
+    object_model_path: $(arg lcd_gnn_object_model)
+    places_model_path: $(arg lcd_gnn_places_model)
+    label_embeddings_file: $(arg lcd_gnn_label_embeddings)
+features:
+  type: $(arg feature_receiver_type)

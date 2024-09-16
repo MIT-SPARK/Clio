@@ -1,0 +1,76 @@
+<launch>
+    <arg name="sim_time_required" default="true"/>
+    <param name="use_sim_time" value="$(arg sim_time_required)"/>
+
+    <arg name="use_gt_frame" default="true" doc="use simulator-provided tf frame"/>
+    <arg name="use_gt_semantics" default="true" doc="use simulator-provider semantics"/>
+    <arg name="color_mesh_by_label" default="true" doc="display mesh colored by semantic label"/>
+
+    <arg name="robot_frame" default="$(eval 'base_link_gt' if use_gt_frame else 'base_link_kimera')" doc="robot body tf frame"/>
+    <arg name="odom_frame" default="$(eval 'world' if use_gt_frame else 'odom')" doc="odometry (map) frame"/>
+    <arg name="sensor_frame" default="$(eval 'left_cam' if use_gt_frame else 'left_cam_kimera')" doc="camera frame"/>
+    <arg name="hydra_config_path" default="$(find clio_ros)/config/datasets/uh2_closed_set.yaml"/>
+
+    <!-- semantics -->
+    <arg name="labelspace_name" default="$(eval 'uhumans2_office' if use_gt_semantics else 'ade20k_mp3d')" doc="semantic label space"/>
+    <arg name="semantic_map_path" default="$(find hydra_ros)/config/color/$(arg labelspace_name).csv" if="$(arg use_gt_semantics)"/>
+
+    <arg name="use_prerecorded_semantics" default="false" doc="Use precorded labels as input"/>
+    <arg name="prerecorded_topic" default="/oneformer/labels/image_raw" doc="Topic containing prerecorded labels"/>
+
+    <arg name="rgb_topic" default="/tesse/left_cam/rgb/image_raw"/>
+    <arg name="rgb_info_topic" default="/tesse/left_cam/camera_info"/>
+    <arg name="depth_topic" default="/tesse/depth_cam/mono/image_raw"/>
+    <arg name="label_topic" default="$(eval 'tesse/seg_cam/rgb/image_raw' if use_gt_semantics else 'semantic_inference/semantic/image_raw')"/>
+
+    <arg name="use_static_tfs" default="true" doc="publish static tfs from file"/>
+    <group if="$(arg use_static_tfs)">
+        <include file="$(find hydra_ros)/launch/static_tfs/uhumans2_static_tfs.xml"/>
+        <node pkg="tf2_ros" type="static_transform_publisher" name="fake_world_tf" args="0 0 0 0 0 0 1 map world" if="$(arg use_gt_frame)"/>
+    </group>
+
+    <group unless="$(arg use_gt_semantics)">
+        <remap from="semantic_inference/color/image_raw" to="$(arg rgb_topic)"/>
+        <remap from="semantic_inference/labels/image_raw" to="$(arg prerecorded_topic)" if="$(arg use_prerecorded_semantics)"/>
+        <include file="$(find semantic_inference_ros)/launch/semantic_inference.launch" pass_all_args="true"/>
+    </group>
+
+    <arg name="use_openset_features" default="false" doc="assign clip features to places"/>
+    <group if="$(arg use_openset_features)">
+        <remap from="/clip_publisher_node/image" to="/tesse/left_cam/rgb/image_raw"/>
+        <remap from="/clip_publisher_node/feature" to="/hydra_ros_node/input/left_cam/feature"/>
+        <include file="$(find semantic_inference_ros)/launch/clip_publisher.launch"/>
+    </group>
+
+    <arg name="start_hydra" default="true"/>
+    <group if="$(arg start_hydra)">
+        <remap from="hydra_ros_node/input/left_cam/depth_registered/image_rect" to="$(arg depth_topic)"/>
+        <remap from="hydra_ros_node/input/left_cam/rgb/image_raw" to="$(arg rgb_topic)"/>
+        <remap from="hydra_ros_node/input/left_cam/rgb/camera_info" to="$(arg rgb_info_topic)"/>
+        <remap from="hydra_ros_node/input/left_cam/semantic/image_raw" to="$(arg label_topic)"/>
+        <include file="$(find hydra_ros)/launch/hydra.launch" pass_all_args="true">
+            <arg name="dataset_name" default="uhumans2"/>
+            <arg name="pipeline_path" value="$(find clio_ros)/config/pipelines/uh2_closed_set.yaml"/>
+        </include>
+    </group>
+
+    <!-- visualizer for converting dsg to visualization markers -->
+    <arg name="start_visualizer" default="true" doc="start hydra visualizer"/>
+    <group if="$(arg start_visualizer)">
+        <remap from="hydra_dsg_visualizer/dsg" to="hydra_ros_node/backend/dsg"/>
+        <remap from="hydra_dsg_visualizer/feature" to="hydra_ros_node/input/left_cam/feature"/>
+        <include file="$(find hydra_visualizer)/launch/hydra_streaming_visualizer.launch" pass_all_args="true">
+            <arg name="visualizer_frame" default="map"/>
+            <arg name="external_plugins_path" value="$(find hydra_ros)/config/hydra_ros_visualizer_plugins.yaml"/>
+        </include>
+    </group>
+
+    <!-- rviz -->
+    <arg name="start_rviz" default="true" doc="start rviz"/>
+    <group if="$(arg start_rviz)">
+        <include file="$(find hydra_visualizer)/launch/hydra_rviz.launch">
+            <arg name="rviz_dir" default="$(find hydra_ros)/rviz"/>
+            <arg name="rviz_file" default="uhumans2.rviz"/>
+        </include>
+    </group>
+</launch>
