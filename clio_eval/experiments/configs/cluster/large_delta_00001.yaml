@@ -1,0 +1,16 @@
+debug: False
+debug_folder: /home/yunchang/logs/hydra_llm/3d_clustering_test/apartment/large_clustered
+
+#### Similarity configs
+use_lerf_loss: False
+lerf_loss_cannonical_phrases: 
+  - things
+  - stuff
+  - texture
+  - object
+
+#### Clustering configs
+sims_thres: 0.23
+delta: 0.00001
+top_k_tasks: 2
+cumulative: True

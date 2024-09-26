@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm_graphs"
+version = "0.0.1"
+dependencies = [
+  "ultralytics==8.0.120",
+  "click",
+  "distinctipy",
+  "tqdm",
+  "opencv-python",
+  "open3d>=0.17.0",
+  "einops",
+  "wheel",
+  "torch==2.0.1",
+  "torchaudio==2.0.2",
+  "torchvision==0.15.2",
+  "numpy==1.23.5",
+  "tqdm",
+  "pandas>=1.1.4",
+  "seaborn>=0.11.0",
+  "gradio==3.35.2",
+  "ultralytics == 8.0.120",
+  "tabulate",
+  "argparse",
+  "matplotlib",
+  "pycryptodomex",
+  "termcolor",
+  "clip@git+https://github.com/openai/CLIP",
+  "open_clip_torch"
+]
+
+[project.optional-dependencies]
+dev = ["jupyter", "jupytext", "pytest"]
+
+[tool.setuptools.packages.find]
+include = ["clio_eval", "clio_data_maker", "clio_batch"]
+namespaces = false
+
+[tool.pytest.ini_options]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
+filterwarnings = [
+    "ignore:::.*clip.clip:",
+    "ignore:::.*pkg_resources:",
+]

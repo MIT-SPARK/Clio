@@ -1,0 +1,3 @@
+[submodule "thirdparty/Objectron"]
+	path = thirdparty/Objectron
+	url = https://github.com/google-research-datasets/Objectron.git
