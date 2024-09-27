@@ -29,11 +29,6 @@ struct OverlapIntersection : public IntersectionPolicy {
 
   bool call(const spark_dsg::KhronosObjectAttributes& lhs,
             const spark_dsg::KhronosObjectAttributes& rhs) const;
-
- private:
-  inline static const auto registration_ =
-      config::RegistrationWithConfig<IntersectionPolicy, OverlapIntersection, Config>(
-          "OverlapIntersection");
 };
 
 void declare_config(OverlapIntersection::Config& config);

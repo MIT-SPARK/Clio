@@ -4,48 +4,39 @@
     <arg name="sim_time_required" default="true"/>
     <param name="use_sim_time" value="$(arg sim_time_required)"/>
     <!-- general configuration -->
-    <arg name="robot_id" default="0" doc="Robot unique ID (typically 0)"/>
-    <arg name="dataset_name" default="realsense" doc="Dataset name (for hydra config)"/>
-    <arg name="ablation_name" default="realsense_fine" doc="Ablation name (for hydra config)"/>
+    <arg name="dataset_name" default="realsense" doc="Dataset name (used for parsing config)"/>
+    <arg name="ablation_name" default="realsense_fine" doc="Ablation name (used for parsing config)"/>
+    <arg name="segmenter_config" default="$(find clio_ros)/config/segmentation/large_clip.yaml" doc="openset segmentation config to use"/>
     <!-- tf frames -->
     <arg name="map_frame" default="world"/>
     <arg name="odom_frame" default="world"/>
     <arg name="robot_frame" default="dominic/forward_link"/>
     <arg name="sensor_frame" default="dominic/forward_link"/>
-    <!-- topics -->
-    <arg name="rgb_topic" default="/dominic/forward/color/image_raw"/>
-    <arg name="depth_topic" default="/dominic/forward/depth/image_rect_raw"/>
-    <arg name="object_topic" default="/dominic/forward/object_image"/>
-    <arg name="clip_topic" default="/dominic/forward/clip_vector"/>
-    <!-- options -->
-    <arg name="run_object_detector" default="false"/>
-    <arg name="run_task_server" default="true"/>
-    <arg name="object_detector_config" default="$(find llm)/experiments/configs/cluster/rs_large_clip_averaging.yaml"/>
-    <arg name="scene" default="office_gt_grav_metric"/>
-    <arg name="tasks_file" default="$(find llm)/dataconfigs/$(arg scene).yaml"/>
 
-    <include file="$(find llm)/launch/object_detect.launch" if="$(arg run_object_detector)" pass_all_args="true">
-        <arg name="rgb_topic" value="$(arg rgb_topic)"/>
-        <arg name="output_topic" value="$(arg object_topic)"/>
-        <arg name="config_path" value="$(arg object_detector_config)"/>
-        <arg name="tasks_file" value="$(arg tasks_file)"/>
-        <arg name="log_output" value="true"/>
-    </include>
+    <arg name="run_segmentation" default="false"/>
+    <group if="$(arg run_segmentation)">
+        <include file="$(find semantic_inference_ros)/launch/openset_segmentation.launch">
+            <arg name="config_path" value="$(arg segmenter_config)"/>
+        </include>
+    </group>
 
-    <include file="$(find llm)/launch/task_server.launch" if="$(arg run_task_server)">
-        <arg name="config_path" value="$(arg object_detector_config)"/>
-        <arg name="tasks_file" value="$(arg tasks_file)"/>
-    </include>
+    <group unless="$(arg run_segmentation)">
+        <node pkg="semantic_inference_ros" type="language_embedding_node" name="semantic_inference">
+            <rosparam file="$(arg segmenter_config)"/> <!-- sets model name -->
+        </node>
+    </group>
 
-    <include file="$(find clio_ros)/launch/clio.launch" pass_all_args="true">
-        <arg name="dataset_name" value="$(arg dataset_name)"/>
-        <arg name="ablation_name" value="$(arg ablation_name)"/>
-        <arg name="rviz_file" value="realsense.rviz"/>
-        <arg name="closed_set" value="false"/>
-        <arg name="temporal_window_size_s" value="5"/>
-        <arg name="viz_config_file" default="visualizer_config.yaml"/>
-        <arg name="sensor_min_range" default="0.3" doc="minimum sensor range in meters"/>
-        <arg name="sensor_max_range" default="4.0" doc="maximum sensor range in meters"/>
-    </include>
+    <arg name="run_clio" default="true"/>
+    <group if="$(arg run_clio)">
+        <!-- TODO(nathan) change topic -->
+        <remap from="/clio_node/input/camera/rgb/image_raw" to="/dominic/forward/color/image_raw"/>
+        <remap from="/clio_node/input/camera/depth_registered/image_rect" to="/dominic/forward/depth/image_rect_raw"/>
+        <remap from="/clio_node/input/camera/semantic/image_raw" to="/dominic/forward/object_image"/>
+        <remap from="/clio_node/input/camera/feature" to="/dominic/forward/clip_vector"/>
+        <include file="$(find clio_ros)/launch/clio.launch" pass_all_args="true">
+            <arg name="sensor_min_range" default="0.3" doc="minimum sensor range in meters"/>
+            <arg name="sensor_max_range" default="4.0" doc="maximum sensor range in meters"/>
+        </include>
+    </group>
 
 </launch>

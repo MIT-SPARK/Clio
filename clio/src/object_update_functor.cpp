@@ -8,12 +8,24 @@
 #include <hydra/utils/timing_utilities.h>
 #include <spark_dsg/graph_utilities.h>
 #include <spark_dsg/printing.h>
-//#include <khronos/common/utils/khronos_attribute_utils.h>
 
 #include "clio/agglomerative_clustering.h"
 #include "clio/probability_utilities.h"
 
 namespace clio {
+namespace {
+
+static const auto overlap_reg =
+    config::RegistrationWithConfig<IntersectionPolicy,
+                                   OverlapIntersection,
+                                   OverlapIntersection::Config>("OverlapIntersection");
+
+static const auto functor_reg =
+    config::RegistrationWithConfig<hydra::UpdateFunctor,
+                                   ObjectUpdateFunctor,
+                                   ObjectUpdateFunctor::Config>("ObjectsIBFunctor");
+
+}  // namespace
 
 using config::VirtualConfig;
 using hydra::MergeList;
@@ -21,7 +33,8 @@ using hydra::timing::ScopedTimer;
 using namespace spark_dsg;
 
 /*
-void mergeObjectAttributes(const KhronosObjectAttributes& from, KhronosObjectAttributes& into) {
+void mergeObjectAttributes(const KhronosObjectAttributes& from, KhronosObjectAttributes&
+into) {
   // TODO(lschmid): For now just add up the meshes / trajectories.
   // Update the bounding box. Do this first as it is the reference for the mesh.
   const Point new_bbox_min = into.bounding_box.min.cwiseMin(from.bounding_box.min);

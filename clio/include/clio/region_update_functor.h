@@ -1,5 +1,4 @@
 #pragma once
-#include <config_utilities/factory.h>
 #include <hydra/backend/update_functions.h>
 
 #include "clio/agglomerative_clustering.h"
@@ -23,10 +22,6 @@ struct RegionUpdateFunctor : public hydra::UpdateFunctor {
  private:
   mutable NodeSymbol region_id_;
   AgglomerativeClustering clustering_;
-
-  inline static const auto registration_ =
-      config::RegistrationWithConfig<UpdateFunctor, RegionUpdateFunctor, Config>(
-          "RegionUpdateFunctor");
 };
 
 void declare_config(RegionUpdateFunctor::Config& config);

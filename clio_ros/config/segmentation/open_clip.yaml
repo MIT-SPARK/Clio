@@ -1,0 +1,13 @@
+---
+segmentation:
+  type: fastsam
+  confidence: 0.55
+  iou: 0.85
+  output_size: 640
+refinement:
+  dilate_masks: true
+clip_model:
+  type: open_clip
+  model_name: ViT-H-14
+# controls pixel-aligned features
+use_dense: false  # must be false for openclip

@@ -1,0 +1,71 @@
+---
+external_plugins:
+  allow_plugins: true
+  trace_plugin_allocations: true
+  verbose_plugins: true
+  paths: [hydra_ros]
+plugins:
+  dsg_mesh:
+    type: MeshPlugin
+    use_color_adaptor: false
+  khronos_objects:
+    type: KhronosObjectPlugin
+    dynamic_color_mode: CONSTANT
+config:
+  layer_z_step: 3.0  # unit separation between layers
+  collapse_layers: false
+  dynamic_layer:
+    layer2:
+      visualize: true
+      node_scale: 0.035
+  layer1:
+    visualize: true
+    marker_scale: 0.05
+    marker_color_mode: NearestFeatureColor
+    color_settings: {features: {ns: ~objects, silent_wait: false}, colormap: {palette: distinct150}}
+    use_bounding_box: true
+    bounding_box_scale: 0.01
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.0
+    edge_scale: 0.005
+    edge_alpha: 0.2
+  layer2:
+    z_offset_scale: 1.0
+    visualize: true
+    marker_scale: 0.15
+    marker_color_mode: NearestFeatureColor
+    color_settings: {features: {ns: ~objects, silent_wait: false}, colormap: {palette: distinct150}}
+    use_bounding_box: true
+    bounding_box_scale: 0.03
+    collapse_bounding_box: true
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.4
+  layer3:
+    # general
+    z_offset_scale: 1.5
+    visualize: true
+    # nodes
+    marker_scale: 0.15
+    marker_color_mode: NearestFeatureColor
+    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: distinct150}}
+    marker_alpha: 0.8
+    use_sphere_marker: true
+    # edges
+    edge_scale: 0.005
+    edge_alpha: 0.5
+    edge_use_color: false
+    interlayer_edge_use_source: false
+    interlayer_edge_scale: 0.02
+    interlayer_edge_alpha: 0.4
+    interlayer_edge_use_color: true
+    interlayer_edge_insertion_skip: 0
+  layer4:
+    z_offset_scale: 2.0
+    visualize: true
+    marker_scale: 0.20
+    marker_color_mode: NearestFeatureColor
+    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: distinct150}}
+    interlayer_edge_scale: 0.01
+    interlayer_edge_alpha: 0.4
+  layer5:
+    visualize: false

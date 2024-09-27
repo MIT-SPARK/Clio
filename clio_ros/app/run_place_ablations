@@ -2,7 +2,6 @@
 """Run ablation trials for places."""
 import copy
 import dataclasses
-import functools
 import json
 import multiprocessing as mp
 import os
@@ -21,8 +20,6 @@ import pandas as pd
 import scipy.stats
 import tqdm
 import yaml
-from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
 
 TASK_LIST = {
     "office": [
@@ -65,6 +62,53 @@ QUAL_TASKS = {
         "coats and a coat-rack",
     ],
 }
+
+SCENE_PATH_NAME_MAP = {
+    "office": "office_test_processed_rs_large_clip_averaging",
+    "apartment": "apartment_grav_processed_rs_large_clip_averaging",
+    "building33": "building33_processed_rs_large_clip_averaging",
+}
+
+
+NAME_MAP = {
+    "hydra": "Hydra",
+    "clio_boundary": "Clio (boundary)",
+    "clio_closest": "Clio (closest)",
+    "clio_fusion": "Clio (average)",
+}
+
+SCENE_MAP = {
+    "apartment_grav_processed": "Apartment",
+    "office_test_processed": "Office",
+    "building33_processed": "Building",
+}
+
+TABLE_HEADER = r"""\begin{table}[t!]
+    \scriptsize
+    \centering
+    \begin{tabularx}{\columnwidth}{lXccc}
+        Dataset & Method & Precision$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ \\
+        \midrule
+"""
+
+TABLE_FOOTER = r"""        \bottomrule
+    \end{tabularx}
+    \caption{Comparison of Geometric Room Segmentation Accuracy}\label{table:places}
+\end{table}
+"""
+
+# TODO(nathan) fix this at some point
+SENSOR_CONFIG = """
+type: camera
+width: 640
+height: 360
+cx: 315.9902073557914
+cy: 254.59437002701452
+fx: 372.4634094238281
+fy: 371.5072021484375
+extrinsics:
+  type: identity
+"""
 
 
 @dataclass
@@ -181,6 +225,149 @@ def _split_bag_name(bag_name):
     return bag_name[: ret.start()], ret.group(1)
 
 
+def _format(
+    mean, std, prec=3, latex=False, bold=False, underline=False, include_std=True
+):
+    def _get_num(num):
+        return f"{{:0.{prec}f}}".format(num)
+
+    use_std = include_std and not np.isnan(std)
+    mean_str = _get_num(mean)
+    if not latex:
+        ret = mean_str if not use_std else f"{mean_str} ± {_get_num(std)}"
+        return ret
+
+    if use_std:
+        latex_str = rf"{mean_str} $\pm$ {_get_num(std)}"
+    else:
+        latex_str = mean_str
+
+    if bold:
+        return rf"\textbf{{{latex_str}}}"
+    elif underline:
+        return rf"\underline{{{latex_str}}}"
+    else:
+        return latex_str
+
+
+def _get_scene_table(df):
+    ablations = sorted(df["ablation"].unique())
+    # column ordering: precision, recall, f1
+    means = np.zeros((len(ablations), 3))
+    stds = np.zeros((len(ablations), 3))
+    order = ["precision", "recall", "f1"]
+    for idx, ablation in enumerate(ablations):
+        metrics = df[df["ablation"] == ablation]
+        metrics = metrics[order]
+        mean = metrics.mean()
+        std = metrics.std()
+        means[idx, :] = np.array([mean[x] for x in order])
+        stds[idx, :] = np.array([std[x] for x in order])
+
+    return ablations, means, stds
+
+
+def _get_ablation_values(df, ablation):
+    ablation_df = df[df["ablation"] == ablation]
+    # column ordering: precision, recall, f1
+    values = np.zeros((len(ablation_df), 3))
+    order = ["precision", "recall", "f1"]
+    for row_values in ablation_df.itertuples(index=False):
+        for col, metric in enumerate(order):
+            values[row_values.trial - 1, col] = getattr(row_values, metric)
+
+    return values
+
+
+def _get_multirow_column(scene, N):
+    return rf"\multirow{{{N}}}{{*}}{{{SCENE_MAP.get(scene, scene)}}}"
+
+
+def _get_rankings(values, tolerance=1.0e-3):
+    ordering = np.argsort(values, axis=0)[::-1, :]
+    ranks = np.zeros_like(ordering)
+    for col in range(ranks.shape[1]):
+        curr_rank = 1
+        ranks[ordering[0, col], col] = curr_rank
+        for row in range(1, values.shape[0]):
+            v_curr = values[ordering[row, col], col]
+            v_prev = values[ordering[row - 1, col], col]
+            change = np.abs(v_curr - v_prev) > tolerance
+            curr_rank += change
+            ranks[ordering[row, col], col] = curr_rank
+
+    return ranks
+
+
+def _convert_results_to_df(results, filters=None, use_total=False):
+    columns = {}
+    columns["scene"] = []
+    columns["clip"] = []
+    columns["ablation"] = []
+    columns["precision"] = []
+    columns["recall"] = []
+    columns["f1"] = []
+    columns["trial"] = []
+
+    for path, data in results.items():
+        info = _get_info(path)
+        if filters is not None and sum([x(info) for x in filters]):
+            click.secho(f"skipping {info}", fg="yellow")
+            continue
+
+        columns["scene"].append(info.scene_name)
+        columns["clip"].append(info.clip_name)
+        columns["ablation"].append(info.ablation)
+        columns["trial"].append(info.trial)
+
+        if use_total:
+            precision = data["total_precision"]
+            recall = data["total_recall"]
+        else:
+            precision = np.mean(data["precisions"])
+            recall = np.mean(data["recalls"])
+
+        columns["precision"].append(precision)
+        columns["recall"].append(recall)
+        columns["f1"].append(scipy.stats.hmean([precision, recall]))
+
+    return pd.DataFrame(columns)
+
+
+def _run_eval(args):
+    path, gt_path, data_path, min_room_nodes = args
+    info = _get_info(path)
+    tsdf_path = gt_path / info.scene_name / "tsdf.vxblx"
+    bbox_path = data_path / f"{info.scene_name}_rooms.yaml"
+    dsg_path = path / "backend" / "dsg.json"
+
+    proc_args = [
+        "rosrun",
+        "hydra",
+        "evaluate_rooms",
+        f"-tsdf_file={tsdf_path}",
+        f"-bbox_file={bbox_path}",
+        f"-dsg_file={dsg_path}",
+        f"-min_room_nodes={min_room_nodes}",
+        "-minloglevel=1",
+    ]
+    ret = subprocess.run(proc_args, capture_output=True)
+    if len(ret.stdout) == 0:
+        err_msg = ret.stderr.decode("utf-8").strip("\n")
+        # from https://stackoverflow.com/questions/14693701
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        err_msg = ansi_escape.sub("", err_msg)
+        # strip glog prefix
+        glog_escape = re.compile(r"[EW]\d{4}.*:\d+\] ")
+        err_msg = glog_escape.sub("", err_msg)
+        err_msg = err_msg.strip("\n")
+        return path, None, err_msg
+
+    results = ret.stdout.decode("utf-8").strip()
+    results = json.loads(results)
+    return path, results, None
+
+
 def run_pipeline(config, bag_path, path_out, name, args, dry_run, tasks=None):
     """Run hydra pipeline."""
     log_path = path_out / name
@@ -284,6 +471,152 @@ def run_bag(
 def main():
     """Run or prepare place ablations."""
     pass
+
+
+@main.command()
+@click.argument("output_path")
+@click.argument("bags", nargs=-1, type=click.Path(exists=True))
+@click.option("--skip-existing", "-s", is_flag=True, help="skip existing bags")
+@click.option(
+    "--ablations",
+    "-a",
+    type=str,
+    multiple=True,
+    default=["small", "large", "open"],
+    help="specific model ablations to run",
+)
+@click.option(
+    "--configs",
+    "-c",
+    type=click.Path(exists=True),
+    multiple=True,
+    default=[],
+    help="config files not covered by ablations",
+)
+@click.option("--yes", "-y", is_flag=True, help="automatically overwrite")
+def prep(output_path, bags, skip_existing, ablations, configs, yes):
+    """
+    Prepare ablation bags.
+
+    Usage:
+        run_place_ablations prep OUTPUT_PATH BAG1 [BAG2...]
+
+    Args:
+        OUTPUT_PATH: directory to store preprocessed bags in
+        BAGS: path to bags to preprocess
+    """
+    output_path = _normalized_path(output_path)
+    if output_path.exists() and not skip_existing and not yes:
+        click.secho(f"Output at '{output_path}' already exists!", fg="red")
+        click.confirm("Overwrite?", default=False, abort=True)
+
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    base_args = [
+        "/dominic/forward/color/image_raw:/dominic/forward/object_image",
+        "--clip-vec",
+        "--copy",
+        "--yes",
+    ]
+
+    config_paths = [_normalized_path(x) for x in configs] + _get_ablation_paths(
+        ablations
+    )
+    for idx, bag in enumerate(bags):
+        click.secho(_underline(f"Processing Bag {idx + 1} of {len(bags)}", fill="+-"))
+        args = ["rosrun", "llm", "make_rosbag"]
+        bag_path = _normalized_path(bag)
+        args += [str(bag_path)]
+        args += base_args
+
+        for config in config_paths:
+            bag_output = output_path / f"{bag_path.stem}_{config.stem}.bag"
+            if skip_existing and bag_output.exists():
+                click.secho(f"Skipping existing '{bag_output}'", fg="yellow")
+                continue
+
+            banner = _underline(
+                f"Starting config '{config}'", fill="-", add_newlines=False
+            )
+            click.secho(banner, fg="green")
+
+            args += ["-o", str(bag_output)]
+            args += ["-c", str(config)]
+
+            subprocess.run(args)
+            click.echo("")
+
+
+@main.command()
+@click.argument("output_path", type=click.Path())
+@click.argument("bag_paths", type=click.Path(exists=True), nargs=-1)
+@click.option("--yes", "-y", is_flag=True, help="overwrite results")
+@click.option("--skip-existing", "-s", is_flag=True, help="skip existing")
+@click.option(
+    "--voxel-size", "-v", default=0.1, type=float, help="voxel size for reconstruction"
+)
+@click.option("--min-range", default=0.3, type=float, help="min sensor range")
+@click.option("--max-range", default=4.5, type=float, help="max sensor range")
+@click.option("--min-log-level", default=0, type=int, help="glog min log level")
+@click.option("--verbosity", default=0, type=int, help="glog verbosity")
+def gt(
+    output_path,
+    bag_paths,
+    yes,
+    skip_existing,
+    voxel_size,
+    min_range,
+    max_range,
+    min_log_level,
+    verbosity,
+):
+    """Construct GT reconstruction for bags."""
+    output_path = _normalized_path(output_path)
+    bag_paths = [_normalized_path(x) for x in bag_paths]
+
+    for bag in bag_paths:
+        scene_path = output_path / bag.stem
+        if scene_path.exists() and skip_existing:
+            click.secho(f"skipping existing '{scene_path}'", fg="green")
+            continue
+
+        if scene_path.exists() and not yes:
+            click.secho(f"GT reconstruction exists at '{scene_path}'", fg="yellow")
+            click.confirm("Overwrite?", default=False, abort=True)
+
+        bag_config = {
+            "bag_path": str(bag),
+            "color_topic": "/dominic/forward/color/image_raw",
+            "depth_topic": "/dominic/forward/depth/image_rect_raw",
+            "sensor": yaml.safe_load(SENSOR_CONFIG),
+            "world_frame": "world",
+            "sensor_frame": "dominic/forward_link",
+        }
+        bag_config["sensor"]["min_range"] = min_range
+        bag_config["sensor"]["max_range"] = max_range
+
+        config = {
+            "reconstructor": {"map": {"voxel_size": voxel_size}},
+            "reader": {"bags": [bag_config]},
+        }
+
+        scene_path.mkdir(parents=True, exist_ok=True)
+        config_path = scene_path / "settings.yaml"
+        with config_path.open("w") as fout:
+            fout.write(yaml.dump(config))
+            fout.flush()
+            os.fsync(fout)
+
+        args = [
+            "rosrun",
+            "hydra_ros",
+            "reconstruct_mesh",
+            f"--output_path={scene_path}",
+            f"--minloglevel={min_log_level}",
+            f"-v={verbosity}",
+            f"--config={config_path}",
+        ]
+        subprocess.call(args)
 
 
 @main.command()
@@ -406,200 +739,6 @@ def run(
 
 
 @main.command()
-@click.argument("output_path")
-@click.argument("bags", nargs=-1, type=click.Path(exists=True))
-@click.option("--skip-existing", "-s", is_flag=True, help="skip existing bags")
-@click.option(
-    "--ablations",
-    "-a",
-    type=str,
-    multiple=True,
-    default=["small", "large", "open"],
-    help="specific model ablations to run",
-)
-@click.option(
-    "--configs",
-    "-c",
-    type=click.Path(exists=True),
-    multiple=True,
-    default=[],
-    help="config files not covered by ablations",
-)
-@click.option("--yes", "-y", is_flag=True, help="automatically overwrite")
-def prep(output_path, bags, skip_existing, ablations, configs, yes):
-    """
-    Prepare ablation bags.
-
-    Usage:
-        run_place_ablations prep OUTPUT_PATH BAG1 [BAG2...]
-
-    Args:
-        OUTPUT_PATH: directory to store preprocessed bags in
-        BAGS: path to bags to preprocess
-    """
-    output_path = _normalized_path(output_path)
-    if output_path.exists() and not skip_existing and not yes:
-        click.secho(f"Output at '{output_path}' already exists!", fg="red")
-        click.confirm("Overwrite?", default=False, abort=True)
-
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    base_args = [
-        "/dominic/forward/color/image_raw:/dominic/forward/object_image",
-        "--clip-vec",
-        "--copy",
-        "--yes",
-    ]
-
-    config_paths = [_normalized_path(x) for x in configs] + _get_ablation_paths(
-        ablations
-    )
-    for idx, bag in enumerate(bags):
-        click.secho(_underline(f"Processing Bag {idx + 1} of {len(bags)}", fill="+-"))
-        args = ["rosrun", "llm", "make_rosbag"]
-        bag_path = _normalized_path(bag)
-        args += [str(bag_path)]
-        args += base_args
-
-        for config in config_paths:
-            bag_output = output_path / f"{bag_path.stem}_{config.stem}.bag"
-            if skip_existing and bag_output.exists():
-                click.secho(f"Skipping existing '{bag_output}'", fg="yellow")
-                continue
-
-            banner = _underline(
-                f"Starting config '{config}'", fill="-", add_newlines=False
-            )
-            click.secho(banner, fg="green")
-
-            args += ["-o", str(bag_output)]
-            args += ["-c", str(config)]
-
-            subprocess.run(args)
-            click.echo("")
-
-
-# TODO(nathan) fix this at some point
-SENSOR_CONFIG = """
-type: camera
-width: 640
-height: 360
-cx: 315.9902073557914
-cy: 254.59437002701452
-fx: 372.4634094238281
-fy: 371.5072021484375
-extrinsics:
-  type: identity
-"""
-
-
-@main.command()
-@click.argument("output_path", type=click.Path())
-@click.argument("bag_paths", type=click.Path(exists=True), nargs=-1)
-@click.option("--yes", "-y", is_flag=True, help="overwrite results")
-@click.option("--skip-existing", "-s", is_flag=True, help="skip existing")
-@click.option(
-    "--voxel-size", "-v", default=0.1, type=float, help="voxel size for reconstruction"
-)
-@click.option("--min-range", default=0.3, type=float, help="min sensor range")
-@click.option("--max-range", default=4.5, type=float, help="max sensor range")
-@click.option("--min-log-level", default=0, type=int, help="glog min log level")
-@click.option("--verbosity", default=0, type=int, help="glog verbosity")
-def gt(
-    output_path,
-    bag_paths,
-    yes,
-    skip_existing,
-    voxel_size,
-    min_range,
-    max_range,
-    min_log_level,
-    verbosity,
-):
-    """Construct GT reconstruction for bags."""
-    output_path = _normalized_path(output_path)
-    bag_paths = [_normalized_path(x) for x in bag_paths]
-
-    for bag in bag_paths:
-        scene_path = output_path / bag.stem
-        if scene_path.exists() and skip_existing:
-            click.secho(f"skipping existing '{scene_path}'", fg="green")
-            continue
-
-        if scene_path.exists() and not yes:
-            click.secho(f"GT reconstruction exists at '{scene_path}'", fg="yellow")
-            click.confirm("Overwrite?", default=False, abort=True)
-
-        bag_config = {
-            "bag_path": str(bag),
-            "color_topic": "/dominic/forward/color/image_raw",
-            "depth_topic": "/dominic/forward/depth/image_rect_raw",
-            "sensor": yaml.safe_load(SENSOR_CONFIG),
-            "world_frame": "world",
-            "sensor_frame": "dominic/forward_link",
-        }
-        bag_config["sensor"]["min_range"] = min_range
-        bag_config["sensor"]["max_range"] = max_range
-
-        config = {
-            "reconstructor": {"map": {"voxel_size": voxel_size}},
-            "reader": {"bags": [bag_config]},
-        }
-
-        scene_path.mkdir(parents=True, exist_ok=True)
-        config_path = scene_path / "settings.yaml"
-        with config_path.open("w") as fout:
-            fout.write(yaml.dump(config))
-            fout.flush()
-            os.fsync(fout)
-
-        args = [
-            "rosrun",
-            "hydra_ros",
-            "reconstruct_mesh",
-            f"--output_path={scene_path}",
-            f"--minloglevel={min_log_level}",
-            f"-v={verbosity}",
-            f"--config={config_path}",
-        ]
-        subprocess.call(args)
-
-
-def _run_eval(args):
-    path, gt_path, data_path, min_room_nodes = args
-    info = _get_info(path)
-    tsdf_path = gt_path / info.scene_name / "tsdf.vxblx"
-    bbox_path = data_path / f"{info.scene_name}_rooms.yaml"
-    dsg_path = path / "backend" / "dsg.json"
-
-    proc_args = [
-        "rosrun",
-        "hydra",
-        "evaluate_rooms",
-        f"-tsdf_file={tsdf_path}",
-        f"-bbox_file={bbox_path}",
-        f"-dsg_file={dsg_path}",
-        f"-min_room_nodes={min_room_nodes}",
-        "-minloglevel=1",
-    ]
-    ret = subprocess.run(proc_args, capture_output=True)
-    if len(ret.stdout) == 0:
-        err_msg = ret.stderr.decode("utf-8").strip("\n")
-        # from https://stackoverflow.com/questions/14693701
-        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        err_msg = ansi_escape.sub("", err_msg)
-        # strip glog prefix
-        glog_escape = re.compile(r"[EW]\d{4}.*:\d+\] ")
-        err_msg = glog_escape.sub("", err_msg)
-        err_msg = err_msg.strip("\n")
-        return path, None, err_msg
-
-    results = ret.stdout.decode("utf-8").strip()
-    results = json.loads(results)
-    return path, results, None
-
-
-@main.command()
 @click.argument("result_path", type=click.Path(exists=True))
 @click.argument("gt_path", type=click.Path(exists=True))
 @click.option("--min-room-nodes", "-m", type=int, default=0, help="min room nodes")
@@ -668,95 +807,6 @@ def check(result_path):
             click.secho(f"{path}: fail! (reason: {message})", fg="red")
 
 
-def _convert_results_to_df(results, filters=None, use_total=False):
-    columns = {}
-    columns["scene"] = []
-    columns["clip"] = []
-    columns["ablation"] = []
-    columns["precision"] = []
-    columns["recall"] = []
-    columns["f1"] = []
-    columns["trial"] = []
-
-    for path, data in results.items():
-        info = _get_info(path)
-        if filters is not None and sum([x(info) for x in filters]):
-            click.secho(f"skipping {info}", fg="yellow")
-            continue
-
-        columns["scene"].append(info.scene_name)
-        columns["clip"].append(info.clip_name)
-        columns["ablation"].append(info.ablation)
-        columns["trial"].append(info.trial)
-
-        if use_total:
-            precision = data["total_precision"]
-            recall = data["total_recall"]
-        else:
-            precision = np.mean(data["precisions"])
-            recall = np.mean(data["recalls"])
-
-        columns["precision"].append(precision)
-        columns["recall"].append(recall)
-        columns["f1"].append(scipy.stats.hmean([precision, recall]))
-
-    return pd.DataFrame(columns)
-
-
-def _format(
-    mean, std, prec=3, latex=False, bold=False, underline=False, include_std=True
-):
-    def _get_num(num):
-        return f"{{:0.{prec}f}}".format(num)
-
-    use_std = include_std and not np.isnan(std)
-    mean_str = _get_num(mean)
-    if not latex:
-        ret = mean_str if not use_std else f"{mean_str} ± {_get_num(std)}"
-        return ret
-
-    if use_std:
-        latex_str = rf"{mean_str} $\pm$ {_get_num(std)}"
-    else:
-        latex_str = mean_str
-
-    if bold:
-        return rf"\textbf{{{latex_str}}}"
-    elif underline:
-        return rf"\underline{{{latex_str}}}"
-    else:
-        return latex_str
-
-
-def _get_scene_table(df):
-    ablations = sorted(df["ablation"].unique())
-    # column ordering: precision, recall, f1
-    means = np.zeros((len(ablations), 3))
-    stds = np.zeros((len(ablations), 3))
-    order = ["precision", "recall", "f1"]
-    for idx, ablation in enumerate(ablations):
-        metrics = df[df["ablation"] == ablation]
-        metrics = metrics[order]
-        mean = metrics.mean()
-        std = metrics.std()
-        means[idx, :] = np.array([mean[x] for x in order])
-        stds[idx, :] = np.array([std[x] for x in order])
-
-    return ablations, means, stds
-
-
-def _get_ablation_values(df, ablation):
-    ablation_df = df[df["ablation"] == ablation]
-    # column ordering: precision, recall, f1
-    values = np.zeros((len(ablation_df), 3))
-    order = ["precision", "recall", "f1"]
-    for row_values in ablation_df.itertuples(index=False):
-        for col, metric in enumerate(order):
-            values[row_values.trial - 1, col] = getattr(row_values, metric)
-
-    return values
-
-
 @main.command()
 @click.argument("result_path", type=click.Path(exists=True))
 @click.option(
@@ -802,54 +852,6 @@ def show(result_path, clip_models, use_total):
                 print(f"{trial_name}: p={row[0]}, r={row[1]}, f1={row[2]}")
 
         print("")
-
-
-NAME_MAP = {
-    "hydra": "Hydra",
-    "clio_boundary": "Clio (boundary)",
-    "clio_closest": "Clio (closest)",
-    "clio_fusion": "Clio (average)",
-}
-
-SCENE_MAP = {
-    "apartment_grav_processed": "Apartment",
-    "office_test_processed": "Office",
-    "building33_processed": "Building",
-}
-
-TABLE_HEADER = r"""\begin{table}[t!]
-    \scriptsize
-    \centering
-    \begin{tabularx}{\columnwidth}{lXccc}
-        Dataset & Method & Precision$\uparrow$ & Recall$\uparrow$ & F1$\uparrow$ \\
-        \midrule
-"""
-
-TABLE_FOOTER = r"""        \bottomrule
-    \end{tabularx}
-    \caption{Comparison of Geometric Room Segmentation Accuracy}\label{table:places}
-\end{table}
-"""
-
-
-def _get_multirow_column(scene, N):
-    return rf"\multirow{{{N}}}{{*}}{{{SCENE_MAP.get(scene, scene)}}}"
-
-
-def _get_rankings(values, tolerance=1.0e-3):
-    ordering = np.argsort(values, axis=0)[::-1, :]
-    ranks = np.zeros_like(ordering)
-    for col in range(ranks.shape[1]):
-        curr_rank = 1
-        ranks[ordering[0, col], col] = curr_rank
-        for row in range(1, values.shape[0]):
-            v_curr = values[ordering[row, col], col]
-            v_prev = values[ordering[row - 1, col], col]
-            change = np.abs(v_curr - v_prev) > tolerance
-            curr_rank += change
-            ranks[ordering[row, col], col] = curr_rank
-
-    return ranks
 
 
 @main.command()
@@ -920,205 +922,6 @@ def table(result_path, model, underline, precision, output):
                 fout.write(" " * 8 + row + r" \\" + "\n")
 
         fout.write(TABLE_FOOTER)
-
-
-def _line_length(x):
-    return len(x) + sum([len(w) for w in x])
-
-
-def _wrap(label, width=15):
-    words = label.split(" ")
-    lines = []
-
-    line = []
-    for word in words:
-        if len(line) == 0:
-            line.append(word)
-            continue
-
-        curr_length = len(word) + _line_length(line)
-        if curr_length > width:
-            lines.append(" ".join(line))
-            line = [word]
-        else:
-            line.append(word)
-
-    if len(line) > 0:
-        lines.append(" ".join(line))
-
-    return "\n".join(lines)
-
-
-# adapted from https://matplotlib.org/stable/gallery/color/named_colors.html
-def _make_grid_legend(
-    color_dict,
-    nrows=4,
-    ncols=None,
-    cell_width=60,
-    cell_height=22,
-    dpi=300,
-    fontsize=8,
-    wrapsize=14,
-    offset=1,
-    alpha=1.0,
-    sort=False,
-):
-    """Plot a color table."""
-    N = len(color_dict)
-    if ncols is None or nrows * ncols < N:
-        ncols = N // nrows + int(N % nrows > 0)
-
-    width = cell_width * ncols
-    height = cell_height * nrows
-    figsize = (width / dpi, height / dpi)
-
-    fig = Figure(dpi=dpi, figsize=figsize)
-    ax = fig.subplots()
-    ax.set_axis_off()
-
-    fig.subplots_adjust(0.0, 0.0, 1.0, 1.0)
-    ax.set_xlim(0, cell_width * ncols)
-    ax.set_ylim(cell_height * (nrows - 0.5), -cell_height / 2.0)
-
-    labels = sorted([x for x in color_dict]) if sort else [x for x in color_dict]
-    for i, label in enumerate(labels):
-        col = i % ncols
-        row = i // ncols
-        y = row * cell_height
-
-        start_x = cell_width * col
-
-        prod = (1 / alpha) * functools.reduce(
-            lambda x, y: x * y, color_dict[label][:3], 1
-        )
-        print(color_dict[label], prod)
-        if prod > 0.1:
-            textcolor = (0.3, 0.3, 0.3)
-            # textcolor = (0.0, 0.0, 0.0)
-        else:
-            textcolor = (1.0, 1.0, 1.0)
-            # textcolor = (0.0, 0.0, 0.0)
-
-        ax.text(
-            start_x + offset,
-            y,
-            _wrap(label, width=wrapsize),
-            fontsize=fontsize,
-            horizontalalignment="left",
-            verticalalignment="center",
-            color=textcolor,
-        )
-
-        ax.add_patch(
-            Rectangle(
-                xy=(start_x, y - cell_height / 2),
-                width=cell_width,
-                height=cell_height,
-                facecolor=color_dict[label],
-                alpha=alpha,
-            )
-        )
-
-    return fig
-
-
-@main.command()
-@click.argument("task_name")
-@click.option("-r", "--num-rows", type=int, default=2)
-@click.option("--num-cols", type=int, default=None)
-@click.option("-d", "--dpi", type=float, default=600.0)
-@click.option("-o", "--output", default=None)
-@click.option("-a", "--alpha", type=float, default=0.6)
-@click.option("-w", "--cell-width", type=float, default=1900)
-@click.option("-h", "--cell-height", type=float, default=850)
-@click.option("-f", "--fontsize", type=int, default=28)
-@click.option("-t", "--wrap", type=int, default=14)
-@click.option("--offset", type=float, default=50)
-def make_color_legend(
-    task_name,
-    num_rows,
-    num_cols,
-    dpi,
-    output,
-    alpha,
-    cell_width,
-    cell_height,
-    fontsize,
-    offset,
-    wrap,
-):
-    """Plot labels and colors."""
-    colors = np.array(
-        [
-            [166, 206, 227],
-            [31, 120, 180],
-            [178, 223, 138],
-            [51, 160, 44],
-            [251, 154, 153],
-            [227, 26, 28],
-            [253, 191, 111],
-            [255, 127, 0],
-            [202, 178, 214],
-            [106, 61, 154],
-            [255, 255, 153],
-            [177, 89, 40],
-        ]
-    ).astype(np.float64)
-    colors /= 255.0
-    color_dict = {x: colors[i] for i, x in enumerate(QUAL_TASKS[task_name])}
-    color_dict["null task"] = (0.0, 0.0, 0.0)
-
-    fig = _make_grid_legend(
-        color_dict,
-        nrows=num_rows,
-        ncols=num_cols,
-        dpi=dpi,
-        alpha=alpha,
-        cell_width=cell_width,
-        cell_height=cell_height,
-        fontsize=fontsize,
-        offset=offset,
-        wrapsize=wrap,
-    )
-    if output is None:
-        output = f"{task_name}.png"
-
-    fig.savefig(output, dpi=dpi)
-
-
-SCENE_PATH_NAME_MAP = {
-    "office": "office_test_processed_rs_large_clip_averaging",
-    "apartment": "apartment_grav_processed_rs_large_clip_averaging",
-    "building33": "building33_processed_rs_large_clip_averaging",
-}
-
-
-@main.command()
-@click.argument("result_path", type=click.Path(exists=True))
-@click.argument("scene")
-@click.argument("ablation")
-@click.argument("trial", type=int)
-def visualize(result_path, scene, ablation, trial):
-    """Show scene graph."""
-    result_path = _normalized_path(result_path)
-    scene_name = SCENE_PATH_NAME_MAP[scene]
-    dsg_path = (
-        result_path
-        / f"trial_{trial:03d}"
-        / scene_name
-        / ablation
-        / "backend"
-        / "dsg_with_mesh.json"
-    )
-
-    args = [
-        "roslaunch",
-        "clio_ros",
-        "clio_visualizer.launch",
-        f"scene_graph_path:={dsg_path}",
-        "viz_config_file:=region_visualizer_config.yaml",
-    ]
-    subprocess.run(args)
 
 
 @main.command()

@@ -25,14 +25,17 @@
     uri: git@github.com:MIT-SPARK/TEASER-plusplus.git
 # private
 - git:
+    local-name: semantic_inference
+    uri: git@github.mit.edu:SPARK/semantic_inference.git
+- git:
     local-name: hydra
     uri: git@github.mit.edu:SPARK/Hydra.git
-    version: develop
+    version: khronos/openset
 - git:
     local-name: hydra_ros
     uri: git@github.mit.edu:SPARK/Hydra-ROS.git
-    version: develop
+    version: khronos/openset
 - git:
     local-name: khronos
     uri: git@github.mit.edu:SPARK/Khronos.git
-    version: develop
+    version: rebase/clio_updates

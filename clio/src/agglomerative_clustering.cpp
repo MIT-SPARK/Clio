@@ -20,6 +20,7 @@ void declare_config(AgglomerativeClustering::Config& config) {
   using namespace config;
   name("AgglomerativeClustering::Config");
   field(config.tasks, "tasks");
+  config.metric.setOptional();
   field(config.metric, "metric");
   field(config.selector, "selector");
   field(config.filter_regions, "filter_regions");

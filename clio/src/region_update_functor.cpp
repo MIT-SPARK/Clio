@@ -8,6 +8,14 @@
 #include <hydra/utils/timing_utilities.h>
 
 namespace clio {
+namespace {
+
+static const auto functor_reg =
+    config::RegistrationWithConfig<hydra::UpdateFunctor,
+                                   RegionUpdateFunctor,
+                                   RegionUpdateFunctor::Config>("RegionsIBFunctor");
+
+}  // namespace
 
 using hydra::MergeList;
 using hydra::timing::ScopedTimer;
