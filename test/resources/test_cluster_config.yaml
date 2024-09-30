@@ -1,0 +1,32 @@
+debug: False
+show_all_steps: False
+debug_folder: /home/yunchang/logs/llm_graphs/ib_agg/requery
+vis_weight_graph: False
+show_cond_prob: False
+
+#### Segmentation configs
+use_fast_sam: True # if False, default SAM values conf, iou, size from CG are used bypassing values set here 
+resize_img: False
+filter_sam_artifacts: True
+fast_sam_conf: 0.55
+fast_sam_iou: 0.85
+fast_sam_output_size: 640
+use_torch_refinement: True
+
+#### CLIP configs
+use_lerf_loss: False
+lerf_loss_cannonical_phrases: 
+  - things
+  - stuff
+  - texture
+  - object
+clip_model: ViT-L/14 # ViT-L/14, ViT-B/32, ViT-H-14 (runs open_clip)
+small_segment: 1 # below this segmnet we use bounding box instead of mask
+use_pixel_aligned: False
+ratio_of_pixel_aligned: 0.9
+
+#### Clustering configs
+sims_thres: 0.2
+delta: 0.001 #0.0001
+top_k_tasks: 2
+cumulative: True

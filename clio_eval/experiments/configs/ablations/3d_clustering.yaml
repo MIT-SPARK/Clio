@@ -1,0 +1,38 @@
+log_path: "/home/dominic/Downloads/clio_logs"
+datasets:
+  - name: "cubicle"
+    clip_model: "ViT-L/14"
+    fine_dsg: "/home/dominic/Documents/clio_logs/cubicle/trial_0/large_fine_ps/dsg.json"
+    khronos_dsg: "/home/dominic/Documents/clio_logs/cubicle/trial_0/large_khronos_ps/dsg.json"
+    task_yaml: "/home/dominic/cam_ws/imgs/clio_datasets/cubicle/tasks_cubicle.yaml"
+    experiments:
+      - name: "d00001"
+        cluster_config: "large_delta_00001.yaml"
+        prune_threshold: 0.2301
+        partition: False
+        recompute_edges: False
+        bbox_dilation: 0.0
+  - name: "office"
+    clip_model: "ViT-L/14"
+    fine_dsg: "/home/dominic/Documents/clio_logs/office/trial_0/large_fine_ps/dsg.json"
+    khronos_dsg: "/home/dominic/Documents/clio_logs/office/trial_0/large_khronos_ps/dsg.json"
+    task_yaml: "/home/dominic/cam_ws/imgs/clio_datasets/office/tasks_office.yaml"
+    experiments:
+      - name: "d00001"
+        cluster_config: "large_delta_00001.yaml"
+        prune_threshold: 0.2301
+        partition: False
+        recompute_edges: False
+        bbox_dilation: 0.0
+  - name: "apartment"
+    clip_model: "ViT-L/14"
+    fine_dsg: "/home/dominic/Documents/clio_logs/apartment/trial_0/large_fine_ps/dsg.json"
+    khronos_dsg: "/home/dominic/Documents/clio_logs/apartment/trial_0/large_khronos_ps/dsg.json"
+    task_yaml: "/home/dominic/cam_ws/imgs/clio_datasets/apartment/tasks_apartment.yaml"
+    experiments:
+      - name: "d00001"
+        cluster_config: "large_delta_00001.yaml"
+        prune_threshold: 0.2301
+        partition: False
+        recompute_edges: False
+        bbox_dilation: 0.0
