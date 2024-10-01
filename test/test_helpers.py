@@ -1,12 +1,11 @@
 """Unit tests for cluster helpers."""
+
 import clio_batch.helpers as helpers
-import pytest
-import os
 import numpy as np
 
 
 def test_compute_cosine_sim():
-    """Test compute cosine sim"""
+    """Test compute cosine sim."""
     v1 = np.array([1, 0, 0])
     v2 = np.array([0, 0, 1])
     v3 = np.array([-1, 0, 0])
@@ -16,7 +15,7 @@ def test_compute_cosine_sim():
 
 
 def test_compute_cosine_sim_multi_single():
-    """Test compute cosine sim with single and multiple columns"""
+    """Test compute cosine sim with single and multiple columns."""
     v1 = np.array([1, 0, 0])
     v2 = np.array([[1, 0, 0], [0, 0, 1], [-1, 0, 0]])
     sims = helpers.compute_cosine_sim(v1, v2)
@@ -27,7 +26,7 @@ def test_compute_cosine_sim_multi_single():
 
 
 def test_compute_cosine_sim_multi_multi():
-    """Test compute cosine sim with multiple and multiple columns"""
+    """Test compute cosine sim with multiple and multiple columns."""
     # In this case we take the max wrt v1
     v1 = np.array([[1, 0, 0], [0, 0, 1]])
     v2 = np.array([[1, 0, 0], [0, 0, 1], [-1, 0, 0]])
@@ -39,7 +38,7 @@ def test_compute_cosine_sim_multi_multi():
 
 
 def test_compute_sim_to_tasks():
-    """Test compute cosine sim to multiple tasks"""
+    """Test compute cosine sim to multiple tasks."""
     # In this case we preserve all similarities
     v1 = np.array([[1, 0, 0], [0, 0, 1]])
     v2 = np.array([[1, 0, 0], [0, 0, 1], [-1, 0, 0]])
@@ -53,10 +52,9 @@ def test_compute_sim_to_tasks():
     assert 0 == sims[1, 2]
 
 
-def test_parse_tasks_from_yaml():
-    """Test compute cosine sim to multiple tasks"""
-    cwd = os.path.abspath(os.path.dirname(__file__))
-    yaml_path = os.path.join(os.path.join(cwd, "resources"), "test_tasks.yaml")
+def test_parse_tasks_from_yaml(resources):
+    """Test compute cosine sim to multiple tasks."""
+    yaml_path = resources / "test_tasks.yaml"
     prompts = helpers.parse_tasks_from_yaml(yaml_path)
     assert 3 == len(prompts)
     assert "bring me a pillow" == prompts[0]

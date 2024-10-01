@@ -1,4 +1,5 @@
 """Unit tests for ib clustering."""
+
 import clio_batch.ib_cluster as ib_cluster
 import pytest
 import os
@@ -7,8 +8,7 @@ import numpy as np
 
 def initialize_cluster_module():
     cwd = os.path.abspath(os.path.dirname(__file__))
-    yaml_path = os.path.join(os.path.join(
-        cwd, "resources"), "test_cluster_config.yaml")
+    yaml_path = os.path.join(os.path.join(cwd, "resources"), "test_cluster_config.yaml")
     cluster_config = ib_cluster.ClusterIBConfig(yaml_path)
     return ib_cluster.ClusterIB(cluster_config)
 

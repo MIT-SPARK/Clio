@@ -1,4 +1,5 @@
 """Unit tests for mask refinement code."""
+
 import clio_batch.information_metrics as metrics
 import pytest
 import numpy as np
