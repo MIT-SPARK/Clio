@@ -31,8 +31,8 @@
         <!-- TODO(nathan) change topic -->
         <remap from="/clio_node/input/camera/rgb/image_raw" to="/dominic/forward/color/image_raw"/>
         <remap from="/clio_node/input/camera/depth_registered/image_rect" to="/dominic/forward/depth/image_rect_raw"/>
-        <remap from="/clio_node/input/camera/semantic/image_raw" to="/dominic/forward/object_image"/>
-        <remap from="/clio_node/input/camera/feature" to="/dominic/forward/clip_vector"/>
+        <remap from="/clio_node/input/camera/semantic/image_raw" to="/dominic/forward/semantic/image_raw"/>
+        <remap from="/clio_node/input/camera/feature" to="/dominic/forward/semantic/clip_vector"/>
         <include file="$(find clio_ros)/launch/clio.launch" pass_all_args="true">
             <arg name="sensor_min_range" default="0.3" doc="minimum sensor range in meters"/>
             <arg name="sensor_max_range" default="4.0" doc="maximum sensor range in meters"/>
