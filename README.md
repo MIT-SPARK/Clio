@@ -227,11 +227,11 @@ source ~/environments/clio/bin/activate
 
 Then, start Clio
 ```bash
-roslaunch clio_ros realsense.launch object_tasks:=/path/to/datasets/apartment/tasks_apartment.yaml
+roslaunch clio_ros realsense.launch object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml
 ```
 If you want to use pre-generated segmentations and semantics instead, you can start Clio-Online with the following
 ```bash
-roslaunch clio_ros realsense.launch run_segmentation:=false object_tasks:=/path/to/datasets/apartment/tasks_apartment.yaml
+roslaunch clio_ros realsense.launch run_segmentation:=false object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml
 ```
 
 In a separate terminal, start the corresponding rosbag for the scene. For the apartment

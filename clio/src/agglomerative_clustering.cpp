@@ -104,7 +104,7 @@ AgglomerativeClustering::AgglomerativeClustering(const Config& config)
 Clusters AgglomerativeClustering::cluster(const SceneGraphLayer& layer,
                                           const NodeEmbeddingMap& features) const {
   if (tasks_->empty()) {
-    LOG(ERROR) << "No tasks present: cannot cluster";
+    LOG_FIRST_N(ERROR, 5) << "No tasks present: cannot cluster";
     return {};
   }
 

@@ -1,8 +1,27 @@
 #!/usr/bin/env python3
 """Encode tasks as embeddings."""
+import pathlib
+
 import rospy
+import yaml
 from semantic_inference_msgs.msg import FeatureVectors
 from semantic_inference_msgs.srv import EncodeFeature
+
+
+def _parse_tasks(prefix):
+    tasks_file = rospy.get_param(f"~{prefix}_file", "")
+    tasks = rospy.get_param("~{prefix}", [])
+    if tasks_file == "":
+        return tasks
+
+    tasks_file = pathlib.Path(tasks_file).expanduser().absolute()
+    if not tasks_file.exists():
+        rospy.logerr(f"[{rospy.get_name()}] Invalid {prefix} file @ {tasks_file}")
+        return tasks
+
+    with tasks_file.open("r") as fin:
+        contents = yaml.safe_load(fin.read())
+        return [x for x in contents]
 
 
 class TaskServer:
@@ -17,15 +36,11 @@ class TaskServer:
             "~places", FeatureVectors, queue_size=1, latch=True
         )
 
-        object_tasks = rospy.get_param("~object_tasks", [])
-        if len(object_tasks) > 0:
-            msg = self._embed_tasks(object_tasks)
-            self._object_pub.publish(msg)
+        msg = self._embed_tasks(_parse_tasks("object_tasks"))
+        self._object_pub.publish(msg)
 
-        place_tasks = rospy.get_param("~place_tasks", [])
-        if len(place_tasks) > 0:
-            msg = self._embed_tasks(place_tasks)
-            self._place_pub.publish(msg)
+        msg = self._embed_tasks(_parse_tasks("place_tasks"))
+        self._place_pub.publish(msg)
 
     def _embed_tasks(self, tasks, service_name="semantic_inference/embed"):
         rospy.loginfo(f"[{rospy.get_name()}] Waiting for {service_name}")

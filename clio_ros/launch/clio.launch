@@ -35,13 +35,17 @@
     <arg name="print_missing" default="false" doc="have config utilities print all missing parameters when parsing configs"/>
     <arg name="launch_prefix" value="$(eval 'gdb -ex run --args' if debug else '')"/>
 
-    <arg name="place_tasks" default="[]"/>
-    <arg name="object_tasks" default="[]"/>
+    <arg name="object_tasks" default="[]" doc="List of object tasks"/>
+    <arg name="object_tasks_file" default="" doc="File to read object tasks from (preferred over object_tasks)"/>
+    <arg name="place_tasks" default="[]" doc="List of place tasks"/>
+    <arg name="place_tasks_file" default="" doc="File to read place tasks from (preferred over place_tasks)"/>
     <arg name="run_task_server" default="true"/>
     <group if="$(arg run_task_server)">
         <node pkg="clio_ros" type="task_server" name="task_server" output="screen">
-            <rosparam subst_value="true">{place_tasks: $(arg place_tasks)}</rosparam>
+            <param name="object_tasks_file" value="$(arg object_tasks_file)"/>
             <rosparam subst_value="true">{object_tasks: $(arg object_tasks)}</rosparam>
+            <param name="place_tasks_file" value="$(arg place_tasks_file)"/>
+            <rosparam subst_value="true">{place_tasks: $(arg place_tasks)}</rosparam>
         </node>
     </group>
 

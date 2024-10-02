@@ -10,11 +10,10 @@
   <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <depend>clio</depend>
-  <depend>hydra_ros</depend>
-  <depend>hydra_visualizer</depend>
-  <depend>khronos_ros</depend>
-  <depend>roscpp</depend>
+  <exec_depend>clio</exec_depend>
+  <exec_depend>hydra_ros</exec_depend>
+  <exec_depend>hydra_visualizer</exec_depend>
+  <exec_depend>khronos_ros</exec_depend>
 
   <export>
   </export>

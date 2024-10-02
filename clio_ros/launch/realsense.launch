@@ -13,8 +13,11 @@
     <arg name="robot_frame" default="dominic/forward_link"/>
     <arg name="sensor_frame" default="dominic/forward_link"/>
 
-    <arg name="run_segmentation" default="false"/>
+    <arg name="run_segmentation" default="true"/>
     <group if="$(arg run_segmentation)">
+        <remap from="semantic_inference/color/image_raw" to="/dominic/forward/color/image_raw"/>
+        <remap from="semantic_inference/semantic/image_raw" to="/dominic/forward/semantic/image_raw"/>
+        <remap from="semantic_inference/semantic/feature" to="/dominic/forward/semantic/clip_vector"/>
         <include file="$(find semantic_inference_ros)/launch/openset_segmentation.launch">
             <arg name="config_path" value="$(arg segmenter_config)"/>
         </include>

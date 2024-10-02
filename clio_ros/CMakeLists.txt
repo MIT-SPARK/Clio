@@ -1,33 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
 project(clio_ros)
 
-add_compile_options(-Wall -Wextra)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-find_package(clio REQUIRED)
-find_package(catkin REQUIRED COMPONENTS hydra_ros hydra_visualizer khronos_ros roscpp)
+find_package(catkin REQUIRED)
 
 catkin_package(
-  CATKIN_DEPENDS hydra_ros hydra_visualizer khronos_ros roscpp
-  DEPENDS clio
-  INCLUDE_DIRS include
-  LIBRARIES ${PROJECT_NAME}
-)
-
-add_library(
-  ${PROJECT_NAME} src/category_legend.cpp src/colormap_legend.cpp
-                  src/task_information.cpp
-)
-target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC ${catkin_LIBRARIES} clio::clio)
-
-install(
-  TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  CATKIN_DEPENDS
+  DEPENDS
+  INCLUDE_DIRS
+  LIBRARIES
 )
 
 install(DIRECTORY include/${PROJECT_NAME}/
