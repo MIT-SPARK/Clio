@@ -32,55 +32,40 @@ using hydra::MergeList;
 using hydra::timing::ScopedTimer;
 using namespace spark_dsg;
 
-/*
-void mergeObjectAttributes(const KhronosObjectAttributes& from, KhronosObjectAttributes&
-into) {
-  // TODO(lschmid): For now just add up the meshes / trajectories.
+void mergeObjectAttributes(const KhronosObjectAttributes& from,
+                           KhronosObjectAttributes& into) {
   // Update the bounding box. Do this first as it is the reference for the mesh.
-  const Point new_bbox_min = into.bounding_box.min.cwiseMin(from.bounding_box.min);
-  into.bounding_box.max = into.bounding_box.max.cwiseMax(from.bounding_box.max);
-  if ((into.bounding_box.min - new_bbox_min).maxCoeff() > 0.f) {
-    // Adjust the old vertex positions.
-    const Point pos_offset = into.bounding_box.min - new_bbox_min;
-    for (Point& vertex : into.mesh.points) {
-      vertex += pos_offset;
-    }
-  }
-  into.bounding_box.min = new_bbox_min;
+  BoundingBox new_box = into.bounding_box;
+  new_box.merge(from.bounding_box);
 
-  // Merge vertices.
-  const Point pos_offset = from.bounding_box.min - into.bounding_box.min;
+  // Adjust the old vertex positions.
+  for (auto& vertex : into.mesh.points) {
+    vertex = new_box.pointToBoxFrame(into.bounding_box.pointToWorldFrame(vertex));
+  }
+
+  // Merge incoming vertices.
   const size_t num_previous_vertices = into.mesh.numVertices();
   into.mesh.resizeVertices(num_previous_vertices + from.mesh.numVertices());
   for (size_t i = 0; i < from.mesh.numVertices(); ++i) {
-    into.mesh.setPos(num_previous_vertices + i, from.mesh.pos(i) + pos_offset);
+    into.mesh.setPos(
+        num_previous_vertices + i,
+        new_box.pointToBoxFrame(from.bounding_box.pointToWorldFrame(from.mesh.pos(i))));
     into.mesh.setColor(num_previous_vertices + i, from.mesh.color(i));
   }
 
-  // Merges faces.
+  // Merges incoming faces.
+  const size_t idx_offset = into.mesh.numVertices();
   into.mesh.faces.reserve(from.mesh.faces.size() + into.mesh.faces.size());
   for (const auto& face : from.mesh.faces) {
     spark_dsg::Mesh::Face new_face = face;
     for (size_t i = 0; i < new_face.size(); ++i) {
-      new_face[i] += num_previous_vertices;
+      new_face[i] += idx_offset;
     }
     into.mesh.faces.emplace_back(new_face);
   }
 
-  // Merge trajectories.
-  into.trajectory_positions.insert(into.trajectory_positions.end(),
-                                   from.trajectory_positions.begin(),
-                                   from.trajectory_positions.end());
-  into.trajectory_timestamps.insert(into.trajectory_timestamps.end(),
-                                    from.trajectory_timestamps.begin(),
-                                    from.trajectory_timestamps.end());
-
-  // Also add up the seen time stamps.
-  for (size_t i = 0; i < from.first_observed_ns.size(); ++i) {
-    addPresenceDuration(into, from.first_observed_ns[i], from.last_observed_ns[i]);
-  }
+  into.bounding_box = new_box;
 }
-*/
 
 bool isNodeActive(const SceneGraphNode& node,
                   const std::map<NodeId, size_t>& node_to_component,
@@ -241,7 +226,7 @@ NodeAttributes::Ptr getMergedAttributes(const DynamicSceneGraph& graph,
     attrs.position += other_attrs.position;
     attrs.semantic_feature += other_attrs.semantic_feature.rowwise().mean();
     // TODO(nathan) update khronos to add the attribute merging somewhere convenient
-    // khronos::mergeObjectAttributes(other_attrs, attrs);
+    mergeObjectAttributes(other_attrs, attrs);
     ++iter;
   }
 
