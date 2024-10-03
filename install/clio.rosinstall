@@ -15,13 +15,13 @@
 - git:
     local-name: khronos
     uri: git@github.mit.edu:SPARK/Khronos.git
-    version: rebase/clio_updates
+    version: rebase/clio_update
 - git:
     local-name: kimera_rpgo
     uri: git@github.com:MIT-SPARK/Kimera-RPGO.git
 - git:
     local-name: kimera_pgmo
-    uri: git@github.com:MIT-SPARK/Kimera-PGMO.git
+    uri: git@github.mit.edu:SPARK/Kimera-PGMO.git
     version: future
 - git:
     local-name: pose_graph_tools
@@ -33,6 +33,9 @@
     local-name: spark_dsg
     uri: git@github.com:MIT-SPARK/Spark-DSG.git
     version: develop
+- git:
+    local-name: spatial_hash
+    uri: git@github.com:MIT-SPARK/Spatial-Hash.git
 - git:
     local-name: teaser_plusplus
     uri: git@github.com:MIT-SPARK/TEASER-plusplus.git
