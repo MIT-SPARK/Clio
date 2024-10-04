@@ -35,6 +35,10 @@ config:
     marker_scale: 0.15
     marker_color_mode: NearestFeatureColor
     color_settings: {features: {ns: ~objects, silent_wait: false}, colormap: {palette: distinct150}}
+    use_label: true
+    label_mode: NearestFeatureLabel
+    label_settings: {features: {ns: ~objects, silent_wait: true}, label_width: 10}
+    label_scale: 0.25
     use_bounding_box: true
     bounding_box_scale: 0.03
     collapse_bounding_box: true
