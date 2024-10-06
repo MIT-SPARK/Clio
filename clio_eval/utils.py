@@ -50,6 +50,32 @@ class EvalObjects:
         return is_point_inside_box(centroid, other_bounds)
 
 
+class ExperimentGroup:
+    def __init__(self, param):
+        self.task_yaml = param["task_yaml"]
+        self.experiments = []
+        for ab in param["experiments"]:
+            self.experiments.append([ab["name"]])
+
+
+class Ablations:
+    def __init__(self):
+        self.experiments = {}  # name (str) :  setup (ExperimentGroup)
+        self.env = {}
+        self.eval = {}
+
+    def parse(self, yaml_file):
+        with open(yaml_file, "r") as stream:
+            params = yaml.safe_load(stream)
+            self.num_trials = int(params["num_trials"])
+            self.env["log_path"] = params["log_path"]
+
+            for group in params["datasets"]:
+                eg = ExperimentGroup(group)
+                self.experiments[group["name"]] = eg
+
+            self.eval["semantic_threshold"] = params["semantic_threshold"]
+
 class GtData:
     def __init__(self, gt_yaml):
         gt_data = yaml.safe_load(open(gt_yaml))
@@ -107,13 +133,23 @@ class Results:
             self.num_objects, self.weak_recall, self.strict_recall, self.avg_iou,
             self.weak_precision, self.strict_precision, self.f1, self.tpf)
 
-def min_from_box_position(node):
-    offset = (node.bounding_box.dimensions / 2)[:, np.newaxis]
-    return node.position[:, np.newaxis] - offset
+def min_from_box_position(node, offset_to_lower_corner = False):
+    # Older DSG version has mesh defined wrt lower corner of bbox.
+    # New version is wrt center. Apply offset depending on version.
+    if offset_to_lower_corner:
+        offset = (node.bounding_box.dimensions / 2)[:, np.newaxis]
+        return node.position[:, np.newaxis] - offset
+    else:
+        return node.position[:, np.newaxis]
 
-def max_from_box_position(node):
-    offset = (node.bounding_box.dimensions / 2)[:, np.newaxis]
-    return node.position[:, np.newaxis] + offset
+def max_from_box_position(node, offset_to_lower_corner = False):
+    # Older DSG version has mesh defined wrt lower corner of bbox.
+    # New version is wrt center. Apply offset depending on version.
+    if offset_to_lower_corner:
+        offset = (node.bounding_box.dimensions / 2)[:, np.newaxis]
+        return node.position[:, np.newaxis] + offset
+    else:
+        return node.position[:, np.newaxis]
 
 def is_point_inside_box(point, bounds):
     return (bounds[0] <= point[0] <= bounds[3] and
@@ -141,19 +177,10 @@ def get_open3d_bbox_from_dict(bbox_dict):
     return o3d.geometry.OrientedBoundingBox(center, rot, extents)
 
 
-def dsg_object_to_o3d(object_node):
-    # world_t_object = object_node.attributes.bounding_box.world_P_center[:, np.newaxis]
-    # print(object_node.attributes)
-    # world_t_object = object_node.attributes.bounding_box.min[:, np.newaxis]
-    world_t_object = min_from_box_position(object_node.attributes)
-    # print(world_t_object)
-    # print(object_node.attributes.bounding_box)
-    # print(object_node.attributes.world_R_object)
+def dsg_object_to_o3d(object_node, offset_to_lower_corner):
+    world_t_object = min_from_box_position(object_node.attributes, offset_to_lower_corner)
     obj_faces = object_node.attributes.mesh().get_faces()
-    # print( object_node.attributes.mesh().num_vertices())
     obj_verts = object_node.attributes.mesh().get_vertices()
-    # print(obj_verts[:3, :])
-    # print(q)
 
     object_vertices = obj_verts[:3, :] + world_t_object
     object_vertices = o3d.utility.Vector3dVector(np.transpose(object_vertices))
@@ -175,15 +202,14 @@ def dsg_object_to_o3d(object_node):
 
     return o3d_mesh, oriented_object_bbox
 
-
-def get_objects_from_dsg(dsg, visualize=False, layer=sdsg.DsgLayers.OBJECTS):
+def get_objects_from_dsg(dsg, offset_to_lower_corner, visualize=False, layer=sdsg.DsgLayers.OBJECTS):
     # return list of bboxes and list of features
     eval_objects = []
     vis_meshes = []
     vis_bboxes = []
     object_layer = dsg.get_layer(layer)
     for node in object_layer.nodes:
-        obj_mesh, oriented_bbox = dsg_object_to_o3d(node)
+        obj_mesh, oriented_bbox = dsg_object_to_o3d(node, offset_to_lower_corner)
 
         if oriented_bbox is None:
             continue

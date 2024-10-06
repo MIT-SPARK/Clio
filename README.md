@@ -2,8 +2,10 @@
 
 This repository contains the code for *Clio: Real-time Task-Driven Open-Set 3D Scene Graphs*.
 
-We have included code here to quickly get you up and running an offline version of Clio (Clio-batch) and visualize results.
-We will release the real-time version of Clio (Clio-online) that can process incoming images+poses on October 7th!
+We have included both our real-time version of Clio (Clio-online) built primarily in C++ that processes incoming images+poses and constructs a task-relevant scene graph in real-time 
+and our offline version of Clio (Clio-batch) built in python.
+
+To run Clio on our datasets and metrics we provide evaluation scripts that can automatically run different configurations of Clio and baseline methods on the datasets.
 
 ![Clio](./assets/overview-figure.jpg)
 
@@ -12,8 +14,8 @@ Clio is a novel approach for building task-driven 3D scene graphs in real-time w
 # Table of Contents
 * [Datasets](#Datasets)
 * [Setup](#Setup)
-* [Evaluation](#Evaluation)
-* [Running Clio-Online with ROS](#running-clio-online)
+* [Clio-Batch](#clio-batch)
+* [Clio-Online](#running-clio-online)
 * [Paper](#Paper)
 * [Video](#Video)
 
@@ -159,12 +161,7 @@ pip install -e clio
 > **Note**</br>
 > If you forgot to clone with `--recursive` you can run `git submodule update --init --recursive` instead.
 
-# Evaluation
-
-To run Clio on our datasets and metrics we provide evaluation scripts that can automatically run different configurations of Clio and baseline methods on the datasets.
-We provide a batch version of Clio referred to as Clio-batch which is based in python and an incremental version which runs in realtime referred to as Clio-online which is built primarily in c++.
-
-## Clio-Batch
+# Clio-Batch
 
 Clio-batch will perform task-oriented clustering on a pre-build scene graph of object primitives.
 To try out Clio, you can run
@@ -238,6 +235,14 @@ In a separate terminal, start the corresponding rosbag for the scene. For the ap
 ```bash
 rosbag play /path/to/datasets/apartment/apartment.bag --clock
 ```
+
+### Running the Full Evaluation
+
+To run evaluations on the online results, we provide code to automatically evaluate up to all three (office, apartment, cubicle) results by running:
+```bash
+python clio_eval/experiments/evaluate_ablations.py --config clio_eval/experiments/configs/ablations/realtime_clustering.yaml 
+```
+Set the paths to your task yaml files and folder containing the runs of Clio-online in realtime_clustering.yaml. 
 
 # Paper
 If you find this useful for your research, please consider citing our paper:

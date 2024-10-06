@@ -2,6 +2,7 @@ import argparse
 import yaml
 import os
 import csv
+import json
 import numpy as np
 from tabulate import tabulate
 import subprocess
@@ -9,6 +10,8 @@ import subprocess
 import clio_batch.object_cluster as obj_cluster
 import clio_eval.evaluate_helpers as eval_helpers
 import clio_eval.utils as eval_utils
+from clio_eval.evaluate_helpers import get_dsg_version
+
 
 def parse_experiment_yaml(yaml_file):
     with open(yaml_file, "r") as stream:
@@ -75,6 +78,17 @@ def run(ablation_dict):
                 recompute_edges=experiment["recompute_edges"])
             output_dsg = output_folder + "/dsg.json"
             clustered_dsg.save(output_dsg)
+
+            # Keep output DSG version the same as input version.
+            version = get_dsg_version(dataset["fine_dsg"])
+            print(version)
+            with open(output_dsg) as file:
+                d = json.load(file)
+            version = [int(i) for i in version]
+            d['SPARK_ORIGIN_header'] = {'version':{'major':version[0], 'minor':version[1], 'patch':version[2]}, 'project_name':'main'}
+
+            with open(output_dsg, 'w') as file:
+                json.dump(d, file) 
 
 def evaluate(ablation_dict):
     results = {}

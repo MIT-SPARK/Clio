@@ -12,6 +12,7 @@ import clio_batch.cluster_utilities as cluster_utilities
 
 import clio_batch.ib_cluster as cluster
 from clio_eval.utils import dsg_object_to_o3d
+from clio_eval.evaluate_helpers import get_dsg_version
 
 def bboxes_intersect(bbox_1, bbox_2, epsilon=0.0):
     bboxes = np.vstack((bbox_1.min, bbox_2.min, bbox_1.max, bbox_2.max))
@@ -191,6 +192,16 @@ def main(
     output_dsg = pathlib.Path(output_folder) / "clio_dsg.json"
     clustered_G.save(output_dsg)
 
+    # Keep output DSG version the same as input version.
+    version = get_dsg_version(scene_graph_path)
+    print(version)
+    with open(output_dsg) as file:
+        d = json.load(file)
+    version = [int(i) for i in version]
+    d['SPARK_ORIGIN_header'] = {'version':{'major':version[0], 'minor':version[1], 'patch':version[2]}, 'project_name':'main'}
+
+    with open(output_dsg, 'w') as file:
+        json.dump(d, file) 
 
 if __name__ == "__main__":
     main()

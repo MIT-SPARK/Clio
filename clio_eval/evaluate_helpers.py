@@ -4,9 +4,21 @@ import numpy as np
 import spark_dsg as sdsg
 import distinctipy
 import copy
+import json
 import open3d as o3d
-# from clio_eval.get_cg_objects import get_objects_from_cg
 
+def get_dsg_version(dsg_file):
+    with open(dsg_file) as file:
+        d = json.load(file)
+        if 'SPARK_DSG_header' not in d:
+            version = ['1', '0', '0']
+            return version
+        elif "SPARK_ORIGIN_header" in d:
+            version_dictionary = d['SPARK_ORIGIN_header']['version']
+        else:
+            version_dictionary = d['SPARK_DSG_header']['version']
+        version = [str(version_dictionary['major']), str(version_dictionary['minor']), str(version_dictionary['patch'])]
+    return version
 
 def results_from_files(dsg_file, task_yaml, clip_model, clustered, visualize=False, thresh=0.0):
     print(dsg_file)
@@ -15,9 +27,12 @@ def results_from_files(dsg_file, task_yaml, clip_model, clustered, visualize=Fal
         layer = sdsg.DsgLayers.OBJECTS
 
     dsg = sdsg.DynamicSceneGraph.load(dsg_file)
-    # print(dsg_file)
-    est_objects = eval_utils.get_objects_from_dsg(dsg, layer=layer)
-    # print(len(est_objects))
+    offset_to_lower_corner = False
+    version = ['' + i for i in get_dsg_version(dsg_file)]
+    print('dsg version: ', version)
+    if version == ['1', '0', '0']:
+        offset_to_lower_corner = True
+    est_objects = eval_utils.get_objects_from_dsg(dsg, offset_to_lower_corner, layer=layer)
     gt_data = eval_utils.GtData(task_yaml)
     if thresh > 0:
         est_objects = prune_objects(est_objects, clip_model, gt_data, thresh)
