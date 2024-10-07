@@ -35,13 +35,16 @@
     <arg name="print_missing" default="false" doc="have config utilities print all missing parameters when parsing configs"/>
     <arg name="launch_prefix" value="$(eval 'gdb -ex run --args' if debug else '')"/>
 
+    <arg name="run_task_server" default="true"/>
     <arg name="object_tasks" default="[]" doc="List of object tasks"/>
     <arg name="object_tasks_file" default="" doc="File to read object tasks from (preferred over object_tasks)"/>
     <arg name="place_tasks" default="[]" doc="List of place tasks"/>
     <arg name="place_tasks_file" default="" doc="File to read place tasks from (preferred over place_tasks)"/>
-    <arg name="run_task_server" default="true"/>
+    <arg name="verbose_task_server" default="false"/>
     <group if="$(arg run_task_server)">
-        <node pkg="clio_ros" type="task_server" name="task_server" output="screen">
+        <node pkg="clio_ros" type="task_server" name="task_server"
+              output="$(eval 'screen' if verbose_task_server else 'log')"
+              required="true">
             <param name="object_tasks_file" value="$(arg object_tasks_file)"/>
             <rosparam subst_value="true">{object_tasks: $(arg object_tasks)}</rosparam>
             <param name="place_tasks_file" value="$(arg place_tasks_file)"/>
@@ -64,6 +67,8 @@
         <param name="robot_frame" value="$(arg robot_frame)"/>
         <param name="map_frame" value="$(arg map_frame)"/>
         <!-- required clio settings -->
+        <rosparam>{features: {type: FeatureReceiver}}</rosparam>
+        <rosparam>{allow_plugins: true, paths: [khronos, khronos_ros, clio]}</rosparam>
         <rosparam ns="layer_id_map">{segments: s, objects: o, places: p, rooms: r}</rosparam>
         <rosparam ns="frontend/enable_mesh_objects">false</rosparam>
         <rosparam ns="frontend/graph_updater/layer_updates">{objects: {prefix: s, target_layer: 1}}</rosparam>

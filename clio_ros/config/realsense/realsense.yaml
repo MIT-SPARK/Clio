@@ -17,9 +17,6 @@ active_window:
   object_detector:
     min_cluster_size: 20  # pixels
     max_cluster_size: 50000  # pixels
-    use_full_connectivity: true
-    use_3d: true
-    grid_size: 0.1  # m
   tracker:
     semantic_association: assign_track   # 'assign_cluster', 'assign_track'
     min_semantic_iou: 0.4

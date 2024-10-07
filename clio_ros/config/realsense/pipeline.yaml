@@ -2,15 +2,9 @@
 ############################
 #  Pipeline Configuration  #
 ############################
-allow_plugins: true
-trace_plugin_allocations: true
-verbose_plugins: true
-paths: [khronos, khronos_ros, clio]
 exit_after_clock: $(arg exit_after_clock)
 log_path: $(arg log_path)
 enable_lcd: false
-features:
-  type: FeatureReceiver
 #############################
 #  Input Module Parameters  #
 #############################
