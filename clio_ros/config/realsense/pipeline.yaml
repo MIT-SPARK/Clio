@@ -32,8 +32,8 @@ input:
 active_window:
   type: ActiveWindow
   volumetric_map:
-    voxel_size: 0.15
-    truncation_distance: 0.35
+    voxel_size: 0.10
+    truncation_distance: 0.25
     voxels_per_side: 16
   object_detector:
     type: InstanceForwarding

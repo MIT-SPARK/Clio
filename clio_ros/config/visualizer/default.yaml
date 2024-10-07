@@ -23,7 +23,7 @@ config:
     marker_scale: 0.05
     marker_color_mode: NearestFeatureColor
     color_settings: {features: {ns: ~objects, silent_wait: false}, colormap: {palette: distinct150}}
-    use_bounding_box: true
+    use_bounding_box: false
     bounding_box_scale: 0.01
     interlayer_edge_scale: 0.01
     interlayer_edge_alpha: 0.0
@@ -37,7 +37,7 @@ config:
     color_settings: {features: {ns: ~objects, silent_wait: false}, colormap: {palette: distinct150}}
     use_label: true
     label_mode: NearestFeatureLabel
-    label_settings: {features: {ns: ~objects, silent_wait: true}, label_width: 10}
+    label_settings: {features: {ns: ~objects, silent_wait: true}, label_width: 20}
     label_scale: 0.25
     use_bounding_box: true
     bounding_box_scale: 0.03
@@ -51,7 +51,7 @@ config:
     # nodes
     marker_scale: 0.15
     marker_color_mode: NearestFeatureColor
-    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: distinct150}}
+    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: colorbrewer}}
     marker_alpha: 0.8
     use_sphere_marker: true
     # edges
@@ -68,7 +68,11 @@ config:
     visualize: true
     marker_scale: 0.20
     marker_color_mode: NearestFeatureColor
-    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: distinct150}}
+    color_settings: {features: {ns: ~places, silent_wait: false}, colormap: {palette: colorbrewer}}
+    use_label: true
+    label_mode: NearestFeatureLabel
+    label_settings: {features: {ns: ~places, silent_wait: true}, label_width: 20}
+    label_scale: 0.25
     interlayer_edge_scale: 0.01
     interlayer_edge_alpha: 0.4
   layer5:

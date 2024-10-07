@@ -2,7 +2,7 @@
 
 This repository contains the code for *Clio: Real-time Task-Driven Open-Set 3D Scene Graphs*.
 
-We have included both our real-time version of Clio (Clio-online) built primarily in C++ that processes incoming images+poses and constructs a task-relevant scene graph in real-time 
+We have included both our real-time version of Clio (Clio-online) built primarily in C++ that processes incoming images+poses and constructs a task-relevant scene graph in real-time
 and our offline version of Clio (Clio-batch) built in python.
 
 To run Clio on our datasets and metrics we provide evaluation scripts that can automatically run different configurations of Clio and baseline methods on the datasets.
@@ -71,8 +71,8 @@ to create a new bag, `apartment_with_semantics.bag` that contains the original c
 # Setup
 
 We recommend that everyone setup Clio by utilizing ROS.
-You can follow the instructions [here](http://wiki.ros.org/ROS/Installation) to install ROS if you haven't already.
-If you just want to install Clio-Batch and Clio-Eval and want to avoid installing ROS, you can skip to [these](#installing-without-ros) instructions instead.
+To install ROS, you can follow the instructions [here](http://wiki.ros.org/ROS/Installation) if you haven't already.
+If you want to avoid installing ROS and are only interested in processing pre-built scene graphs or evaluation, you can skip to [these](#installing-without-ros) instructions instead.
 
 ### Installing with ROS
 
@@ -80,7 +80,7 @@ If you just want to install Clio-Batch and Clio-Eval and want to avoid installin
 
 <summary><b>Initial Requirements</b></summary>
 
-Install the following general requirements via
+Install the following requirements
 ```
 sudo apt install python3-rosdep python3-catkin-tools python3-vcstool python3-virtualenv
 ```
@@ -97,13 +97,22 @@ rosdep update
 
 <summary><b>Getting and Building Clio</b></summary>
 
-To clone and build Clio, run the following
+To clone and build Clio, first set up your catkin workspace
 ```bash
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws
 catkin init
 catkin config -DCMAKE_BUILD_TYPE=Release
+catkin config --skiplist khronos_eval
+```
 
+> **Note**</br>
+> By default, one of Clio's dependencies, [semantic_inference](https://github.com/MIT-SPARK/semantic_inference.git), will attempt to build against NVIDIA TensorRT.
+> This is not required for Clio, and may cause issues when building if you already have CUDA set up on your system.
+> You may wish to disable this by running `catkin config -a -DSEMANTIC_INFERENCE_USE_TRT=OFF` before building.
+
+Then, clone the code and build
+```
 cd src
 git clone git@github.com:MIT-SPARK/Clio.git clio --recursive
 vcs import . < clio/install/clio.rosinstall
@@ -114,33 +123,41 @@ catkin build
 ```
 
 > **Note**</br>
-> For the rest of these instructions, we assume that you set up your catkin workspace at `~/catkin_ws/src`.
+> For the rest of these instructions, we assume that you set up your catkin workspace at `~/catkin_ws`.
 > If you used a different workspace path, you should substitute where appropriate.
 
 </details>
 
 <details open>
 
-<summary><b>Setting up Python Code</b></summary>
+<summary><b>Setting up Open-Set Segmentation</b></summary>
 
-Make a virtual environment
+Make a virtual environment and install
 ```bash
-python3 -m virtualenv --system-site-packages -p /usr/bin/python3 ~/environments/clio
+python3 -m virtualenv --system-site-packages -p /usr/bin/python3 ~/environments/clio_ros
+source ~/environments/clio_ros/bin/activate
+pip install ~/catkin_ws/src/semantic_inference/semantic_inference[openset]
+deactivate
 ```
-and then install
+
+> **Warning** :warning:</br>
+> `--system-site-packages` is required when creating the environment.
+
+</details>
+
+<details open>
+
+<summary><b>Setting up Clio Python Code</b></summary>
+
+Make a virtual environment and install
 ```bash
+python3 -m virtualenv --download -p /usr/bin/python3 ~/environments/clio
 source ~/environments/clio/bin/activate
 pip install -e ~/catkin_ws/src/clio
 ```
 
 > **Warning** :warning:</br>
-> Both `--system-site-packages` when creating the environment and `-e` when installing Clio are required.
-
-To run open-set segmentation, you'll also have to install `semantic_inference`
-```bash
-source ~/environments/clio/bin/activate  # if you haven't already
-pip install ~/catkin_ws/src/semantic_inference/semantic_inference[openset]
-```
+> A devel install (i.e., using `-e` when installing Clio) is required.
 
 </details>
 
@@ -216,33 +233,52 @@ If you already ran Clio-batch and have made these dsg files, the above code will
 
 # Running Clio-Online
 
-To run Clio-Online on one of the provided datasets (see [#Datasets] for more details), first appropriate source your catkin workspace and python environment
+To run Clio-Online on one of the provided [datasets](#datasets), first source your catkin workspace and python environment
 ```bash
 source ~/catkin_ws/devel/setup.bash
-source ~/environments/clio/bin/activate
+source ~/environments/clio_ros/bin/activate
 ```
 
-Then, start Clio
+In the following instructions, make sure to substitute the actual path to the datasets in place of `/path/to/datset`. Start Clio
 ```bash
-roslaunch clio_ros realsense.launch object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml
+roslaunch clio_ros realsense.launch \
+     object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml \
+     place_tasks_file:=/path/to/datasets/apartment/region_tasks_apartment.yaml
 ```
 If you want to use pre-generated segmentations and semantics instead, you can start Clio-Online with the following
 ```bash
-roslaunch clio_ros realsense.launch run_segmentation:=false object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml
+roslaunch clio_ros realsense.launch run_segmentation:=false \
+     object_tasks_file:=/path/to/datasets/apartment/tasks_apartment.yaml \
+     place_tasks_file:=/path/to/datasets/apartment/region_tasks_apartment.yaml
 ```
+
+> **Note**</br>
+> Regardless of the `run_segmentation` setting, you should wait until Clio finishes initializing before starting the rosbag. You should see roughly this before proceeding:
+> ```
+> ...
+> [INFO] [1728321782.786728, 0.000000]: '/semantic_inference': finished initializing!
+> I1007 17:23:03.652261 3390159 ros_embedding_group.cpp:70] Got embeddings from '/task_server/objects'!
+> I1007 17:23:03.654877 3390159 ros_embedding_group.cpp:47] Waiting for embeddings on '/task_server/places'
+> I1007 17:23:03.857106 3390159 ros_embedding_group.cpp:70] Got embeddings from '/task_server/places'!
+> I1007 17:23:04.047123 3390159 input_module.cpp:76] [Hydra Input] started!
+> I1007 17:23:04.047190 3390159 active_window_module.cpp:72] [Active Window] started!
+> I1007 17:23:04.047272 3390159 backend_module.cpp:134] [Hydra Backend] started!
+> I1007 17:23:04.048808 3390159 graph_builder.cpp:175] [Hydra Frontend] started!
+> [ INFO] [1728321784.049510656]: Running...
+> ```
 
 In a separate terminal, start the corresponding rosbag for the scene. For the apartment
 ```bash
-rosbag play /path/to/datasets/apartment/apartment.bag --clock
+rosbag play path/to/datasets/apartment/apartment.bag --clock
 ```
 
 ### Running the Full Evaluation
 
 To run evaluations on the online results, we provide code to automatically evaluate up to all three (office, apartment, cubicle) results by running:
 ```bash
-python clio_eval/experiments/evaluate_ablations.py --config clio_eval/experiments/configs/ablations/realtime_clustering.yaml 
+python clio_eval/experiments/evaluate_ablations.py --config clio_eval/experiments/configs/ablations/realtime_clustering.yaml
 ```
-Set the paths to your task yaml files and folder containing the runs of Clio-online in realtime_clustering.yaml. 
+Set the paths to your task yaml files and folder containing the runs of Clio-online in realtime_clustering.yaml.
 
 # Paper
 If you find this useful for your research, please consider citing our paper:
