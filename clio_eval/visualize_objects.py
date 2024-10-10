@@ -20,7 +20,14 @@ def main():
     layer = sdsg.DsgLayers.OBJECTS
 
     dsg = sdsg.DynamicSceneGraph.load(args.dsg_file)
-    est_objects = eval_utils.get_objects_from_dsg(dsg, layer=layer)
+
+    offset_to_lower_corner = False
+    version = ['' + i for i in eval_helpers.get_dsg_version(args.dsg_file)]
+    print('dsg version: ', version)
+    if version == ['1', '0', '0']:
+        offset_to_lower_corner = True
+    est_objects = eval_utils.get_objects_from_dsg(dsg, offset_to_lower_corner, layer=layer)
+
     print("num objects: ", len(est_objects))
 
     # colors to visualize estimated and ground truth bounding boxes
@@ -49,3 +56,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
