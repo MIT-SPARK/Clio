@@ -283,6 +283,15 @@ python clio_eval/visualize_objects.py clio_dsg.json ~/clio_datasets/cubicle/task
 
 # Evaluation
 
+> **Note**</br>
+> To prepare Clio's codebase for release, we updated the versions of Hydra and Khronos that Clio is integrated with and changed how we integrated these codebases.
+> An unintended consequence of these changes is that the performance of the real-time version of Clio has decreased compared to the results reported in our paper; this stems from what we believe is a bug associated with the  reconstructed object primitives produced by Khronos.
+> For a more complete discussion of the problem, please see [this issue](https://github.com/MIT-SPARK/Clio/issues/8).
+> We are actively working on isolating the root cause of the issue.
+> In the meantime, we've temporarily released a snapshot of the code used to generate the results in our paper [here](https://www.dropbox.com/scl/fi/q4ws6wnh5z9l1jdxztbf9/clio_ws.zip?rlkey=cgjrob8ddkyhof0rosizw7jmw&st=thdh8o5m&dl=0), which includes instructions for how to build and run this version of the code.
+> If you plan on including results in a paper that require building new scene graphs with Clio, we politely request that you use this earlier version of Clio for now if possible.
+> Please feel free to reach out if you have any questions!
+
 We have included some of the evaluation code used to generate the results in our [paper](http://arxiv.org/abs/2404.13696).
 In our paper, we refer to results obtained using the offline version of Clio (see [here](#clustering-pre-built-scene-graphs)) as *Clio-batch*, while the real-time ROS pipline (see [here](#running-clio)) is referred to as *Clio-online*.
 We adopt this terminology here to make it easier to refer to the paper results.
