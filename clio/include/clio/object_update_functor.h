@@ -67,9 +67,9 @@ class ObjectUpdateFunctor : public hydra::UpdateFunctor {
 
   explicit ObjectUpdateFunctor(const Config& config);
 
-  hydra::MergeList call(const spark_dsg::DynamicSceneGraph& unmerged,
-                        hydra::SharedDsgInfo& dsg,
-                        const hydra::UpdateInfo::ConstPtr& info) const override;
+  void call(const spark_dsg::DynamicSceneGraph& unmerged,
+            hydra::SharedDsgInfo& dsg,
+            const hydra::UpdateInfo::ConstPtr& info) const override;
 
   std::set<size_t> addSegmentEdges(spark_dsg::DynamicSceneGraph& graph) const;
 

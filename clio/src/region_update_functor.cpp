@@ -17,7 +17,6 @@ static const auto functor_reg =
 
 }  // namespace
 
-using hydra::MergeList;
 using hydra::timing::ScopedTimer;
 using namespace spark_dsg;
 
@@ -34,9 +33,9 @@ RegionUpdateFunctor::RegionUpdateFunctor(const Config& config)
       region_id_('l', 0),
       clustering_(config.clustering) {}
 
-MergeList RegionUpdateFunctor::call(const DynamicSceneGraph&,
-                                    hydra::SharedDsgInfo& dsg,
-                                    const hydra::UpdateInfo::ConstPtr& info) const {
+void RegionUpdateFunctor::call(const DynamicSceneGraph&,
+                               hydra::SharedDsgInfo& dsg,
+                               const hydra::UpdateInfo::ConstPtr& info) const {
   ScopedTimer timer("backend/region_clustering", info->timestamp_ns);
 
   // TODO(nathan) cache this computation
@@ -53,12 +52,11 @@ MergeList RegionUpdateFunctor::call(const DynamicSceneGraph&,
 
   if (valid_features.empty()) {
     VLOG(2) << "Need to have at least one valid place feature";
-    return {};
+    return;
   }
 
   const auto clusters = clustering_.cluster(places, valid_features);
   updateGraphBatch(*dsg.graph, clusters);
-  return {};
 }
 
 void RegionUpdateFunctor::updateGraphBatch(DynamicSceneGraph& graph,

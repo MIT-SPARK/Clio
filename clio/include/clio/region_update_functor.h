@@ -12,9 +12,9 @@ struct RegionUpdateFunctor : public hydra::UpdateFunctor {
 
   explicit RegionUpdateFunctor(const Config& config);
 
-  hydra::MergeList call(const spark_dsg::DynamicSceneGraph& unmmerged,
-                        hydra::SharedDsgInfo& dsg,
-                        const hydra::UpdateInfo::ConstPtr& info) const override;
+  void call(const spark_dsg::DynamicSceneGraph& unmmerged,
+            hydra::SharedDsgInfo& dsg,
+            const hydra::UpdateInfo::ConstPtr& info) const override;
 
   void updateGraphBatch(spark_dsg::DynamicSceneGraph& graph,
                         const std::vector<Cluster::Ptr>& clusters) const;

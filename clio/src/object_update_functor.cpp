@@ -28,7 +28,6 @@ static const auto functor_reg =
 }  // namespace
 
 using config::VirtualConfig;
-using hydra::MergeList;
 using hydra::timing::ScopedTimer;
 using namespace spark_dsg;
 
@@ -120,9 +119,9 @@ ObjectUpdateFunctor::ObjectUpdateFunctor(const Config& config)
       metric_(config.metric.create()),
       next_node_id_(config.prefix, 0) {}
 
-MergeList ObjectUpdateFunctor::call(const DynamicSceneGraph&,
-                                    hydra::SharedDsgInfo& dsg,
-                                    const hydra::UpdateInfo::ConstPtr& info) const {
+void ObjectUpdateFunctor::call(const DynamicSceneGraph&,
+                               hydra::SharedDsgInfo& dsg,
+                               const hydra::UpdateInfo::ConstPtr& info) const {
   ScopedTimer timer("backend/object_clustering", info->timestamp_ns);
   auto& graph = *dsg.graph;
 
@@ -134,8 +133,6 @@ MergeList ObjectUpdateFunctor::call(const DynamicSceneGraph&,
   clearActiveComponents(graph, active_components);
   // construct new components and cluster into objects
   detectObjects(graph);
-  // we never have explict merges (clustering takes care of them)
-  return {};
 }
 
 void ObjectUpdateFunctor::clearActiveComponents(DynamicSceneGraph& graph,
