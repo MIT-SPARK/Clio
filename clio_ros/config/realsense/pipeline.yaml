@@ -48,8 +48,6 @@ active_window:
     type: MeshObjectExtractor
     projective_integrator:
       num_threads: 2
-      semantic_integrator:
-        type: BinarySemanticIntegrator
 #########################
 #  Frontend Parameters  #
 #########################
