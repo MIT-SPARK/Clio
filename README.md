@@ -8,6 +8,7 @@ Clio is a novel approach for building task-driven 3D scene graphs in real-time w
 
 # Table of Contents
 * [Paper](#Paper)
+* [News](#News)
 * [Setup](#Setup)
 * [Datasets](#Datasets)
 * [Running Clio](#running-clio)
@@ -31,6 +32,12 @@ If you find this useful for your research, please consider citing our paper:
     doi={10.1109/LRA.2024.3451395}
 }
 ```
+
+# News
+
+- **[Bayesian Fields](https://arxiv.org/abs/2503.05949)** [Video](https://www.youtube.com/watch?v=DLBHpUP_-dk) – follow-up paper released showing improved results on the Clio datasets using better statistical understanding of CLIP and handling multi-view semantic measurements. Bayesian Fields also shows task-driven clustering with Gaussian Splatting.
+- **[Ashita](https://arxiv.org/abs/2504.06553)** – follow-up paper released showing an LLM assisted task-driven reasoning framework that can use higher-level tasks and construct a 3D scene graph for all subtasks. 
+- Clio work was featured on the front page of **[MIT News](https://news.mit.edu/2024/helping-robots-focus-on-objects-that-matter-0930)** 🎉
 
 # Setup
 
